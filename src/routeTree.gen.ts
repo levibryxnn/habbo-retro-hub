@@ -12,6 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as EventosRouteImport } from './routes/eventos'
+import { Route as ForumIndexRouteImport } from './routes/forum.index'
+import { Route as ForumSlugRouteImport } from './routes/forum.$slug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,35 +30,53 @@ const EventosRoute = EventosRouteImport.update({
   path: '/eventos',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ForumIndexRoute = ForumIndexRouteImport.update({
+  id: '/forum/',
+  path: '/forum/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForumSlugRoute = ForumSlugRouteImport.update({
+  id: '/forum/$slug',
+  path: '/forum/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
   '/eventos': typeof EventosRoute
+  '/forum/$slug': typeof ForumSlugRoute
+  '/forum/': typeof ForumIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
   '/eventos': typeof EventosRoute
+  '/forum/$slug': typeof ForumSlugRoute
+  '/forum': typeof ForumIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
   '/eventos': typeof EventosRoute
+  '/forum/$slug': typeof ForumSlugRoute
+  '/forum/': typeof ForumIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/entrar' | '/eventos'
+  fullPaths: '/' | '/entrar' | '/eventos' | '/forum/$slug' | '/forum/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/entrar' | '/eventos'
-  id: '__root__' | '/' | '/entrar' | '/eventos'
+  to: '/' | '/entrar' | '/eventos' | '/forum/$slug' | '/forum'
+  id: '__root__' | '/' | '/entrar' | '/eventos' | '/forum/$slug' | '/forum/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EntrarRoute: typeof EntrarRoute
   EventosRoute: typeof EventosRoute
+  ForumSlugRoute: typeof ForumSlugRoute
+  ForumIndexRoute: typeof ForumIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +102,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/forum/': {
+      id: '/forum/'
+      path: '/forum'
+      fullPath: '/forum/'
+      preLoaderRoute: typeof ForumIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forum/$slug': {
+      id: '/forum/$slug'
+      path: '/forum/$slug'
+      fullPath: '/forum/$slug'
+      preLoaderRoute: typeof ForumSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +123,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EntrarRoute: EntrarRoute,
   EventosRoute: EventosRoute,
+  ForumSlugRoute: ForumSlugRoute,
+  ForumIndexRoute: ForumIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
