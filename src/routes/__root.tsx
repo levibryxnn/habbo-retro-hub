@@ -11,22 +11,25 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { Header } from "@/components/habbo/Header";
+import { Sidebar } from "@/components/habbo/Sidebar";
+import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
+    <div className="flex min-h-[60vh] items-center justify-center px-4">
+      <div className="pixel-panel max-w-md p-6 text-center">
+        <h1 className="text-3xl">404</h1>
+        <h2 className="mt-4 text-sm">Quarto não encontrado</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+          Essa página saiu do hotel ou nunca existiu.
         </p>
         <div className="mt-6">
           <Link
             to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="font-pixel inline-flex rounded-sm border-2 border-border-strong bg-primary px-3 py-2 text-[0.65rem] text-primary-foreground"
           >
-            Go home
+            Voltar ao início
           </Link>
         </div>
       </div>
@@ -42,13 +45,11 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   }, [error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
-        </h1>
+    <div className="flex min-h-[60vh] items-center justify-center px-4">
+      <div className="pixel-panel max-w-md p-6 text-center">
+        <h1 className="text-sm">Deu ruim no hotel</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          Algo falhou por aqui. Tente recarregar a página.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -56,15 +57,15 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="font-pixel rounded-sm border-2 border-border-strong bg-primary px-3 py-2 text-[0.65rem] text-primary-foreground"
           >
-            Try again
+            Tentar de novo
           </button>
           <a
             href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            className="font-pixel rounded-sm border-2 border-border-strong bg-muted px-3 py-2 text-[0.65rem]"
           >
-            Go home
+            Início
           </a>
         </div>
       </div>
@@ -77,19 +78,22 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Bobba Fansite — Fã-site do Habbo Hotel" },
+      {
+        name: "description",
+        content:
+          "Fã-site do Habbo Hotel com rádio ao vivo, fórum, notícias, eventos e validação de nick pela missão.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: appCss,
+        href: "https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Ubuntu:wght@400;500;700&display=swap",
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
@@ -102,7 +106,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="pt-BR">
       <head>
         <HeadContent />
       </head>
@@ -119,8 +123,22 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <div className="flex min-h-screen flex-col">
+        <Header />
+        <div className="mx-auto grid w-full max-w-6xl flex-1 gap-4 px-4 py-6 lg:grid-cols-[1fr_300px]">
+          <main className="min-w-0 space-y-4">
+            <Outlet />
+          </main>
+          <Sidebar />
+        </div>
+        <footer className="border-t-2 border-border-strong bg-card">
+          <div className="mx-auto max-w-6xl px-4 py-4 text-xs text-muted-foreground">
+            Bobba Fansite é um fã-site independente. Habbo e Habbo Hotel são marcas da Sulake
+            Corporation Oy.
+          </div>
+        </footer>
+      </div>
+      <Toaster />
     </QueryClientProvider>
   );
 }
