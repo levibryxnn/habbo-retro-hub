@@ -57,4 +57,8 @@ jobs:
           grep -q "Negociar compra" /tmp/app.js
           grep -q "torcedores" /tmp/app.js
           grep -q "Neo Química Arena" /tmp/app.js
-          echo "JavaScript and CSS assets loaded and club economy + transfer market v0.8 was detected."
+          grep -q "Lateral Direito" /tmp/app.js
+          grep -q "Lateral Esquerdo" /tmp/app.js
+          grep -q "Meia Ofensivo" /tmp/app.js
+          grep -q "ETAPA 2 · v0.8.1" /tmp/app.js
+          echo "JavaScript and CSS assets loaded and visual polish + Portuguese positions v0.8.1 was detected."
