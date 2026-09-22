@@ -77,3 +77,22 @@ O repositório possui workflow de CI em `.github/workflows/validate.yml`, execut
 - `npm run build`
 
 Os testes cobrem integridade dos dados, calendário de 38 rodadas, temporada completa, campeão/troféu automático, patrocínios, recordes e presença das seis áreas da interface.
+
+## Preview público e desenvolvimento local
+
+Preview funcional atual: **https://linha-de-frente.lovable.app**
+
+A aplicação não depende mais do runtime ou do Vite do Lovable: o código usa React + Vite puro, com `base: './'`, portanto o mesmo build pode ser servido por qualquer hospedagem estática.
+
+Para testar no computador:
+
+```sh
+npm ci
+npm run dev
+```
+
+Abra `http://localhost:8080`.
+
+O GitHub Actions valida automaticamente testes e build e gera o artefato `linha-de-frente-preview`. Há também um smoke test externo que acessa a URL pública, exige HTTP 200 e confirma o carregamento dos assets do jogo.
+
+Para um domínio próprio no futuro, basta conectar este mesmo repositório a uma hospedagem estática como Vercel, Cloudflare Pages ou Netlify e apontar o DNS; não será necessário reescrever o jogo.
