@@ -1,4 +1,4 @@
-# Linha de Frente — Etapa 2 · v0.7
+# Linha de Frente — Etapa 2 · v0.8
 
 Simulador de gerenciamento de clubes em desenvolvimento. A Etapa 2 conecta uma temporada funcional da Série A a partidas, classificação, artilharia, patrocínios, caixa, troféus e histórico do save.
 
@@ -67,7 +67,7 @@ Em telas de até 850 px, a navegação usa uma grade de 3 colunas para manter to
 
 ## Ainda não implementado
 
-Mercado de transferências, calendário visual, táticas/escalação com impacto na engine, lesões, Copa do Brasil, Libertadores, Sul-Americana e Mundial jogável.
+Calendário visual completo, categorias de base funcionais, negociação com clubes de fora do Brasil, Copa do Brasil, Libertadores, Sul-Americana e Mundial jogável.
 
 ## Qualidade
 
@@ -118,3 +118,26 @@ Durante uma rodada em andamento, o componente de simulação permanece montado m
 - **IA adversária:** clubes controlados pela máquina reagem a cansaço, cartões e lesões e utilizam o banco.
 - **Pênalti interativo:** nos modos Normal e Rápido, um pênalti do clube do usuário pausa o relógio e permite escolher o cobrador entre os jogadores em campo. A chance considera atributo de pênalti, compostura e capacidade do goleiro.
 - **Modo Instantânea:** todas as decisões, inclusive escalação, substituições e pênaltis, são assumidas automaticamente pela IA.
+
+
+## v0.8 · clubes, estádios e mercado
+
+- **Identidade por clube:** a interface muda dinamicamente de acordo com as cores do clube selecionado.
+- **Estádios reais:** cada mandante usa seu estádio cadastrado; a tela de partida exibe estádio, público e receita bruta estimada.
+- **Matchday:** público é projetado por capacidade, força de torcida, rivalidade e momento da temporada. A parcela do clube entra no caixa quando a rodada é encerrada.
+- **Economia inicial:** cada clube recebe um orçamento de gameplay diferente, calibrado por escala financeira, receita e estrutura. Esses valores não representam saldo bancário ou orçamento oficial publicado.
+- **Patrocínios:** nove marcas fictícias com símbolos, níveis, pagamentos diferentes e requisitos cumulativos. As propostas mais valiosas exigem reputação, posição e/ou vitórias maiores.
+- **Transferências:** compra, venda, empréstimo, saída por empréstimo e troca de jogadores são funcionais. A IA aceita, recusa ou envia contraproposta.
+- **Rivalidades:** negociações entre rivais históricos recebem resistência adicional, especialmente por jogadores considerados estrelas.
+- **Empréstimos:** taxa, percentual salarial, duração até o fim da temporada e opção de compra. O jogo impede venda/troca/subempréstimo pelo clube que apenas recebeu o atleta emprestado.
+- **Elencos dinâmicos:** uma negociação concluída muda o jogador de clube no próprio save e essa mudança chega à escalação e à engine de partidas.
+- **Folha de novos contratos:** salários estimados de compras e percentuais salariais de empréstimos geram pagamentos periódicos no caixa.
+- **Escudos:** Rodada ao Vivo e Histórico de Partidas exibem os escudos dos dois clubes.
+
+### Referências financeiras e de mercado
+
+As receitas e avaliações de clubes usadas para calibrar escala econômica partem de estudos públicos recentes, principalmente Sports Value 2025 e balanços divulgados por clubes/imprensa. Valores de elenco em euro usam referências Transfermarkt 2026.
+
+Nem todos os 941 atletas do snapshot ESPN possuem correspondência individual confiável carregada. Quando existe valor individual confirmado no dataset do jogo ele é usado diretamente; nos demais casos, o simulador distribui a referência real de valor total do elenco por idade, posição e rating interno. A interface identifica esse caso como **estimativa derivada da referência do elenco**.
+
+Orçamento inicial, salário estimado, preço de ingresso, receita líquida de matchday e exigências de negociação são **modelagens de gameplay**, não demonstrações financeiras oficiais.
