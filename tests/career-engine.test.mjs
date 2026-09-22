@@ -120,5 +120,5 @@ test('sponsors enforce requirements and can add immediate cash',function(){
   assert.equal(requirementStatus(vertice,context).ok,true);
   const signed=signSponsor(career,'vertice',clubs[0],[]);
   assert.equal(signed.error,null);
-  assert.ok(signed.career.cash>INITIAL_CASH);
+  assert.ok(signed.career.cash>career.cash);
 });
