@@ -43,8 +43,10 @@ test('transfer market renderer and club theme are connected to the app shell', f
 });
 
 
-test('match background uses one static optimized stadium image instead of the old SVG scene', function(){
-  assert.ok(match.includes('stadium-sideline-bg.webp'));
+test('match background uses dedicated responsive stadium images instead of the old SVG scene', function(){
+  assert.ok(match.includes('stadium-sideline-desktop.webp'));
+  assert.ok(match.includes('stadium-sideline-mobile.webp'));
+  assert.ok(match.includes('<picture className="sideline-picture"'));
   assert.ok(!match.includes('<svg className="sideline-field"'));
   assert.ok(!match.includes('function PlayerDot'));
 });
