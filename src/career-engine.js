@@ -2,6 +2,7 @@ import { applyMatchdayIncome, applySponsorPayments, expireSeasonSponsors, initia
 import { worldRecordMessage } from './records-data.js';
 import { matchdayProjection } from './club-world.js';
 import { applyTransferPayroll } from './transfer-engine.js';
+import { positionGroup } from './position-labels.js';
 import {
   autoLineup,
   currentBench,
@@ -56,9 +57,9 @@ function weightedPlayer(club,lineupIds,rng){
   if(!players.length)return{id:'fallback-'+(club?.id||'club'),name:'Jogador do '+(club?.abbreviation||'clube'),position:'Midfielder'};
   const weights=players.map(function(player){
     const stats=playerGameStats(player);
-    if(player.position==='Forward'||player.position==='Attacker')return 4.8+stats.shooting/30;
-    if(player.position==='Midfielder')return 2.5+stats.passing/45;
-    if(player.position==='Defender')return .65;
+    if(positionGroup(player.position)==='ATA')return 4.8+stats.shooting/30;
+    if(positionGroup(player.position)==='MEI')return 2.5+stats.passing/45;
+    if(positionGroup(player.position)==='DEF')return .65;
     return .04;
   });
   const total=weights.reduce((a,b)=>a+b,0);
@@ -73,7 +74,7 @@ function bestPenaltyTaker(club,lineupIds){
   })[0]||null;
 }
 function goalkeeperOnField(club,lineupIds){
-  return lineupPlayers(club,lineupIds).find(p=>p.position==='Goalkeeper')||lineupPlayers(club,lineupIds)[0]||null;
+  return lineupPlayers(club,lineupIds).find(p=>positionGroup(p.position)==='GOL')||lineupPlayers(club,lineupIds)[0]||null;
 }
 function makeEvent(side,type,second,club,player,index,extra){
   const minute=Math.max(1,Math.floor(second/60));
@@ -275,7 +276,7 @@ function applyAiManagement(result,home,away,career,interactiveClubId,rng){
       next.events.push(makeEvent(side,'substitution',second+1,club,incoming,'ai-'+sub.id,{outPlayerId:String(outgoing.id),outPlayer:outgoing.name}));
       const stats=playerGameStats(incoming),score=scoreAtSecond(next,second),gf=side==='home'?score.home:score.away,ga=side==='home'?score.away:score.home;
       const impact=clamp(.02,.25,.04+Math.max(0,stats.shooting-67)*.004+(minute>=70?.04:0)+(gf<=ga?.035:0));
-      if((incoming.position==='Forward'||incoming.position==='Attacker'||incoming.position==='Midfielder')&&rng()<impact){
+      if((['ATA','MEI'].includes(positionGroup(incoming.position)))&&rng()<impact){
         const future=Math.min(next.durationSecond-20,second+180+Math.floor(rng()*480));
         if(future>second+20)next.events.push(makeEvent(side,'goal',future,club,incoming,'ai-impact-'+sub.id,{substitutionImpact:true}));
       }
@@ -540,7 +541,7 @@ export function makeUserSubstitution(career,clubs,outPlayerId,inPlayerId,second,
   events.push(makeEvent(side,'substitution',second+1,club,incoming,'sub-'+substitutions.length,{outPlayerId:String(out.id),outPlayer:out.name,halftime}));
   const minute=Math.floor(second/60),inStats=playerGameStats(incoming),outRating=effectivePlayerRating(out,career,club.id,minute,false),inRating=effectivePlayerRating(incoming,career,club.id,minute,true);
   const score=scoreAtSecond({...match,events},second),userHome=side==='home',gf=userHome?score.home:score.away,ga=userHome?score.away:score.home;
-  const attacking=incoming.position==='Forward'||incoming.position==='Attacker'||incoming.position==='Midfielder';
+  const attacking=['ATA','MEI'].includes(positionGroup(incoming.position));
   const freshEdge=inRating-outRating;
   const impactChance=clamp(.02,.34,.055+Math.max(0,freshEdge)*.009+Math.max(0,inStats.shooting-67)*.004+(minute>=70?.045:0)+(gf<=ga?.035:0));
   const roll=deterministicRoll(match.id+'|sub-impact|'+sub.id);
