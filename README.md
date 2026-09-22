@@ -162,3 +162,14 @@ Orçamento inicial, salário estimado, preço de ingresso, receita líquida de m
 - Foram removidos o zoom lateral de 145% e o deslocamento negativo que comprimiam/cortavam o cenário em telas estreitas.
 - O placar é redimensionado no celular para ocupar a área superior sem esconder a ação no campo.
 - As imagens são WebP otimizadas e continuam estáticas para manter a simulação leve.
+
+
+## v0.8.4 · mercado sob demanda
+
+- A página de transferências não renderiza mais centenas de jogadores ao ser aberta.
+- A busca agora possui quatro filtros independentes e combináveis: **Nome**, **Posição**, **Nacionalidade** e **Clube**.
+- Qualquer filtro pode ser usado sozinho. Combinações tornam a pesquisa progressivamente mais específica.
+- Os resultados só são montados depois de clicar em **Buscar**.
+- Para preservar desempenho em celulares e computadores modestos, os resultados aparecem em lotes de 24 cards com carregamento adicional sob demanda.
+- A busca por nome ignora acentos e aceita parte do nome.
+- Posições são exibidas em português e nacionalidades são apresentadas em português quando o código do país está disponível.
