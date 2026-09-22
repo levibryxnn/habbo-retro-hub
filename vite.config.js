@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from '@lovable.dev/lovite';
 
 export default defineConfig({
   server: {
