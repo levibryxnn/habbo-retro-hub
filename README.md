@@ -54,14 +54,15 @@ A lógica antiga de laboratório de partidas e patrocínios foi removida para ev
 
 ## Navegação
 
-As seis áreas da carreira são:
+As sete áreas da carreira são:
 
 1. Partida
 2. Elenco
 3. Classificação
-4. Troféus
-5. Patrocínios
-6. História
+4. Transferências
+5. Troféus
+6. Patrocínios
+7. História
 
 Em telas de até 850 px, a navegação usa uma grade de 3 colunas para manter todas as áreas visíveis sem depender de uma barra horizontal escondida.
 
@@ -77,7 +78,7 @@ O repositório possui workflow de CI em `.github/workflows/validate.yml`, execut
 - `npm test`
 - `npm run build`
 
-Os testes cobrem integridade dos dados, calendário de 38 rodadas, temporada completa, campeão/troféu automático, patrocínios, recordes e presença das seis áreas da interface.
+Os testes cobrem integridade dos dados, calendário de 38 rodadas, temporada completa, campeão/troféu automático, patrocínios, recordes e presença das sete áreas da interface.
 
 ## Preview público e desenvolvimento local
 
@@ -122,7 +123,7 @@ Durante uma rodada em andamento, o componente de simulação permanece montado m
 
 ## v0.8 · clubes, estádios e mercado
 
-- **Identidade por clube:** a interface muda dinamicamente de acordo com as cores do clube selecionado.
+- **Identidade por clube:** as cores do clube são aplicadas somente ao cabeçalho do clube, preservando uma interface neutra e consistente nas áreas funcionais.
 - **Estádios reais:** cada mandante usa seu estádio cadastrado; a tela de partida exibe estádio, público e receita bruta estimada.
 - **Matchday:** público é projetado por capacidade, força de torcida, rivalidade e momento da temporada. A parcela do clube entra no caixa quando a rodada é encerrada.
 - **Economia inicial:** cada clube recebe um orçamento de gameplay diferente, calibrado por escala financeira, receita e estrutura. Esses valores não representam saldo bancário ou orçamento oficial publicado.
@@ -141,3 +142,14 @@ As receitas e avaliações de clubes usadas para calibrar escala econômica part
 Nem todos os 941 atletas do snapshot ESPN possuem correspondência individual confiável carregada. Quando existe valor individual confirmado no dataset do jogo ele é usado diretamente; nos demais casos, o simulador distribui a referência real de valor total do elenco por idade, posição e rating interno. A interface identifica esse caso como **estimativa derivada da referência do elenco**.
 
 Orçamento inicial, salário estimado, preço de ingresso, receita líquida de matchday e exigências de negociação são **modelagens de gameplay**, não demonstrações financeiras oficiais.
+
+
+## v0.8.2 · estabilidade e desempenho
+
+- **Simulador mais leve:** o antigo cenário SVG, composto por dezenas de elementos React/SVG, foi substituído por uma única imagem WebP otimizada da visão da área técnica.
+- **Engine em segundo plano sem UI pesada:** durante uma rodada, o componente continua montado para manter o relógio e as decisões, mas deixa de renderizar toda a interface da partida quando o usuário navega para outra área.
+- **Mercado paginado:** a listagem deixa de criar até 180 cards simultaneamente; carrega 36 jogadores por vez e expande sob demanda.
+- **Escudos:** imagens pequenas usam lazy loading e decodificação assíncrona; escudos grandes e imediatamente visíveis continuam prioritários.
+- **Tema simplificado:** a identidade de cor do clube fica restrita ao bloco do escudo/nome. Mercado, partida, classificação, navegação e controles voltaram a usar a paleta neutra do jogo.
+- **Limpeza:** imports sem uso e o workflow automático de lockfile foram removidos. O lockfile continua versionado e é validado por `npm ci`.
+- **Preservado:** dados, testes, scripts de atualização, documentação e imagens de documentação foram mantidos porque não entram no bundle de produção ou continuam úteis para manutenção.
