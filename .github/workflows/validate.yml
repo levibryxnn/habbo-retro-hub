@@ -27,3 +27,9 @@ jobs:
         run: npm test
       - name: Build production app
         run: npm run build
+      - name: Upload preview build
+        uses: actions/upload-artifact@v4
+        with:
+          name: linha-de-frente-preview
+          path: dist
+          retention-days: 7
