@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ArrowDown, ArrowLeft, ArrowRight, Check, ChevronRight, CircleHelp, CirclePlay, Flag, Handshake, Medal, Search, Shield, SlidersHorizontal, Table2, Trophy, Users, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowLeftRight, ArrowRight, Check, ChevronRight, CircleHelp, CirclePlay, Flag, Handshake, Medal, Search, Shield, SlidersHorizontal, Table2, Trophy, Users, X } from 'lucide-react';
 import data from './data/serie-a-2026.json';
 import '@fontsource-variable/dm-sans/index.css';
 import '@fontsource/barlow-condensed/600.css';
@@ -10,6 +10,9 @@ import Management from './Management';
 import LeagueTable from './LeagueTable';
 import MatchSimulation from './MatchSimulation';
 import Legacy from './Legacy';
+import TransferMarket from './TransferMarket';
+import { applyCareerRoster } from './transfer-engine.js';
+import { clubThemeStyle } from './club-world.js';
 import { CAREER_KEY, createCareer, sanitizeCareer, standingsFromResults } from './career-engine';
 
 const groups = { Goalkeeper: 'GOL', Defender: 'DEF', Midfielder: 'MEI', Forward: 'ATA', Attacker: 'ATA' };
@@ -41,11 +44,14 @@ function App() {
   const [dialog,setDialog]=useState(null);
   const [storageError,setStorageError]=useState(false);
   const [mobileSquad,setMobileSquad]=useState(false);
-  const club=data.clubs.find(c=>c.id===selected)||data.clubs[0];
-  const savedClub=data.clubs.find(c=>c.id===saved);
-  const career=useMemo(()=>sanitizeCareer(careers[club.id],data.clubs,club.id),[careers,club.id]);
-  const careerStandings=useMemo(()=>standingsFromResults(career.results,data.clubs),[career.results]);
-  const clubs=data.clubs.filter(c=>normalize(c.name+' '+c.abbreviation).includes(normalize(clubSearch)));
+  const baseClub=data.clubs.find(c=>c.id===selected)||data.clubs[0];
+  const rawCareer=careers[baseClub.id];
+  const careerClubs=useMemo(()=>applyCareerRoster(data.clubs,rawCareer||{season:data.season,round:0}),[rawCareer,baseClub.id]);
+  const club=careerClubs.find(c=>c.id===selected)||careerClubs[0];
+  const savedClub=careerClubs.find(c=>c.id===saved);
+  const career=useMemo(()=>sanitizeCareer(rawCareer,careerClubs,club.id),[rawCareer,careerClubs,club.id]);
+  const careerStandings=useMemo(()=>standingsFromResults(career.results,careerClubs),[career.results,careerClubs]);
+  const clubs=careerClubs.filter(c=>normalize(c.name+' '+c.abbreviation).includes(normalize(clubSearch)));
   const counts=Object.fromEntries(['GOL','DEF','MEI','ATA','NI'].map(k=>[k,club.players.filter(p=>position(p)===k).length]));
   const ages=club.players.map(age).filter(a=>a!==null);
   const meanAge=ages.length ? (ages.reduce((a,b)=>a+b,0)/ages.length).toLocaleString('pt-BR',{maximumFractionDigits:1}):'—';
@@ -64,7 +70,7 @@ function App() {
   }
   function confirmClub() {
     setSaved(club.id);
-    const current=careers[club.id]||createCareer(data.clubs,club.id);
+    const current=careers[club.id]||createCareer(careerClubs,club.id);
     const next={...careers,[club.id]:current};
     setCareers(next);
     try {
@@ -75,8 +81,8 @@ function App() {
     } catch {setStorageError(true);setCareerStorageError(true);}
     setDialog('confirmed');
   }
-  return <>
-    <header className="topbar"><a href="#" className="brand" aria-label="Linha de Frente, início"><span className="brand-symbol">L<span>F</span></span><span>LINHA DE<br/>FRENTE<span className="brand-small">FOOTBALL MANAGER</span></span></a><div className="top-context"><span className="top-divider"/><span>Uma nova história começa aqui.</span></div><div className="top-right"><span className="version"><i/> ETAPA 2 · v0.7</span><button className="help" onClick={()=>setDialog('data')} aria-label="Sobre os dados"><CircleHelp size={20}/></button></div></header>
+  return <div className="app-shell" style={clubThemeStyle(club.id)}>
+    <header className="topbar"><a href="#" className="brand" aria-label="Linha de Frente, início"><span className="brand-symbol">L<span>F</span></span><span>LINHA DE<br/>FRENTE<span className="brand-small">FOOTBALL MANAGER</span></span></a><div className="top-context"><span className="top-divider"/><span>Uma nova história começa aqui.</span></div><div className="top-right"><span className="version"><i/> ETAPA 2 · v0.8</span><button className="help" onClick={()=>setDialog('data')} aria-label="Sobre os dados"><CircleHelp size={20}/></button></div></header>
     <main>
       <section className="intro"><div><div className="eyebrow"><span>01 /</span> O PRIMEIRO PASSO</div><h1>Seu clube. Sua história.</h1><p>Escolha as cores que você vai defender. Conheça quem entra em campo.</p></div><div className="competition"><span className="trophy-icon"><Trophy size={25}/></span><div><strong>BRASILEIRÃO</strong><span>Série A <b>·</b> Temporada {career.season}</span></div><span className="brazil-tag">BR</span></div></section>
       {savedClub && <div className="saved-banner" role="status"><Check size={16}/><span>Seu clube: <strong>{savedClub.name}</strong>. {storageError?'Escolha válida nesta sessão.':'Carreira salva neste navegador.'}</span><button onClick={()=>{selectClub(savedClub.id);setTab('match');}}>Continuar carreira <ArrowRight size={15}/></button></div>}
@@ -85,7 +91,7 @@ function App() {
         <section className="squad-panel" aria-label={`Painel do ${club.name}`}>
           <button className="mobile-back" onClick={()=>setMobileSquad(false)}><ArrowLeft size={16}/> Trocar clube</button>
           <div className="club-hero"><div className="hero-line"/><div className="hero-main"><Crest club={club} large/><div className="hero-title"><div className="eyebrow">{locations[club.id]}</div><h2>{club.name}</h2><span className="division"><span/> Brasileirão Série A · {career.season}</span></div></div><div className="hero-action"><span>O próximo capítulo pode ser seu.</span><button className="primary" onClick={confirmClub}>{saved===club.id?'Clube escolhido':'Escolher este clube'}{saved===club.id?<Check size={18}/>:<ArrowRight size={18}/>}</button></div><div className="pitch-art" aria-hidden="true"><i/><b/><em/></div></div>
-          <nav className="club-navigation" aria-label="Áreas do clube">{[['match','Partida',CirclePlay],['roster','Elenco',Users],['standings','Classificação',Table2],['trophies','Troféus',Trophy],['sponsors','Patrocínios',Handshake],['legacy','História',Medal]].map(([id,label,Icon])=><button key={id} aria-pressed={tab===id} className={tab===id?'selected':''} onClick={()=>setTab(id)}><Icon size={17}/>{label}</button>)}</nav>
+          <nav className="club-navigation" aria-label="Áreas do clube">{[['match','Partida',CirclePlay],['roster','Elenco',Users],['standings','Classificação',Table2],['transfers','Transferências',ArrowLeftRight],['trophies','Troféus',Trophy],['sponsors','Patrocínios',Handshake],['legacy','História',Medal]].map(([id,label,Icon])=><button key={id} aria-pressed={tab===id} className={tab===id?'selected':''} onClick={()=>setTab(id)}><Icon size={17}/>{label}</button>)}</nav>
           <div hidden={tab!=='roster'}>
           <div className="stats"><div><Users size={19}/><span><strong>{club.players.length}</strong><small>Jogadores na base</small></span></div><div><span className="stat-glyph">Ø</span><span><strong>{meanAge}<em> anos</em></strong><small>Idade média</small></span></div><div><Flag size={19}/><span><strong>{new Set(club.players.map(p=>p.nationality).filter(Boolean)).size}</strong><small>Nacionalidades</small></span></div><div className="snapshot-stat"><span className="status-dot"/><span><strong>Temporada 2026</strong><small>Base consultada em {displayDate}</small></span></div></div>
           <div className="roster-content"><div className="roster-heading"><div><div className="eyebrow">DENTRO DAS QUATRO LINHAS</div><h2>Conheça o elenco<span>{club.players.length}</span></h2></div><label className="search-box player-search"><Search size={17}/><input placeholder="Buscar jogador..." aria-label="Buscar jogador" value={playerSearch} onChange={e=>setPlayerSearch(e.target.value)}/>{playerSearch&&<button onClick={()=>setPlayerSearch('')} aria-label="Limpar busca de jogadores"><X size={15}/></button>}</label></div>
@@ -97,9 +103,7 @@ function App() {
         </section>
       </div><footer className="page-footer"><span>LINHA DE FRENTE <b>/</b> O futebol começa nas suas decisões.</span><span>Protótipo de gestão de clubes <span className="footer-dot">·</span> 2026</span></footer>
     </main>
-    {dialog==='data'&&<Modal title="Sobre os dados" onClose={()=>setDialog(null)}><span className="modal-icon"><Shield/></span><div className="eyebrow">TRANSPARÊNCIA</div><h2>Futebol real. Base consultável.</h2><p>Os 20 clubes e seus elencos vêm dos cadastros de temporada da ESPN, consultados em <strong>{displayDate}</strong>. A tela usa uma cópia local dessa consulta.</p><p>{data.note} Idades se referem à data da consulta. Dados ausentes aparecem como “—”.</p><p>Na Etapa 2, partidas, classificação, artilharia, patrocínios, caixa e troféus do Brasileirão compartilham o mesmo save local. A engine é procedural e os valores financeiros são fictícios para balanceamento. Mercado, calendário visual e outras competições ainda serão conectados.</p><a className="primary" href={club.sourcePage} target="_blank" rel="noreferrer">Consultar elenco na ESPN <ArrowRight size={17}/></a></Modal>}
+    {dialog==='data'&&<Modal title="Sobre os dados" onClose={()=>setDialog(null)}><span className="modal-icon"><Shield/></span><div className="eyebrow">TRANSPARÊNCIA</div><h2>Futebol real. Base consultável.</h2><p>Os 20 clubes e seus elencos vêm dos cadastros de temporada da ESPN, consultados em <strong>{displayDate}</strong>. A tela usa uma cópia local dessa consulta.</p><p>{data.note} Idades se referem à data da consulta. Dados ausentes aparecem como “—”.</p><p>Partidas, classificação, artilharia, caixa, patrocínios e transferências compartilham o mesmo save local. Receitas e valores de mercado usam referências públicas; orçamento disponível e negociações são modelagens de gameplay, não saldos contábeis oficiais.</p><a className="primary" href={club.sourcePage} target="_blank" rel="noreferrer">Consultar elenco na ESPN <ArrowRight size={17}/></a></Modal>}
     {dialog==='confirmed'&&<Modal title="Clube escolhido" onClose={()=>setDialog(null)}><Crest club={club} large/><div className="eyebrow">AS SUAS CORES ESTÃO DEFINIDAS</div><h2>Você escolheu o {club.name}.</h2><p>{storageError?'Seu clube foi escolhido nesta sessão. O navegador não permitiu salvar a preferência.':'Sua escolha foi salva neste navegador. Você pode trocar de clube a qualquer momento.'}</p><div className="next-step"><strong>Etapa 2: construir uma carreira.</strong><p>Simule as 38 rodadas, acompanhe tabela e artilharia, assine patrocínios, receba pagamentos e tente colocar seu clube na história.</p></div><button className="primary" onClick={()=>setDialog(null)}>Começar temporada <ArrowRight size={18}/></button></Modal>}
     {dialog&&typeof dialog==='object'&&<Modal title={`Ficha de ${dialog.name}`} onClose={()=>setDialog(null)}><div className="player-modal-club"><Crest club={club}/><span>{club.name} · 2026</span></div><span className={`position ${position(dialog)}`}>{labels[position(dialog)]}</span><h2>{dialog.name}</h2><div className="player-facts"><div><small>Camisa</small><strong>{dialog.number||'—'}</strong></div><div><small>Idade na consulta</small><strong>{age(dialog)!==null?`${age(dialog)} anos`:'—'}</strong></div><div><small>Nacionalidade</small><strong>{country(dialog)}</strong></div><div><small>Altura</small><strong>{dialog.heightCm?`${dialog.heightCm} cm`:'—'}</strong></div></div><p className="fineprint">Cadastro da ESPN · Consulta de {displayDate}. Vínculo atual sujeito à confirmação.</p><button className="primary" onClick={()=>setDialog(null)}>Voltar ao elenco <ArrowRight size={17}/></button></Modal>}
-  </>;
-}
-createRoot(document.getElementById('root')).render(<App/>);
+  </div>;\n}\ncreateRoot(document.getElementById('root')).render(<App/>);
