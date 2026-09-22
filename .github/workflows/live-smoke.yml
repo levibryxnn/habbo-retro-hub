@@ -46,4 +46,7 @@ jobs:
           test -s /tmp/app.js
           test -s /tmp/app.css
           grep -q "Simulação de partida" /tmp/app.js
-          echo "JavaScript and CSS assets loaded and the current game bundle was detected."
+          grep -q "Instantânea" /tmp/app.js
+          grep -q "Histórico de partidas" /tmp/app.js
+          grep -q "Rodada sincronizada" /tmp/app.js
+          echo "JavaScript and CSS assets loaded and the coordinated simulation v0.6 bundle was detected."
