@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, AlertTriangle, BarChart3, BrainCircuit, Clock3, FastForward, Flag, Gauge, HeartPulse, History, Monitor, Pause, Play, RotateCcw, ShieldAlert, Target, Timer, Trophy, Users, UserRoundCog, X, Zap } from 'lucide-react';
+import { Activity, BarChart3, BrainCircuit, Clock3, FastForward, Flag, Gauge, History, Monitor, Pause, Play, RotateCcw, ShieldAlert, Target, Timer, Trophy, UserRoundCog, X, Zap } from 'lucide-react';
 import {
   HALF_TIME_SECOND,
   MAX_SUBSTITUTIONS,
@@ -27,42 +27,15 @@ import {
   playerGameStats,
 } from './player-engine';
 import { getClubWorld } from './club-world.js';
-import { translatePosition } from './position-labels.js';
+import { positionGroup, translatePosition } from './position-labels.js';
 import './match.css';
 
 const eventSymbol={goal:'⚽',yellow:'■',red:'▰',injury:'✚',penalty:'●','penalty-miss':'×',corner:'⚑',foul:'◆',shot:'◎','big-chance':'!','substitution':'↕'};
 const FULL_TIME=90*60;
 
-function PlayerDot({x,y,away=false,n=1}) {
-  return <g transform={'translate('+x+' '+y+')'}>
-    <ellipse cx="0" cy="11" rx="7" ry="3" fill="#07140d" opacity=".24"/>
-    <circle cx="0" cy="-6" r="4" fill={away?'#f2eee6':'#d7b997'}/>
-    <path d="M-5 -1 L5 -1 L7 12 L-7 12 Z" fill={away?'#f4f1e8':'#315f44'} stroke={away?'#b8655e':'#dce6ce'} strokeWidth="1"/>
-    <text x="0" y="8" textAnchor="middle" fontSize="5" fontWeight="700" fill={away?'#9a413b':'#eef4e7'}>{n}</text>
-  </g>;
-}
-
 function SidelineField() {
-  const home=[[222,235],[330,185],[430,245],[540,180],[646,238],[282,315],[405,320],[530,298],[675,318],[160,300],[735,205]];
-  const away=[[750,235],[650,186],[565,248],[460,205],[355,246],[710,315],[595,322],[480,300],[330,327],[820,295],[260,205]];
-  return <svg className="sideline-field" viewBox="0 0 1000 420" role="img" aria-label="Campo estático visto da beira do gramado">
-    <defs>
-      <linearGradient id="crowd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#0d2119"/><stop offset="1" stopColor="#243f31"/></linearGradient>
-      <linearGradient id="grass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#587949"/><stop offset="1" stopColor="#759558"/></linearGradient>
-      <linearGradient id="shade" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#07130e" stopOpacity=".7"/><stop offset=".55" stopColor="#07130e" stopOpacity=".12"/><stop offset="1" stopColor="#07130e" stopOpacity=".48"/></linearGradient>
-    </defs>
-    <rect width="1000" height="420" fill="#101d17"/><path d="M0 0H1000V150L0 175Z" fill="url(#crowd)"/>
-    <path d="M0 35C130 14 240 43 360 23S620 41 760 17 920 28 1000 11V55C875 43 760 63 620 51S360 63 210 52 82 64 0 71Z" fill="#627868" opacity=".28"/>
-    <g opacity=".22" fill="#dfe7d6">{Array.from({length:52},(_,i)=><circle key={i} cx={(i*43)%1010} cy={70+(i%4)*19} r={2+(i%3)}/>)}</g>
-    <path d="M76 146 L925 132 L1000 410 L0 410 Z" fill="url(#grass)"/>
-    <g opacity=".16" fill="#e4efcf">{Array.from({length:9},(_,i)=><path key={i} d={'M'+(76+i*94)+' 146 L'+(170+i*115)+' 410 L'+(80+i*115)+' 410 L'+(i*94)+' 149 Z'}/>)}</g>
-    <path d="M76 146L925 132L1000 410L0 410Z" fill="none" stroke="#eaf1df" strokeWidth="2"/><path d="M503 139L500 410" stroke="#eaf1df" strokeWidth="2" opacity=".88"/>
-    <ellipse cx="502" cy="246" rx="79" ry="43" fill="none" stroke="#eaf1df" strokeWidth="2" opacity=".88"/><path d="M76 146L202 144L170 256L35 269M925 132L805 134L838 247L968 250" fill="none" stroke="#eaf1df" strokeWidth="2" opacity=".8"/>
-    <path d="M0 410H1000" stroke="#f4f6ed" strokeWidth="5"/><path d="M0 378H1000" stroke="#f4f6ed" strokeWidth="1" opacity=".45"/>
-    {home.map((p,i)=><PlayerDot key={'h'+i} x={p[0]} y={p[1]} n={(i+2)%11+1}/>)}{away.map((p,i)=><PlayerDot key={'a'+i} x={p[0]} y={p[1]} away n={(i+3)%11+1}/>)}
-    <g transform="translate(110 337)"><ellipse cx="0" cy="52" rx="17" ry="5" fill="#07120d" opacity=".35"/><circle cx="0" cy="-8" r="8" fill="#caa98a"/><path d="M-10 1L11 1L15 45L-15 45Z" fill="#15211c"/><path d="M-9 10L-25 29M10 10L23 30M-8 43L-14 59M8 43L14 59" stroke="#111b17" strokeWidth="7" strokeLinecap="round"/><text x="0" y="22" textAnchor="middle" fontSize="7" fill="#d7e3d2" fontWeight="700">TÉC.</text></g>
-    <rect width="1000" height="420" fill="url(#shade)"/><text x="28" y="126" fill="#dce9cd" opacity=".55" fontSize="13" fontWeight="700">LINHA DE FRENTE · VISÃO DA ÁREA TÉCNICA</text>
-  </svg>;
+  const base=import.meta.env.BASE_URL.replace(/\/$/,'');
+  return <img className="sideline-field" src={base+'/stadium-sideline-bg.webp'} alt="" aria-hidden="true" draggable="false" decoding="async" fetchPriority="high"/>;
 }
 const clockAt=(second,duration)=>{const value=Math.max(0,Math.min(duration||FULL_TIME,second)),m=Math.floor(value/60),s=value%60;return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');};
 function EventLine({event,compact=false}) {
@@ -80,7 +53,7 @@ function visibleStats(stats,second,duration) {
 }
 const latestFor=(events,side,second)=>[...(events||[])].reverse().find(e=>e.side===side&&e.second<=second)||null;
 function PlayerHighlight({club,result,side,second}) {
-  const visible=(result?.events||[]).filter(e=>e.second<=second),goals=visible.filter(e=>e.type==='goal'&&e.side===side),player=goals[0]?.player||(club.players||[]).find(p=>p.position==='Forward'||p.position==='Attacker')?.name||club.name;
+  const visible=(result?.events||[]).filter(e=>e.second<=second),goals=visible.filter(e=>e.type==='goal'&&e.side===side),player=goals[0]?.player||(club.players||[]).find(p=>positionGroup(p.position)==='ATA')?.name||club.name;
   const initials=player.split(' ').filter(Boolean).map((part,index,array)=>index===0||index===array.length-1?part[0]:'').join('').slice(0,2),rating=(6.6+goals.length*.7).toFixed(1),stats=visibleStats(result?.stats,second,result?.durationSecond);
   return <article className="player-highlight"><span className="highlight-avatar">{initials}</span><div className="highlight-name"><strong>{player}</strong><small>{club.abbreviation}</small></div><span className="highlight-rating">{rating}</span><div className="highlight-numbers"><span><strong>{goals.length}</strong><small>Gols</small></span><span><strong>{side==='home'?stats.shots[0]:stats.shots[1]}</strong><small>Finalizações</small></span></div></article>;
 }
@@ -154,7 +127,7 @@ function PenaltyDecision({career,club,clubs,match,event,onCareerChange,onClose})
   return <Overlay onClose={outcome?onClose:()=>{}} className="penalty-decision"><div className="decision-kicker">MOMENTO DECISIVO · PÊNALTI</div><h2>{outcome?'A cobrança':'Quem vai para a bola?'}</h2>{!outcome?<><p className="decision-intro">Somente jogadores que estão em campo podem cobrar. Pênaltis e compostura do cobrador são confrontados com a capacidade do goleiro.</p>{error&&<div className="decision-message error">{error}</div>}<div className="penalty-roster">{ordered.map(player=>{const stats=playerGameStats(player),active=eligible.has(String(player.id));return <button key={player.id} disabled={!active} className={selected===String(player.id)?'picked':''} onClick={()=>setSelected(String(player.id))}><span className="penalty-player"><strong>{player.name}</strong><small>{translatePosition(player.position)}{active?' · Em campo':' · Fora de campo'}</small></span><RatingPills player={player}/><span className="penalty-score">PEN <b>{stats.penalties}</b></span></button>;})}</div><div className="decision-actions"><button className="primary-action penalty-kick-button" disabled={!selected} onClick={kick}>Bater pênalti</button></div></>:<div className={'penalty-drama '+(outcome.scored?'scored':'missed')}><div className="penalty-taker-name">{outcome.taker}</div><p>{outcome.narrative[step]}</p>{step===outcome.narrative.length-1&&<><strong className="penalty-result">{outcome.scored?'GOOOOL!':outcome.outcome==='saved'?'DEFENDEU!':outcome.outcome==='post'?'NA TRAVE!':outcome.outcome==='wide'?'PARA FORA!':'ISOLOU!'}</strong><button className="primary-action" onClick={onClose}>Voltar para a partida</button></>}</div>}</Overlay>;
 }
 
-export default function MatchSimulation({club,clubs,Crest,career,onCareerChange,canManage,onChoose}) {
+export default function MatchSimulation({club,clubs,Crest,career,onCareerChange,canManage,onChoose,isVisible=true}) {
   const activeRound=career.pendingRound,fixture=fixtureForUser(career),pendingUserMatch=activeRound?.matches?.find(match=>match.id===activeRound.userMatchId),displayMatch=pendingUserMatch||career.lastUserMatch||fixture;
   const [second,setSecond]=useState(0),[paused,setPaused]=useState(false),[selectedMode,setSelectedMode]=useState(career.preferredSimulationMode||'normal'),[view,setView]=useState('tactical');
   const [lineupOpen,setLineupOpen]=useState(false),[subOpen,setSubOpen]=useState(false),[subContext,setSubContext]=useState(null),[halftimeOpen,setHalftimeOpen]=useState(false),[penaltyEvent,setPenaltyEvent]=useState(null);
@@ -198,9 +171,11 @@ export default function MatchSimulation({club,clubs,Crest,career,onCareerChange,
 
   useEffect(()=>{if(!activeRound&&career.lastUserMatch)setSecond(career.lastUserMatch.durationSecond||FULL_TIME);},[career.lastUserMatch?.id,activeRound]);
 
+  const officialTable=useMemo(()=>standingsFromResults(career.results,clubs),[career.results,clubs]);
+  if(!isVisible)return null;
   const home=clubs.find(item=>item.id===displayMatch?.homeId)||club,away=clubs.find(item=>item.id===displayMatch?.awayId)||clubs.find(item=>item.id!==club.id)||club,userDuration=displayMatch?.durationSecond||FULL_TIME,displaySecond=Math.min(second,userDuration);
   const score=displayMatch?.events?scoreAtSecond(displayMatch,displaySecond):{home:0,away:0},stats=visibleStats(displayMatch?.stats,displaySecond,userDuration),visible=(displayMatch?.events||[]).filter(e=>e.second<=displaySecond).slice().reverse().slice(0,7),latestHome=latestFor(displayMatch?.events,'home',displaySecond),latestAway=latestFor(displayMatch?.events,'away',displaySecond),nextEvent=(displayMatch?.events||[]).find(e=>e.second>displaySecond),completed=career.round>=38&&!activeRound,userMatchFinished=Boolean(displayMatch?.events)&&displaySecond>=userDuration;
-  const officialTable=useMemo(()=>standingsFromResults(career.results,clubs),[career.results,clubs]),userRow=officialTable.find(row=>row.clubId===career.userClubId),liveMatches=activeRound?liveRoundMatches(activeRound,second):(career.lastRoundResults||[]).map(result=>({...result,liveHomeGoals:result.homeGoals,liveAwayGoals:result.awayGoals,finished:true,minute:Math.floor((result.durationSecond||FULL_TIME)/60)})),boardRound=activeRound?.roundNumber||(career.round||1);
+  const userRow=officialTable.find(row=>row.clubId===career.userClubId),liveMatches=activeRound?liveRoundMatches(activeRound,second):(career.lastRoundResults||[]).map(result=>({...result,liveHomeGoals:result.homeGoals,liveAwayGoals:result.awayGoals,finished:true,minute:Math.floor((result.durationSecond||FULL_TIME)/60)})),boardRound=activeRound?.roundNumber||(career.round||1);
   const userSide=pendingUserMatch?(pendingUserMatch.homeId===career.userClubId?'home':'away'):null;
   const matchYellows=pendingUserMatch?(pendingUserMatch.events||[]).filter(e=>e.type==='yellow'&&e.side===userSide&&e.second<=second).length:0,matchReds=pendingUserMatch?(pendingUserMatch.events||[]).filter(e=>e.type==='red'&&e.side===userSide&&e.second<=second).length:0;
 
