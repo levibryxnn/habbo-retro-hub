@@ -1,6 +1,6 @@
-# Linha de Frente — protótipo 0.2
+# Linha de Frente — protótipo 0.3
 
-Protótipo de gerenciamento de clubes: seleção dos 20 clubes da Série A de 2026, consulta dos elencos, galeria de troféus e patrocínios simulados. Interface em português, responsiva, com dados da gestão separados por clube e persistidos no navegador.
+Protótipo de gerenciamento de clubes: seleção dos 20 clubes da Série A de 2026, consulta dos elencos, classificação do Brasileirão, galeria de troféus e patrocínios simulados. Interface em português, responsiva, com dados da gestão separados por clube e persistidos no navegador.
 
 ![Tela do protótipo](docs/preview-desktop.png)
 
@@ -29,12 +29,12 @@ O importador exige os 20 clubes esperados da temporada e só substitui a base ap
 
 ## Escopo desta etapa
 
-- **Elenco:** seleção do clube e inspeção dos jogadores.
+- **Elenco:** seleção do clube e inspeção dos jogadores.\n- **Classificação:** tabela de laboratório com 20 clubes, pontos e critérios básicos de ordenação; destaca campeão, G4/Libertadores, 5º na fase preliminar, faixa-base da Sul-Americana e Z4. Os números são fictícios nesta etapa e serão substituídos pela engine de partidas.
 - **Troféus:** galeria da carreira com filtros nacionais/continentais. Não contém o histórico real dos clubes. Taças estilizadas e registros simulados de 2026 podem ser adicionados e removidos explicitamente no modo laboratório. Copa do Brasil e competições continentais são apenas cartões para uma etapa futura, não competições já jogáveis.
 - **Patrocínios:** seis propostas fictícias para três espaços (máster, mangas e treino), com receita mensal, duração, bônus, valor total, assinatura e encerramento mediante confirmação. Apenas um contrato por espaço. As propostas são iguais para todos os clubes nesta etapa. Os totais representam projeções contratuais; não há saldo, pagamentos, vencimentos automáticos nem multa de rescisão.
 - **Persistência:** `ldf.club` salva o clube escolhido; `ldf.management.v1` salva contratos e conquistas de teste por clube. A consulta de outro clube não altera seu estado; só é possível gerenciar o clube escolhido. Falhas ao salvar são sinalizadas na interface. Registros inválidos e duplicados são descartados na leitura.
 
-Partidas, calendário, transferências e investimentos ainda não estão implementados. As regras iniciais dos patrocínios estão separadas da interface em `src/management-model.js`.
+Partidas, calendário, transferências e investimentos ainda não estão implementados. A classificação já está preparada para receber os resultados da futura engine sem depender da interface. As regras iniciais dos patrocínios estão separadas da interface em `src/management-model.js`.
 
 ## Novas telas
 
