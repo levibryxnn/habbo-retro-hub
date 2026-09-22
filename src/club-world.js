@@ -54,19 +54,11 @@ export function matchdayProjection(homeId,awayId,roundNumber,seed){
   return{stadium:home.stadium,capacity:home.capacity,attendance,ticketAverage:ticket,grossRevenue:gross,clubShare,importance:Number(importance.toFixed(2)),rivalry};
 }
 export function marketSquadReference(clubId){return Math.round(getClubWorld(clubId).marketTotalEurM*1_000_000);}
-function readableOn(hex){
-  const clean=String(hex||'#315f43').replace('#','');
-  if(clean.length!==6)return'#ffffff';
-  const r=parseInt(clean.slice(0,2),16)/255,g=parseInt(clean.slice(2,4),16)/255,b=parseInt(clean.slice(4,6),16)/255;
-  const luminance=.2126*r+.7152*g+.0722*b;
-  return luminance<.56?'#ffffff':'#152018';
-}
 export function clubThemeStyle(clubId){
   const meta=getClubWorld(clubId);
   return{
     '--club-primary':meta.primary,
     '--club-secondary':meta.secondary,
     '--club-accent':meta.accent,
-    '--club-on-primary':readableOn(meta.primary),
   };
 }
