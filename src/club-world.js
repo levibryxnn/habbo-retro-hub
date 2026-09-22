@@ -42,11 +42,13 @@ function jitter(seed){return (hash(seed)%10000)/10000;}
 export function matchdayProjection(homeId,awayId,roundNumber,seed){
   const home=getClubWorld(homeId),rivalry=rivalryLevel(homeId,awayId);
   const late=Math.max(0,(Number(roundNumber||1)-25)/13);
-  const importance=1+rivalry*.18+late*.12;
-  const baseOccupancy=.43+home.fanIndex*.36+rivalry*.09+late*.06+(jitter(seed)-.5)*.12;
+  const away=getClubWorld(awayId);
+  const nationalAppeal=Math.max(0,(away.fanIndex-.55)*.14);
+  const importance=1+rivalry*.18+late*.12+nationalAppeal;
+  const baseOccupancy=.40+home.fanIndex*.36+away.fanIndex*.07+rivalry*.09+late*.06+(jitter(seed)-.5)*.12;
   const occupancy=Math.max(.28,Math.min(.99,baseOccupancy));
   const attendance=Math.max(1000,Math.min(home.capacity,Math.round(home.capacity*occupancy)));
-  const ticket=Math.round(home.avgTicket*(1+rivalry*.18+late*.08));
+  const ticket=Math.round(home.avgTicket*(1+rivalry*.18+late*.08+nationalAppeal*.3));
   const gross=Math.round(attendance*ticket*1.18);
   const clubShare=Math.round(gross*.72);
   return{stadium:home.stadium,capacity:home.capacity,attendance,ticketAverage:ticket,grossRevenue:gross,clubShare,importance:Number(importance.toFixed(2)),rivalry};
