@@ -1,6 +1,6 @@
-# Linha de Frente — protótipo 0.4
+# Linha de Frente — Etapa 2 · v0.5
 
-Protótipo de gerenciamento de clubes: seleção dos 20 clubes da Série A de 2026, simulação leve de partidas, consulta dos elencos, classificação do Brasileirão, galeria de troféus e patrocínios simulados. Interface em português, responsiva, com dados da gestão separados por clube e persistidos no navegador.
+Simulador de gerenciamento de clubes em Etapa 2: Série A com 38 rodadas funcionais, engine procedural de partidas, tabela e artilharia do save, economia de patrocínios, galeria automática de troféus e área inicial de recordes/Hall da Fama. Interface em português, responsiva, com dados da gestão separados por clube e persistidos no navegador.
 
 ![Tela do protótipo](docs/preview-desktop.png)
 
@@ -34,7 +34,7 @@ O importador exige os 20 clubes esperados da temporada e só substitui a base ap
 - **Patrocínios:** seis propostas fictícias para três espaços (máster, mangas e treino), com receita mensal, duração, bônus, valor total, assinatura e encerramento mediante confirmação. Apenas um contrato por espaço. As propostas são iguais para todos os clubes nesta etapa. Os totais representam projeções contratuais; não há saldo, pagamentos, vencimentos automáticos nem multa de rescisão.
 - **Persistência:** `ldf.club` salva o clube escolhido; `ldf.management.v1` salva contratos e conquistas de teste por clube. A consulta de outro clube não altera seu estado; só é possível gerenciar o clube escolhido. Falhas ao salvar são sinalizadas na interface. Registros inválidos e duplicados são descartados na leitura.
 
-A simulação de partida já funciona como laboratório visual e de fluxo, mas ainda não altera classificação, calendário ou finanças do save. Calendário, transferências e investimentos ainda não estão implementados. A classificação já está preparada para receber os resultados da futura engine sem depender da interface. As regras iniciais dos patrocínios estão separadas da interface em `src/management-model.js`.
+A simulação de partida agora alimenta classificação, artilharia, patrocínios, caixa e troféus do mesmo save local. A Série A usa calendário de 38 rodadas em turno e returno. Mercado, calendário visual, transferências, investimentos e as demais competições ainda serão conectados. As regras iniciais dos patrocínios estão separadas da interface em `src/management-model.js`.
 
 ## Novas telas
 
@@ -50,3 +50,17 @@ Build de produção concluído. Testes no Chromium: abertura dos 20 clubes, cont
 
 `npm test` verifica exclusividade de contratos, cálculo das projeções e saneamento da persistência. Teste de navegação no Chromium verificou assinatura/cancelamento/rescisão, restauração após recarregar, separação entre clubes, adição/remoção de taças, filtros e navegação de volta ao elenco. Telas de 360 e 390 pixels verificadas sem transbordamento horizontal. Build de produção concluído.
 \n\n### Validação da versão 0.4\n\n`npm test` cobre relógio, placar, próximo evento e consistência das estatísticas da simulação. A tela de partida usa SVG/CSS estático para o campo e atualiza apenas dados de interface durante o relógio, sem animação de jogadores ou engine gráfica.\n
+
+## Etapa 2 · sistemas funcionais
+
+- **Temporada:** 20 clubes, 38 rodadas e dez partidas por rodada. A engine resolve toda a rodada e mantém resultados no save local.
+- **IA procedural de partida:** força baseada em profundidade e equilíbrio do elenco, faixa etária, posições, mando de campo e aleatoriedade determinística por rodada. Gols são distribuídos com pesos por posição. Não há chamada paga de IA nem renderização 3D.
+- **Classificação e artilharia:** resultados atualizam pontos, vitórias, saldo, gols marcados e ranking de goleadores; há também ranking acumulado do save.
+- **Patrocínios:** propostas fictícias possuem requisitos e modelos distintos de pagamento (à vista, parcelas mensais, trimestrais, por rodada ou performance). O dinheiro entra automaticamente no caixa conforme as rodadas avançam.
+- **Troféus:** o campeão da 38ª rodada recebe automaticamente o Brasileirão na galeria.
+- **Recordes:** referências históricas carregadas de fontes oficiais incluem Real Madrid com nove títulos mundiais como referência FIFA, Palmeiras com 12 Brasileiros como referência CBF e Roberto Dinamite com 190 gols no Brasileiro. Para o São Paulo, a base histórica mundial carregada é de três títulos (1992, 1993 e 2005). A função de marco mundial já está preparada para futuras competições.
+- **Hall da Fama:** estrutura visual para jogadores, clubes e técnicos, ainda sem critérios definitivos de indução.
+
+### Persistência
+
+`ldf.career.v2` armazena temporada, resultados, artilharia, caixa, contratos, transações, títulos, recordes e histórico por clube escolhido.
