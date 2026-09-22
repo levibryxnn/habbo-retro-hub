@@ -484,8 +484,8 @@ export function startRound(career,clubs,mode){
   if(userClub&&!lineupValidation(userClub,career,roundNumber,userLineup).valid)return career;
   const matches=fixtures.map(function(fixture,index){
     const home=clubs.find(c=>c.id===fixture.homeId),away=clubs.find(c=>c.id===fixture.awayId);
-    const homeLineup=home.id===career.userClubId?userLineup:autoLineup(home,career,roundNumber);
-    const awayLineup=away.id===career.userClubId?userLineup:autoLineup(away,career,roundNumber);
+    const homeLineup=home.id===career.userClubId&&selectedMode!=='instant'?userLineup:autoLineup(home,career,roundNumber);
+    const awayLineup=away.id===career.userClubId&&selectedMode!=='instant'?userLineup:autoLineup(away,career,roundNumber);
     const seed=career.season+'-'+roundNumber+'-'+index+'-'+home.id+'-'+away.id;
     return simulateMatch(home,away,seed,{results:career.results,season:career.season,roundNumber,career,homeLineup,awayLineup,homeBench:matchBench(home,career,roundNumber,homeLineup),awayBench:matchBench(away,career,roundNumber,awayLineup),interactiveClubId:selectedMode==='instant'?null:career.userClubId,mode:selectedMode});
   });
