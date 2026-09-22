@@ -1,0 +1,49 @@
+name: Smoke Test Public Preview
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Wait for public preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://linha-de-frente.lovable.app"
+          for i in $(seq 1 36); do
+            code=$(curl -L -sS -o /tmp/index.html -w "%{http_code}" "$URL/" || true)
+            if [ "$code" = "200" ] && grep -q "Linha de Frente" /tmp/index.html; then
+              echo "Preview responded with HTTP 200 and expected app title."
+              exit 0
+            fi
+            echo "Attempt $i: HTTP $code; waiting for deployment..."
+            sleep 10
+          done
+          echo "Public preview did not become healthy in time."
+          cat /tmp/index.html || true
+          exit 1
+      - name: Verify built assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://linha-de-frente.lovable.app"
+          js=$(grep -oE 'src="[^"]+\.js"' /tmp/index.html | head -1 | cut -d'"' -f2)
+          css=$(grep -oE 'href="[^"]+\.css"' /tmp/index.html | head -1 | cut -d'"' -f2)
+          test -n "$js"
+          test -n "$css"
+          js_url=$(python -c "from urllib.parse import urljoin; print(urljoin('$URL/', '$js'))")
+          css_url=$(python -c "from urllib.parse import urljoin; print(urljoin('$URL/', '$css'))")
+          curl -L -fSs "$js_url" -o /tmp/app.js
+          curl -L -fSs "$css_url" -o /tmp/app.css
+          test -s /tmp/app.js
+          test -s /tmp/app.css
+          grep -q "Simulação de partida" /tmp/app.js
+          echo "JavaScript and CSS assets loaded and the current game bundle was detected."
