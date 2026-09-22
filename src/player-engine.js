@@ -1,3 +1,5 @@
+import { positionGroup } from './position-labels.js';
+
 function hashString(value){
   let h=2166136261;
   for(const ch of String(value)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}
@@ -17,7 +19,7 @@ function ageModifier(age){
   return 0;
 }
 export function playerGameStats(player){
-  const pos=player?.position||'Midfielder';
+  const pos=positionGroup(player?.position);
   const id=player?.id||player?.name||'player';
   const ageMod=ageModifier(player?.age);
   let shooting=seeded(id,'shot',55,72);
@@ -28,17 +30,17 @@ export function playerGameStats(player){
   let stamina=seeded(id,'stam',64,84);
   let penalties=seeded(id,'pen',58,79);
   let composure=seeded(id,'comp',60,82);
-  if(pos==='Goalkeeper'){
+  if(pos==='GOL'){
     goalkeeping=seeded(id,'gk',68,86)+Math.round(ageMod*.5);
     defending=seeded(id,'def',28,45);
     shooting=seeded(id,'shot',20,39);
     passing=seeded(id,'pass',52,74);
     penalties=seeded(id,'pen',38,62);
-  }else if(pos==='Defender'){
+  }else if(pos==='DEF'){
     defending+=10+ageMod;
     shooting-=8;
     passing+=Math.round(ageMod*.5);
-  }else if(pos==='Midfielder'){
+  }else if(pos==='MEI'){
     passing+=9+ageMod;
     shooting+=2;
     defending+=2;
@@ -52,11 +54,11 @@ export function playerGameStats(player){
   }
   const fields={shooting,passing,defending,goalkeeping,pace,stamina,penalties,composure};
   for(const key of Object.keys(fields))fields[key]=clamp(20,91,Math.round(fields[key]));
-  const overall=pos==='Goalkeeper'
+  const overall=pos==='GOL'
     ? fields.goalkeeping*.62+fields.passing*.13+fields.composure*.15+fields.stamina*.1
-    : pos==='Defender'
+    : pos==='DEF'
       ? fields.defending*.48+fields.passing*.15+fields.pace*.14+fields.stamina*.13+fields.composure*.1
-      : pos==='Midfielder'
+      : pos==='MEI'
         ? fields.passing*.36+fields.composure*.19+fields.stamina*.16+fields.pace*.11+fields.shooting*.11+fields.defending*.07
         : fields.shooting*.38+fields.composure*.2+fields.pace*.17+fields.passing*.1+fields.stamina*.1+fields.penalties*.05;
   return {...fields,overall:clamp(45,90,Math.round(overall))};
@@ -87,10 +89,10 @@ export function autoLineup(club,career,roundNumber){
   });
   const sort=function(a,b){return roleScore(b,career,club.id)-roleScore(a,career,club.id);};
   const groups={
-    Goalkeeper:available.filter(p=>p.position==='Goalkeeper').sort(sort),
-    Defender:available.filter(p=>p.position==='Defender').sort(sort),
-    Midfielder:available.filter(p=>p.position==='Midfielder').sort(sort),
-    Forward:available.filter(p=>p.position==='Forward'||p.position==='Attacker').sort(sort),
+    Goalkeeper:available.filter(p=>positionGroup(p.position)==='GOL').sort(sort),
+    Defender:available.filter(p=>positionGroup(p.position)==='DEF').sort(sort),
+    Midfielder:available.filter(p=>positionGroup(p.position)==='MEI').sort(sort),
+    Forward:available.filter(p=>positionGroup(p.position)==='ATA').sort(sort),
   };
   const chosen=[];
   function take(group,count){for(const p of group.slice(0,count))if(!chosen.includes(p.id))chosen.push(p.id);}
@@ -109,7 +111,7 @@ export function sanitizeLineup(club,career,roundNumber,requested){
 export function lineupValidation(club,career,roundNumber,lineup){
   const ids=sanitizeLineup(club,career,roundNumber,lineup);
   const players=ids.map(id=>club.players.find(p=>String(p.id)===String(id))).filter(Boolean);
-  const goalkeeper=players.some(p=>p.position==='Goalkeeper');
+  const goalkeeper=players.some(p=>positionGroup(p.position)==='GOL');
   return {valid:ids.length===11&&goalkeeper,lineup:ids,reason:ids.length!==11?'A escalação precisa ter 11 jogadores.':!goalkeeper?'A escalação precisa ter um goleiro.':null};
 }
 export function matchBench(club,career,roundNumber,lineup,limit=12){
@@ -128,10 +130,10 @@ export function lineupProfile(club,lineupIds,career){
       return sum+selector(stats)*(.68+condition/100*.32);
     },0)/list.length;
   };
-  const keepers=players.filter(p=>p.position==='Goalkeeper');
-  const defenders=players.filter(p=>p.position==='Defender');
-  const mids=players.filter(p=>p.position==='Midfielder');
-  const forwards=players.filter(p=>p.position==='Forward'||p.position==='Attacker');
+  const keepers=players.filter(p=>positionGroup(p.position)==='GOL');
+  const defenders=players.filter(p=>positionGroup(p.position)==='DEF');
+  const mids=players.filter(p=>positionGroup(p.position)==='MEI');
+  const forwards=players.filter(p=>positionGroup(p.position)==='ATA');
   const goalkeeper=unit(keepers,s=>s.goalkeeping);
   const defense=unit(defenders,s=>s.defending);
   const midfield=unit(mids,s=>s.passing*.62+s.composure*.23+s.stamina*.15);
