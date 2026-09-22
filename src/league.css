@@ -2,3 +2,25 @@
 @media(max-width:850px){.league-content{padding:25px 18px}.league-overview{flex-wrap:wrap}.league-round{width:100%;margin:0;border-left:0;border-top:1px solid #536c4b;padding:12px 0 0}.league-heading h2{font-size:25px}}
 @media(max-width:620px){.league-content{padding:26px 16px;min-height:0}.league-heading{gap:9px}.league-heading h2{font-size:24px}.league-heading p{font-size:11px}.league-overview{padding:18px 16px;gap:13px}.league-trophy{width:46px;height:46px}.league-overview>div:nth-child(2){min-width:0;flex:1}.league-overview h3{font-size:21px}.league-overview p{font-size:9px}.league-rules{flex-wrap:nowrap;overflow:auto;padding-bottom:3px;scrollbar-width:none}.rule-chip{flex:0 0 auto}.league-table-wrap{margin-left:0;margin-right:0}.league-footnotes p{font-size:9px}.club-navigation{justify-content:flex-start!important}.club-navigation button{min-width:max-content}}
 .league-scorers-strip{display:grid;grid-template-columns:145px repeat(5,minmax(0,1fr));gap:8px;margin-top:12px}.league-scorers-strip>div,.league-scorers-strip>article{border:1px solid #e4e8de;border-radius:6px;background:#fafbf7;min-height:54px;padding:9px 10px}.league-scorers-strip>div{display:flex;flex-direction:column;justify-content:center}.league-scorers-strip>div strong{font-size:10px}.league-scorers-strip>div span{font-size:7px;color:#97a18f;margin-top:3px}.league-scorers-strip>article{display:grid;grid-template-columns:18px minmax(0,1fr) 22px;gap:6px;align-items:center}.league-scorers-strip>article>b{font-family:'Barlow Condensed',sans-serif;color:#8f9b86}.league-scorers-strip>article>span{font-size:8px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.league-scorers-strip>article>span small{display:block;font-size:6px;color:#9ba492;margin-top:2px}.league-scorers-strip>article>strong{text-align:right;color:#4e6742;font-size:12px}@media(max-width:1100px){.league-scorers-strip{grid-template-columns:1fr 1fr 1fr}.league-scorers-strip>div{grid-column:1/-1}}@media(max-width:620px){.league-scorers-strip{grid-template-columns:1fr 1fr}.league-scorers-strip>div{grid-column:1/-1}}
+/* Etapa 2: todas as áreas devem permanecer visíveis em telas estreitas. */
+@media(max-width:850px){
+  .club-navigation{
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:0!important;
+    padding:0 8px!important;
+    overflow:visible!important;
+    scrollbar-width:auto;
+  }
+  .club-navigation button{
+    min-width:0!important;
+    justify-content:center;
+    padding:14px 4px!important;
+    font-size:9px!important;
+    gap:5px!important;
+  }
+}
+@media(max-width:380px){
+  .club-navigation button{font-size:8px!important;padding:13px 2px!important}
+  .club-navigation button svg{width:14px;height:14px}
+}
