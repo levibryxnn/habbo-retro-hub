@@ -1,6 +1,6 @@
-# Linha de Frente — protótipo 0.1
+# Linha de Frente — protótipo 0.2
 
-Primeira etapa de um simulador de gerenciamento de clubes: seleção dos 20 clubes da Série A de 2026 e consulta dos elencos. Interface em português, responsiva, com busca por clube/jogador, filtros por posição, ordenação, ficha de atleta e seleção de clube persistida no navegador.
+Protótipo de gerenciamento de clubes: seleção dos 20 clubes da Série A de 2026, consulta dos elencos, galeria de troféus e patrocínios simulados. Interface em português, responsiva, com dados da gestão separados por clube e persistidos no navegador.
 
 ![Tela do protótipo](docs/preview-desktop.png)
 
@@ -29,8 +29,23 @@ O importador exige os 20 clubes esperados da temporada e só substitui a base ap
 
 ## Escopo desta etapa
 
-Seleção de clube e inspeção de elenco. O botão “Escolher este clube” salva somente a escolha local. Partidas, calendário, contratações, investimentos, patrocínios e a simulação econômica ainda não estão implementados. A engine deve ser desenvolvida em módulos separados da interface nas próximas etapas.
+- **Elenco:** seleção do clube e inspeção dos jogadores.
+- **Troféus:** galeria da carreira com filtros nacionais/continentais. Não contém o histórico real dos clubes. Taças estilizadas e registros simulados de 2026 podem ser adicionados e removidos explicitamente no modo laboratório. Copa do Brasil e competições continentais são apenas cartões para uma etapa futura, não competições já jogáveis.
+- **Patrocínios:** seis propostas fictícias para três espaços (máster, mangas e treino), com receita mensal, duração, bônus, valor total, assinatura e encerramento mediante confirmação. Apenas um contrato por espaço. As propostas são iguais para todos os clubes nesta etapa. Os totais representam projeções contratuais; não há saldo, pagamentos, vencimentos automáticos nem multa de rescisão.
+- **Persistência:** `ldf.club` salva o clube escolhido; `ldf.management.v1` salva contratos e conquistas de teste por clube. A consulta de outro clube não altera seu estado; só é possível gerenciar o clube escolhido. Falhas ao salvar são sinalizadas na interface. Registros inválidos e duplicados são descartados na leitura.
+
+Partidas, calendário, transferências e investimentos ainda não estão implementados. As regras iniciais dos patrocínios estão separadas da interface em `src/management-model.js`.
+
+## Novas telas
+
+![Galeria de troféus](docs/trofeus-desktop.png)
+![Patrocínios](docs/patrocinios-desktop.png)
 
 ## Validação desta versão
 
 Build de produção concluído. Testes no Chromium: abertura dos 20 clubes, contagem dos 941 cadastros, busca com normalização de acentos, filtro por posição, estado vazio, ordenação por idade, ficha de jogador, fechamento de modais, persistência da escolha e layout de 360 e 390 pixels sem rolagem horizontal. Sem erros JavaScript durante esses testes.
+
+
+### Validação da versão 0.2
+
+`npm test` verifica exclusividade de contratos, cálculo das projeções e saneamento da persistência. Teste de navegação no Chromium verificou assinatura/cancelamento/rescisão, restauração após recarregar, separação entre clubes, adição/remoção de taças, filtros e navegação de volta ao elenco. Telas de 360 e 390 pixels verificadas sem transbordamento horizontal. Build de produção concluído.
