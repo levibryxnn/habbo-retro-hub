@@ -1,4 +1,4 @@
-# Linha de Frente — Etapa 2 · v0.5
+# Linha de Frente — Etapa 2 · v0.6
 
 Simulador de gerenciamento de clubes em desenvolvimento. A Etapa 2 conecta uma temporada funcional da Série A a partidas, classificação, artilharia, patrocínios, caixa, troféus e histórico do save.
 
@@ -16,7 +16,7 @@ npm test
 npm run build
 ```
 
-O projeto usa Vite e React e mantém o campo da tela de partida em SVG/CSS estático para reduzir custo de renderização. O Vite é envolvido por `@lovable.dev/lovite` para manter compatibilidade com o sandbox de preview do Lovable.
+O projeto usa React + Vite puro e mantém o campo da tela de partida em SVG/CSS estático para reduzir custo de renderização. O build é portátil e não depende do runtime do Lovable.
 
 ## Dados
 
@@ -34,9 +34,10 @@ O importador valida os 20 clubes esperados antes de substituir a base local.
 
 ## Sistemas funcionais
 
-- **Partida:** a engine procedural resolve os dez jogos de cada rodada. A partida do clube do usuário pode ser reproduzida com relógio, eventos, estatísticas e velocidades 1x/2x/4x.
+- **Partida:** a rodada inteira acontece de forma coordenada. Os 10 jogos usam o mesmo relógio de rodada, têm eventos e acréscimos próprios e não permitem iniciar uma nova rodada antes do encerramento da atual. O usuário escolhe entre Normal, Rápido e Instantânea.
 - **Temporada:** 20 clubes, 38 rodadas, turno e returno.
-- **Classificação:** pontos, jogos, vitórias, empates, derrotas, gols, saldo e aproveitamento vêm do save.
+- **Classificação:** pontos, jogos, vitórias, empates, derrotas, gols, saldo e aproveitamento só entram oficialmente após o encerramento completo da rodada.
+- **Histórico de partidas:** registra rodada, placar, competição, resultado e pontos conquistados pelo clube do usuário ao longo da carreira.
 - **Artilharia:** registra gols da temporada e ranking acumulado da carreira.
 - **Patrocínios:** propostas fictícias possuem requisitos e modelos de pagamento diferentes: à vista, parcelas periódicas, por rodada ou por performance.
 - **Caixa:** pagamentos de patrocínio geram movimentações e alteram o saldo da carreira.
@@ -96,3 +97,10 @@ Abra `http://localhost:8080`.
 O GitHub Actions valida automaticamente testes e build e gera o artefato `linha-de-frente-preview`. Há também um smoke test externo que acessa a URL pública, exige HTTP 200 e confirma o carregamento dos assets do jogo.
 
 Para um domínio próprio no futuro, basta conectar este mesmo repositório a uma hospedagem estática como Vercel, Cloudflare Pages ou Netlify e apontar o DNS; não será necessário reescrever o jogo.
+
+
+### IA de partidas v2
+
+A força deixou de ser um único número genérico. A engine calcula blocos separados de goleiro, defesa, meio-campo e ataque, cruza ataque contra defesa rival, considera disputa do meio, profundidade do elenco, faixa etária, mando de campo e forma recente dos últimos cinco jogos. Os eventos continuam determinísticos por seed, permitindo testes reproduzíveis sem depender de APIs pagas.
+
+Durante uma rodada em andamento, o componente de simulação permanece montado mesmo quando o usuário navega para outra área do clube; assim a rodada continua avançando e só é oficializada quando todos os jogos terminam.
