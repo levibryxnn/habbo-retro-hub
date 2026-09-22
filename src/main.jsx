@@ -56,9 +56,11 @@ function App() {
   }),[club,filter,playerSearch,sort]);
   function selectClub(id) {setSelected(id);setPlayerSearch('');setFilter('Todos');setDialog(null);setMobileSquad(true);}
   function saveCareer(nextCareer) {
-    const next={...careers,[club.id]:nextCareer};
-    setCareers(next);
-    try {localStorage.setItem(CAREER_KEY,JSON.stringify(next));setCareerStorageError(false);} catch {setCareerStorageError(true);}
+    setCareers(current=>{
+      const next={...current,[club.id]:nextCareer};
+      try {localStorage.setItem(CAREER_KEY,JSON.stringify(next));setCareerStorageError(false);} catch {setCareerStorageError(true);}
+      return next;
+    });
   }
   function confirmClub() {
     setSaved(club.id);
