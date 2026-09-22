@@ -201,13 +201,12 @@ export default function MatchSimulation({club,clubs,Crest,career,onCareerChange,
 
   useEffect(function(){
     if(!activeRound||paused||activeRound.mode==='instant') return;
-    if(second>=totalRoundDuration) return;
     const config=activeMode||SIMULATION_MODES.normal;
     const timer=setInterval(function(){
       setSecond(function(value){return Math.min(totalRoundDuration,value+config.gameSecondsPerTick);});
     },config.tickMs);
     return function(){clearInterval(timer);};
-  },[activeRound?.id,activeRound?.mode,paused,second,totalRoundDuration]);
+  },[activeRound?.id,activeRound?.mode,paused,totalRoundDuration]);
 
   useEffect(function(){
     if(!activeRound||second<totalRoundDuration||finalizeLock.current) return;
