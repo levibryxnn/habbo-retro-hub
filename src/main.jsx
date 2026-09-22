@@ -1,3 +1,4 @@
+// Preview build marker: 0.4.1
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ArrowDown, ArrowLeft, ArrowRight, Check, ChevronRight, CircleHelp, CirclePlay, Flag, Handshake, Search, Shield, SlidersHorizontal, Table2, Trophy, Users, X } from 'lucide-react';
