@@ -153,3 +153,12 @@ Orçamento inicial, salário estimado, preço de ingresso, receita líquida de m
 - **Tema simplificado:** a identidade de cor do clube fica restrita ao bloco do escudo/nome. Mercado, partida, classificação, navegação e controles voltaram a usar a paleta neutra do jogo.
 - **Limpeza:** imports sem uso e o workflow automático de lockfile foram removidos. O lockfile continua versionado e é validado por `npm ci`.
 - **Preservado:** dados, testes, scripts de atualização, documentação e imagens de documentação foram mantidos porque não entram no bundle de produção ou continuam úteis para manutenção.
+
+
+## v0.8.3 · fundos responsivos da partida
+
+- O simulador passa a usar duas artes independentes: uma 16:9 para desktop/tablet e uma 9:16 recomposta para celulares.
+- A versão mobile não é mais um recorte ampliado da imagem horizontal: técnico, jogadores, gramado e arquibancada permanecem enquadrados.
+- Foram removidos o zoom lateral de 145% e o deslocamento negativo que comprimiam/cortavam o cenário em telas estreitas.
+- O placar é redimensionado no celular para ocupar a área superior sem esconder a ação no campo.
+- As imagens são WebP otimizadas e continuam estáticas para manter a simulação leve.
