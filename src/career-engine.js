@@ -465,7 +465,7 @@ export function startRound(career,clubs,mode){
     const homeLineup=home.id===career.userClubId?userLineup:autoLineup(home,career,roundNumber);
     const awayLineup=away.id===career.userClubId?userLineup:autoLineup(away,career,roundNumber);
     const seed=career.season+'-'+roundNumber+'-'+index+'-'+home.id+'-'+away.id;
-    return simulateMatch(home,away,seed,{results:career.results,season:career.season,roundNumber,career,homeLineup,awayLineup,homeBench:matchBench(home,career,roundNumber,homeLineup),awayBench:matchBench(away,career,roundNumber,awayLineup),interactiveClubId:career.userClubId,mode:selectedMode});
+    return simulateMatch(home,away,seed,{results:career.results,season:career.season,roundNumber,career,homeLineup,awayLineup,homeBench:matchBench(home,career,roundNumber,homeLineup),awayBench:matchBench(away,career,roundNumber,awayLineup),interactiveClubId:selectedMode==='instant'?null:career.userClubId,mode:selectedMode});
   });
   const userMatch=matches.find(result=>result.homeId===career.userClubId||result.awayId===career.userClubId);
   return{...career,lineup:userLineup,preferredSimulationMode:selectedMode,pendingRound:{id:'round-'+career.season+'-'+roundNumber,season:career.season,roundNumber,mode:selectedMode,matches,userMatchId:userMatch?.id||null,started:true}};
