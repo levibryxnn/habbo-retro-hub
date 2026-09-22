@@ -1,4 +1,4 @@
-# Linha de Frente — Etapa 2 · v0.6
+# Linha de Frente — Etapa 2 · v0.7
 
 Simulador de gerenciamento de clubes em desenvolvimento. A Etapa 2 conecta uma temporada funcional da Série A a partidas, classificação, artilharia, patrocínios, caixa, troféus e histórico do save.
 
@@ -104,3 +104,17 @@ Para um domínio próprio no futuro, basta conectar este mesmo repositório a um
 A força deixou de ser um único número genérico. A engine calcula blocos separados de goleiro, defesa, meio-campo e ataque, cruza ataque contra defesa rival, considera disputa do meio, profundidade do elenco, faixa etária, mando de campo e forma recente dos últimos cinco jogos. Os eventos continuam determinísticos por seed, permitindo testes reproduzíveis sem depender de APIs pagas.
 
 Durante uma rodada em andamento, o componente de simulação permanece montado mesmo quando o usuário navega para outra área do clube; assim a rodada continua avançando e só é oficializada quando todos os jogos terminam.
+
+
+## v0.7 · decisões do técnico
+
+- **Escalação pré-jogo:** o usuário escolhe os 11 titulares; condição física e ratings internos de jogo alimentam a IA.
+- **Ratings internos:** finalização, passe, defesa, pênaltis, compostura, ritmo, resistência e defesa de goleiro são gerados deterministicamente para o simulador. São atributos do jogo, não estatísticas reais dos atletas.
+- **Intervalo:** a simulação pausa aos 45 minutos nos modos Normal e Rápido e oferece alterações antes do segundo tempo.
+- **Substituições:** até cinco atletas; a engine controla três janelas durante o jogo, enquanto mudanças no intervalo não consomem uma janela. Jogadores expulsos não podem ser substituídos.
+- **Banco e fadiga:** jogadores descansados podem gerar impacto real quando entram; uma substituição tardia pode criar um gol futuro ou eliminar acontecimentos que envolveriam o atleta retirado.
+- **Cartões e suspensões:** amarelos e vermelhos são gerados pela partida; três amarelos acumulados geram uma partida de suspensão e uma expulsão gera suspensão automática na versão atual.
+- **Lesões:** a probabilidade cresce com condição física baixa; a gravidade gera indisponibilidade por partidas futuras e pode abrir uma decisão de substituição durante o jogo.
+- **IA adversária:** clubes controlados pela máquina reagem a cansaço, cartões e lesões e utilizam o banco.
+- **Pênalti interativo:** nos modos Normal e Rápido, um pênalti do clube do usuário pausa o relógio e permite escolher o cobrador entre os jogadores em campo. A chance considera atributo de pênalti, compostura e capacidade do goleiro.
+- **Modo Instantânea:** todas as decisões, inclusive escalação, substituições e pênaltis, são assumidas automaticamente pela IA.
