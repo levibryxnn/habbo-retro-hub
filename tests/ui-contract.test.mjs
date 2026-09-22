@@ -5,6 +5,8 @@ import fs from 'node:fs';
 const main=fs.readFileSync(new URL('../src/main.jsx',import.meta.url),'utf8');
 const leagueCss=fs.readFileSync(new URL('../src/league.css',import.meta.url),'utf8');
 const match=fs.readFileSync(new URL('../src/MatchSimulation.jsx',import.meta.url),'utf8');
+const transfer=fs.readFileSync(new URL('../src/TransferMarket.jsx',import.meta.url),'utf8');
+const styles=fs.readFileSync(new URL('../src/styles.css',import.meta.url),'utf8');
 
 test('every stage two area is present in navigation and has a renderer', function(){
   const tabs=['match','roster','standings','transfers','trophies','sponsors','legacy'];
@@ -17,6 +19,7 @@ test('every stage two area is present in navigation and has a renderer', functio
 
 test('match engine stays mounted while the user navigates to other pages', function(){
   assert.ok(main.includes("<div hidden={tab!=='match'}><MatchSimulation"));
+  assert.ok(main.includes("isVisible={tab==='match'}"));
 });
 
 test('mobile navigation exposes all tabs in a grid instead of hidden horizontal overflow', function(){
@@ -37,4 +40,23 @@ test('transfer market renderer and club theme are connected to the app shell', f
   assert.ok(main.includes("tab==='transfers'&&<TransferMarket"));
   assert.ok(main.includes("style={clubThemeStyle(club.id)}"));
   assert.ok(main.includes("clubs={careerClubs}"));
+});
+
+
+test('match background uses one static optimized stadium image instead of the old SVG scene', function(){
+  assert.ok(match.includes('stadium-sideline-bg.webp'));
+  assert.ok(!match.includes('<svg className="sideline-field"'));
+  assert.ok(!match.includes('function PlayerDot'));
+});
+
+test('transfer market limits initial DOM size and loads more on demand', function(){
+  assert.ok(transfer.includes('useState(36)'));
+  assert.ok(transfer.includes('marketAll.slice(0,visibleCount)'));
+  assert.ok(transfer.includes('Carregar mais jogadores'));
+});
+
+test('club-specific colors are scoped to the club hero rather than the whole interface', function(){
+  assert.ok(styles.includes('.app-shell .club-hero{background:linear-gradient'));
+  assert.ok(!styles.includes('.app-shell .topbar{background:linear-gradient'));
+  assert.ok(!styles.includes('.app-shell .match-stat-track i{background:var(--club-primary)'));
 });
