@@ -15,6 +15,16 @@ function Cup({shape,won}) {
   </svg>;
 }
 
+function SponsorMark({offer,small=false}) {
+  return <span className={'sponsor-mark '+(small?'small':'')} style={{'--sponsor-color':offer.color}}>
+    <b>{offer.symbol||offer.name.slice(0,1)}</b>
+  </span>;
+}
+
+function requirementText(offer) {
+  return (offer.requirements||[]).map(function(req){return req.label;}).join(' · ') || 'Sem requisito adicional';
+}
+
 function paymentText(offer) {
   if (offer.payment.type === 'upfront') return money(offer.payment.amount) + ' pagos de uma vez';
   if (offer.payment.type === 'monthly') return money(offer.payment.amount) + ' por parcela mensal';
@@ -84,25 +94,25 @@ export default function Management({club,tab,career,onCareerChange,canManage,onC
       const contract=active.find(function(item){return item.offer.slot===key;});
       return <article className={'sponsor-slot ' + (contract?'filled':'')} key={key}>
         <span className="slot-name">{label}</span>
-        {contract?<><strong style={{color:contract.offer.color}}>{contract.offer.name}</strong><span>{contract.offer.payment.label} · recebido {money(contract.totalReceived)}</span><small>{paymentText(contract.offer)}</small><button disabled={!canManage} onClick={function(){setPending({type:'end',item:contract.offer});}}>Encerrar contrato</button></>:<><div className="vacant-slot">+</div><span>Espaço disponível</span><small>Escolha uma proposta abaixo</small></>}
+        {contract?<><div className="active-sponsor-brand"><SponsorMark offer={contract.offer} small/><strong style={{color:contract.offer.color}}>{contract.offer.name}</strong></div><span>{contract.offer.payment.label} · recebido {money(contract.totalReceived)}</span><small>{paymentText(contract.offer)}</small><button disabled={!canManage} onClick={function(){setPending({type:'end',item:contract.offer});}}>Encerrar contrato</button></>:<><div className="vacant-slot">+</div><span>Espaço disponível</span><small>Escolha uma proposta abaixo</small></>}
       </article>;
     })}</div>
 
-    <div className="subheading offers-heading"><h3>Propostas disponíveis</h3><span>Valores fictícios para balanceamento do jogo</span></div>
+    <div className="subheading offers-heading"><h3>Propostas disponíveis</h3><span>Quanto maior o pagamento, mais exigente é a marca</span></div>
     <div className="offers-grid">{offers.map(function(offer){
       const signed=active.some(function(item){return item.offerId===offer.id;});
       const occupied=active.some(function(item){return item.offer.slot===offer.slot;});
       const req=requirementStatus(offer,context);
       const disabled=occupied||!canManage||!req.ok;
       return <article className={'offer-card ' + (disabled?'unavailable':'')} key={offer.id}>
-        <div className="offer-top"><span className="sponsor-wordmark" style={{color:offer.color}}>{offer.name}</span><span>{slots[offer.slot]}</span></div>
+        <div className="offer-top"><span className="sponsor-brand-lockup"><SponsorMark offer={offer}/><span className="sponsor-wordmark" style={{color:offer.color}}>{offer.name}<small>Nível {offer.tier||1}</small></span></span><span>{slots[offer.slot]}</span></div>
         <p>{offer.sector} · {offer.tagline}</p>
         <div className="offer-price">{paymentText(offer)}</div>
         <dl>
           <div><dt>Modelo</dt><dd>{offer.payment.label}</dd></div>
           <div><dt>Bônus na assinatura</dt><dd>{money(offer.payment.signingBonus)}</dd></div>
           <div><dt>Projeção mínima restante</dt><dd>{money(projectedOfferValue(offer,career.round))}</dd></div>
-          <div><dt>Requisito</dt><dd className={req.ok?'requirement-ok':'requirement-blocked'}>{req.ok?'✓ ':'✕ '}{req.label}</dd></div>
+          <div className="requirements-row"><dt>Requisitos</dt><dd className={req.ok?'requirement-ok':'requirement-blocked'}>{(req.details||[]).map(function(detail,index){return <span key={index}>{detail.ok?'✓ ':'✕ '}{detail.label}</span>;})}</dd></div>
         </dl>
         <button className="proposal-button" disabled={disabled} onClick={function(){setPending({type:'sign',item:offer});}}>{signed?'Contrato ativo':occupied?'Espaço ocupado':req.ok?'Analisar proposta':'Requisito pendente'}<ArrowRight size={15}/></button>
       </article>;
@@ -110,14 +120,14 @@ export default function Management({club,tab,career,onCareerChange,canManage,onC
 
     <div className="cash-ledger">
       <div className="subheading"><h3>Últimas movimentações</h3><span>Pagamentos entram automaticamente ao simular rodadas</span></div>
-      {(career.transactions||[]).length?<div className="transaction-list">{career.transactions.slice(0,8).map(function(item){return <div key={item.id}><span>Rod. {item.round}</span><strong>{item.label}</strong><b>+ {money(item.amount)}</b></div>;})}</div>:<p className="no-transactions">Nenhuma movimentação de patrocínio ainda.</p>}
+      {(career.transactions||[]).length?<div className="transaction-list">{career.transactions.slice(0,8).map(function(item){return <div key={item.id}><span>Rod. {item.round}</span><strong>{item.label}</strong><b className={item.amount>=0?'income':'expense'}>{item.amount>=0?'+ ':'− '}{money(Math.abs(item.amount))}</b></div>;})}</div>:<p className="no-transactions">Nenhuma movimentação de patrocínio ainda.</p>}
     </div>
 
     {pending&&<Modal title={pending.type==='sign'?'Assinar patrocínio':'Encerrar contrato'} onClose={function(){setPending(null);}}>
       <span className="modal-icon"><Handshake/></span>
       <div className="eyebrow">{club.name} · ETAPA 2</div>
       <h2>{pending.type==='sign'?'Contrato com '+pending.item.name:'Encerrar com '+pending.item.name+'?'}</h2>
-      {pending.type==='sign'?<><p>{paymentText(pending.item)}. O dinheiro será lançado no caixa conforme as regras do contrato e a passagem das rodadas.</p><dl className="proposal-details"><div><dt>Espaço</dt><dd>{slots[pending.item.slot]}</dd></div><div><dt>Forma de pagamento</dt><dd>{pending.item.payment.label}</dd></div><div><dt>Pagamento imediato</dt><dd>{money((pending.item.payment.signingBonus||0)+(pending.item.payment.type==='upfront'?pending.item.payment.amount:0))}</dd></div><div><dt>Requisito</dt><dd>{pending.item.requirement.label}</dd></div></dl></>:<p>O patrocinador deixará de fazer novos pagamentos a partir da rodada atual. O que já entrou no caixa permanece registrado.</p>}
+      {pending.type==='sign'?<><p>{paymentText(pending.item)}. O dinheiro será lançado no caixa conforme as regras do contrato e a passagem das rodadas.</p><dl className="proposal-details"><div><dt>Espaço</dt><dd>{slots[pending.item.slot]}</dd></div><div><dt>Forma de pagamento</dt><dd>{pending.item.payment.label}</dd></div><div><dt>Pagamento imediato</dt><dd>{money((pending.item.payment.signingBonus||0)+(pending.item.payment.type==='upfront'?pending.item.payment.amount:0))}</dd></div><div><dt>Requisitos</dt><dd>{requirementText(pending.item)}</dd></div></dl></>:<p>O patrocinador deixará de fazer novos pagamentos a partir da rodada atual. O que já entrou no caixa permanece registrado.</p>}
       <div className="modal-actions"><button className="secondary" onClick={function(){setPending(null);}}>Cancelar</button><button className="primary" onClick={function(){pending.type==='sign'?sign(pending.item):finish(pending.item);}}>{pending.type==='sign'?'Assinar contrato':'Confirmar encerramento'}</button></div>
     </Modal>}
   </div>;
