@@ -35,7 +35,10 @@ const FULL_TIME=90*60;
 
 function SidelineField() {
   const base=import.meta.env.BASE_URL.replace(/\/$/,'');
-  return <img className="sideline-field" src={base+'/stadium-sideline-bg.webp'} alt="" aria-hidden="true" draggable="false" decoding="async" fetchPriority="high"/>;
+  return <picture className="sideline-picture" aria-hidden="true">
+    <source media="(max-width: 620px)" srcSet={base+'/stadium-sideline-mobile.webp'}/>
+    <img className="sideline-field" src={base+'/stadium-sideline-desktop.webp'} alt="" draggable="false" decoding="async" fetchPriority="high"/>
+  </picture>;
 }
 const clockAt=(second,duration)=>{const value=Math.max(0,Math.min(duration||FULL_TIME,second)),m=Math.floor(value/60),s=value%60;return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');};
 function EventLine({event,compact=false}) {
