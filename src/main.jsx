@@ -13,14 +13,14 @@ import Legacy from './Legacy';
 import TransferMarket from './TransferMarket';
 import { applyCareerRoster } from './transfer-engine.js';
 import { clubThemeStyle } from './club-world.js';
+import { positionGroup } from './position-labels.js';
 import { CAREER_KEY, createCareer, sanitizeCareer, standingsFromResults } from './career-engine';
 
-const groups = { Goalkeeper: 'GOL', Defender: 'DEF', Midfielder: 'MEI', Forward: 'ATA', Attacker: 'ATA' };
 const labels = { GOL: 'Goleiro', DEF: 'Defensor', MEI: 'Meio-campista', ATA: 'Atacante', NI: 'Não informada' };
 const categories = [['Todos', 'Todo o elenco'], ['GOL', 'Goleiros'], ['DEF', 'Defensores'], ['MEI', 'Meias'], ['ATA', 'Atacantes']];
 const locations = {'3458':'Curitiba, PR','7632':'Belo Horizonte, MG','9967':'Salvador, BA','6086':'Rio de Janeiro, RJ','9318':'Chapecó, SC','874':'São Paulo, SP','3456':'Curitiba, PR','2022':'Belo Horizonte, MG','819':'Rio de Janeiro, RJ','3445':'Rio de Janeiro, RJ','6273':'Porto Alegre, RS','1936':'Porto Alegre, RS','9169':'Mirassol, SP','2029':'São Paulo, SP','6079':'Bragança Paulista, SP','4936':'Belém, PA','2674':'Santos, SP','2026':'São Paulo, SP','3454':'Rio de Janeiro, RJ','3457':'Salvador, BA'};
 const normalize = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-const position = p => groups[p.position] || 'NI';
+const position = p => positionGroup(p.position);
 const snapshotDate = new Date(data.fetchedAt);
 const displayDate = snapshotDate.toLocaleDateString('pt-BR', {timeZone:'UTC'});
 const countryNames = new Intl.DisplayNames(['pt-BR'], { type:'region' });
@@ -82,7 +82,7 @@ function App() {
     setDialog('confirmed');
   }
   return <div className="app-shell" style={clubThemeStyle(club.id)}>
-    <header className="topbar"><a href="#" className="brand" aria-label="Linha de Frente, início"><span className="brand-symbol">L<span>F</span></span><span>LINHA DE<br/>FRENTE<span className="brand-small">FOOTBALL MANAGER</span></span></a><div className="top-context"><span className="top-divider"/><span>Uma nova história começa aqui.</span></div><div className="top-right"><span className="version"><i/> ETAPA 2 · v0.8</span><button className="help" onClick={()=>setDialog('data')} aria-label="Sobre os dados"><CircleHelp size={20}/></button></div></header>
+    <header className="topbar"><a href="#" className="brand" aria-label="Linha de Frente, início"><span className="brand-symbol">L<span>F</span></span><span>LINHA DE<br/>FRENTE<span className="brand-small">FOOTBALL MANAGER</span></span></a><div className="top-context"><span className="top-divider"/><span>Uma nova história começa aqui.</span></div><div className="top-right"><span className="version"><i/> ETAPA 2 · v0.8.1</span><button className="help" onClick={()=>setDialog('data')} aria-label="Sobre os dados"><CircleHelp size={20}/></button></div></header>
     <main>
       <section className="intro"><div><div className="eyebrow"><span>01 /</span> O PRIMEIRO PASSO</div><h1>Seu clube. Sua história.</h1><p>Escolha as cores que você vai defender. Conheça quem entra em campo.</p></div><div className="competition"><span className="trophy-icon"><Trophy size={25}/></span><div><strong>BRASILEIRÃO</strong><span>Série A <b>·</b> Temporada {career.season}</span></div><span className="brazil-tag">BR</span></div></section>
       {savedClub && <div className="saved-banner" role="status"><Check size={16}/><span>Seu clube: <strong>{savedClub.name}</strong>. {storageError?'Escolha válida nesta sessão.':'Carreira salva neste navegador.'}</span><button onClick={()=>{selectClub(savedClub.id);setTab('match');}}>Continuar carreira <ArrowRight size={15}/></button></div>}
