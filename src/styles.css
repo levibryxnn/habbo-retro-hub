@@ -42,3 +42,12 @@
 .app-shell .transfer-tabs button.active{color:var(--club-primary);border-bottom-color:var(--club-primary)}
 .app-shell .record-card.personal{background:linear-gradient(135deg,color-mix(in srgb,var(--club-primary) 86%,#122019),color-mix(in srgb,var(--club-secondary) 62%,#172019));border-color:var(--club-primary)}
 .app-shell .record-card.personal>strong{color:var(--club-accent)}
+
+
+/* v0.8.1 · contraste do seletor de clube */
+.app-shell .hero-action{gap:10px;align-items:flex-end;max-width:270px}
+.app-shell .hero-action>span{font-size:10px;color:#f0f5eb;font-weight:650;letter-spacing:.1px;text-shadow:0 2px 5px #0005}
+.app-shell .hero-action .primary{background:#f8fbf6!important;color:#173224!important;border:1px solid #ffffffd9!important;box-shadow:0 9px 22px #0003,inset 0 1px 0 #fff!important;font-size:11px!important;font-weight:800!important;min-width:184px;padding:13px 17px!important;gap:12px}
+.app-shell .hero-action .primary:hover{background:#fff!important;color:#10241a!important;transform:translateY(-1px)}
+.app-shell .hero-action .primary:focus-visible{outline:3px solid #ffffff80;outline-offset:2px}
+@media(max-width:700px){.app-shell .hero-action{align-items:stretch;max-width:none;width:100%}.app-shell .hero-action>span{text-align:left}.app-shell .hero-action .primary{width:100%;min-width:0}}
