@@ -60,5 +60,8 @@ jobs:
           grep -q "Lateral Direito" /tmp/app.js
           grep -q "Lateral Esquerdo" /tmp/app.js
           grep -q "Meia Ofensivo" /tmp/app.js
-          grep -q "ETAPA 2 · v0.8.1" /tmp/app.js
-          echo "JavaScript and CSS assets loaded and visual polish + Portuguese positions v0.8.1 was detected."
+          grep -q "ETAPA 2 · v0.8.2" /tmp/app.js
+          curl -L -fSs "$URL/stadium-sideline-bg.webp" -o /tmp/stadium.webp
+          test -s /tmp/stadium.webp
+          grep -q "stadium-sideline-bg.webp" /tmp/app.js
+          echo "JavaScript, CSS and optimized stadium background loaded; v0.8.2 was detected."
