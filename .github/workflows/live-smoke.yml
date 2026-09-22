@@ -53,4 +53,8 @@ jobs:
           grep -q "Bater pênalti" /tmp/app.js
           grep -q "Substituições" /tmp/app.js
           grep -q "Engine v3" /tmp/app.js
-          echo "JavaScript and CSS assets loaded and tactical simulation v0.7 was detected."
+          grep -q "Transferências" /tmp/app.js
+          grep -q "Negociar compra" /tmp/app.js
+          grep -q "torcedores" /tmp/app.js
+          grep -q "Neo Química Arena" /tmp/app.js
+          echo "JavaScript and CSS assets loaded and club economy + transfer market v0.8 was detected."
