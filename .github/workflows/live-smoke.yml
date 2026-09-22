@@ -49,4 +49,8 @@ jobs:
           grep -q "Instantânea" /tmp/app.js
           grep -q "Histórico de partidas" /tmp/app.js
           grep -q "Rodada sincronizada" /tmp/app.js
-          echo "JavaScript and CSS assets loaded and the coordinated simulation v0.6 bundle was detected."
+          grep -q "Alterar escalação" /tmp/app.js
+          grep -q "Bater pênalti" /tmp/app.js
+          grep -q "Substituições" /tmp/app.js
+          grep -q "Engine v3" /tmp/app.js
+          echo "JavaScript and CSS assets loaded and tactical simulation v0.7 was detected."
