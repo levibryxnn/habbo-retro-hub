@@ -13,10 +13,10 @@ export const clubWorld = {
   '1936':{primary:'#d71920',secondary:'#ffffff',accent:'#f7d5d5',stadium:'Estádio Beira-Rio',capacity:50842,city:'Porto Alegre',state:'RS',revenue2025M:655.5,valuation2025M:2590,marketTotalEurM:92,gameBudgetM:50,wageBudgetMonthlyM:9.0,fanIndex:.86,avgTicket:82},
   '9169':{primary:'#f1c40f',secondary:'#16733d',accent:'#173f2c',stadium:'Estádio José Maria de Campos Maia',capacity:15000,city:'Mirassol',state:'SP',revenue2025M:180,valuation2025M:250,marketTotalEurM:39,gameBudgetM:20,wageBudgetMonthlyM:3.2,fanIndex:.45,avgTicket:52},
   '2029':{primary:'#126a43',secondary:'#ffffff',accent:'#d9e8be',stadium:'Allianz Parque',capacity:43713,city:'São Paulo',state:'SP',revenue2025M:1696.4,valuation2025M:4395,marketTotalEurM:240.48,gameBudgetM:140,wageBudgetMonthlyM:15.0,fanIndex:.96,avgTicket:118},
-  '6079':{primary:'#ffffff',secondary:'#d71920',accent:'#1f2937',stadium:'Estádio Nabi Abi Chedid',capacity:17724,city:'Bragança Paulista',state:'SP',revenue2025M:637,valuation2025M:1719,marketTotalEurM:89,gameBudgetM:70,wageBudgetMonthlyM:8.0,fanIndex:.48,avgTicket:58},
+  '6079':{primary:'#d71920',secondary:'#ffffff',accent:'#1f2937',stadium:'Estádio Nabi Abi Chedid',capacity:17724,city:'Bragança Paulista',state:'SP',revenue2025M:637,valuation2025M:1719,marketTotalEurM:89,gameBudgetM:70,wageBudgetMonthlyM:8.0,fanIndex:.48,avgTicket:58},
   '4936':{primary:'#153f75',secondary:'#ffffff',accent:'#93afd1',stadium:'Mangueirão',capacity:53635,city:'Belém',state:'PA',revenue2025M:82.9,valuation2025M:300,marketTotalEurM:32,gameBudgetM:14,wageBudgetMonthlyM:2.8,fanIndex:.76,avgTicket:56},
-  '2674':{primary:'#ffffff',secondary:'#111111',accent:'#d9d9d9',stadium:'Vila Belmiro',capacity:16068,city:'Santos',state:'SP',revenue2025M:678.5,valuation2025M:1357,marketTotalEurM:103.7,gameBudgetM:55,wageBudgetMonthlyM:9.0,fanIndex:.82,avgTicket:96},
-  '2026':{primary:'#ffffff',secondary:'#d71920',accent:'#111111',stadium:'MorumBIS',capacity:72039,city:'São Paulo',state:'SP',revenue2025M:1085.4,valuation2025M:3244,marketTotalEurM:81,gameBudgetM:75,wageBudgetMonthlyM:11.5,fanIndex:.91,avgTicket:99},
+  '2674':{primary:'#111111',secondary:'#ffffff',accent:'#d9d9d9',stadium:'Vila Belmiro',capacity:16068,city:'Santos',state:'SP',revenue2025M:678.5,valuation2025M:1357,marketTotalEurM:103.7,gameBudgetM:55,wageBudgetMonthlyM:9.0,fanIndex:.82,avgTicket:96},
+  '2026':{primary:'#b5121b',secondary:'#ffffff',accent:'#111111',stadium:'MorumBIS',capacity:72039,city:'São Paulo',state:'SP',revenue2025M:1085.4,valuation2025M:3244,marketTotalEurM:81,gameBudgetM:75,wageBudgetMonthlyM:11.5,fanIndex:.91,avgTicket:99},
   '3454':{primary:'#111111',secondary:'#ffffff',accent:'#d8d8d8',stadium:'Estádio São Januário',capacity:24584,city:'Rio de Janeiro',state:'RJ',revenue2025M:570.2,valuation2025M:1523,marketTotalEurM:104.25,gameBudgetM:45,wageBudgetMonthlyM:8.5,fanIndex:.87,avgTicket:88},
   '3457':{primary:'#d71920',secondary:'#111111',accent:'#f3d5d5',stadium:'Estádio Manoel Barradas (Barradão)',capacity:30793,city:'Salvador',state:'BA',revenue2025M:200.2,valuation2025M:826,marketTotalEurM:45.33,gameBudgetM:22,wageBudgetMonthlyM:4.2,fanIndex:.70,avgTicket:64},
 };
@@ -52,13 +52,19 @@ export function matchdayProjection(homeId,awayId,roundNumber,seed){
   return{stadium:home.stadium,capacity:home.capacity,attendance,ticketAverage:ticket,grossRevenue:gross,clubShare,importance:Number(importance.toFixed(2)),rivalry};
 }
 export function marketSquadReference(clubId){return Math.round(getClubWorld(clubId).marketTotalEurM*1_000_000);}
+function readableOn(hex){
+  const clean=String(hex||'#315f43').replace('#','');
+  if(clean.length!==6)return'#ffffff';
+  const r=parseInt(clean.slice(0,2),16)/255,g=parseInt(clean.slice(2,4),16)/255,b=parseInt(clean.slice(4,6),16)/255;
+  const luminance=.2126*r+.7152*g+.0722*b;
+  return luminance<.56?'#ffffff':'#152018';
+}
 export function clubThemeStyle(clubId){
   const meta=getClubWorld(clubId);
-  const dark=/^#(?:0[0-9a-f]|1[0-9a-f]|2[0-9a-f]|3[0-9a-f])/i.test(meta.primary);
   return{
     '--club-primary':meta.primary,
     '--club-secondary':meta.secondary,
     '--club-accent':meta.accent,
-    '--club-on-primary':dark?'#ffffff':'#152018',
+    '--club-on-primary':readableOn(meta.primary),
   };
 }
