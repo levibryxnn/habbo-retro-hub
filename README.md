@@ -16,7 +16,7 @@ npm test
 npm run build
 ```
 
-O projeto usa Vite e React e mantém o campo da tela de partida em SVG/CSS estático para reduzir custo de renderização.
+O projeto usa Vite e React e mantém o campo da tela de partida em SVG/CSS estático para reduzir custo de renderização. O Vite é envolvido por `@lovable.dev/lovite` para manter compatibilidade com o sandbox de preview do Lovable.
 
 ## Dados
 
