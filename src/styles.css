@@ -5,44 +5,15 @@
 @media(max-width:620px){.topbar{height:76px;padding:0 20px}.brand{font-size:18px}.brand-symbol{height:37px;width:34px;font-size:23px}.brand-small{font-size:6px;letter-spacing:1.3px}.version{font-size:7px;letter-spacing:.7px}.top-right{gap:13px}.help{width:28px;height:28px}.help svg{width:16px}.intro{align-items:flex-start;margin-bottom:20px;gap:20px}.intro .eyebrow{font-size:8px}.intro h1{font-size:37px}.intro p{font-size:11px;max-width:265px}.competition{display:none}main{padding:26px 16px 0}.workspace{grid-template-columns:1fr}.club-panel{padding:20px 16px 0}.club-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.club-card{min-height:88px;padding:10px 3px;gap:8px}.club-card>span:not(.crest):not(.selected-dot){font-size:9px}.crest{width:32px;height:32px}.club-search{height:40px}.club-search input{font-size:13px}.workspace:not(.show-squad) .squad-panel{display:none}.workspace.show-squad .club-panel{display:none}.mobile-back{display:flex;align-items:center;gap:8px;background:#fff;border:0;padding:14px 20px;font-size:11px;color:#71845d;width:100%}.club-hero{flex-direction:row;flex-wrap:wrap;padding:25px 20px;gap:20px}.hero-title h2{font-size:38px}.hero-main{gap:20px}.hero-action{width:100%}.hero-action .primary{align-self:stretch;font-size:12px;padding:14px;justify-content:space-between}.crest.large{width:64px;height:72px}.stats{padding:18px 12px;gap:16px 0}.stats>div{justify-content:center}.stats strong{font-size:22px}.stats small{font-size:9px}.snapshot-stat strong{font-size:10px}.roster-content{padding:25px 15px 0}.roster-heading{gap:18px}.roster-heading h2{font-size:22px}.roster-heading .eyebrow{font-size:8px}.player-search{height:40px}.search-box input{font-size:12px}.toolbar{gap:12px}.position-tabs{gap:4px}.position-tabs button{font-size:10px;padding:7px 6px;gap:4px}.table-scroll{max-height:580px}td{padding:10px 5px}th{padding:15px 5px;letter-spacing:.5px}.player-button{font-size:11px}.number-col{width:24px;font-size:9px}.age-unit{display:none}.row-detail{padding:2px}.page-footer{font-size:8px;line-height:1.7;flex-direction:column;gap:5px;padding:22px 3px}.data-note button{font-size:10px}.saved-banner{font-size:10px;align-items:flex-start}.saved-banner button{font-size:10px;white-space:nowrap}.saved-banner>svg{flex-shrink:0}.table-footer{font-size:10px}.position-tabs button span{font-size:8px}dialog{padding:30px 25px}dialog h2{font-size:31px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 
-/* v0.8 · identidade visual dinâmica por clube */
-.app-shell{min-height:100vh;--theme-soft:color-mix(in srgb,var(--club-primary,#315f43) 9%,#fff);--theme-border:color-mix(in srgb,var(--club-primary,#315f43) 22%,#e2e7de)}
-.app-shell .topbar{background:linear-gradient(105deg,color-mix(in srgb,var(--club-primary) 82%,#101712),color-mix(in srgb,var(--club-secondary) 68%,#101712));transition:background .25s ease}
-.app-shell .brand-symbol{border-color:var(--club-accent);color:var(--club-accent)}
-.app-shell .version{color:color-mix(in srgb,var(--club-accent) 78%,#fff)}
-.app-shell .version i,.app-shell .status-dot{background:var(--club-accent)}
-.app-shell .club-hero{background:linear-gradient(120deg,color-mix(in srgb,var(--club-primary) 88%,#15201a),color-mix(in srgb,var(--club-secondary) 62%,#15201a))}
-.app-shell .hero-line{background:var(--club-accent)}
-.app-shell .division>span{background:var(--club-accent)}
-.app-shell .primary{background:var(--club-accent);color:var(--club-on-primary,#172218)}
-.app-shell .primary:hover{filter:brightness(1.06)}
-.app-shell .saved-banner{background:var(--theme-soft);border-color:var(--theme-border);color:color-mix(in srgb,var(--club-primary) 68%,#394337)}
-.app-shell .club-card.active{background:var(--theme-soft);border-color:var(--club-primary);box-shadow:0 0 0 1px var(--club-primary) inset}
-.app-shell .selected-dot{background:var(--club-primary);color:var(--club-on-primary,#fff)}
-.app-shell .search-box:focus-within{border-color:var(--club-primary);box-shadow:0 0 0 2px color-mix(in srgb,var(--club-primary) 18%,transparent)}
-.app-shell .player-monogram{background:linear-gradient(145deg,color-mix(in srgb,var(--club-primary) 78%,#fff),color-mix(in srgb,var(--club-secondary) 84%,#182019));color:var(--club-on-primary,#fff)}
-.app-shell .page-footer b,.app-shell .footer-dot{color:var(--club-primary)}
-
+/* v0.8.2 · identidade do clube restrita ao cabeçalho do clube */
+.app-shell{min-height:100vh}
+.app-shell .club-hero{background:linear-gradient(120deg,color-mix(in srgb,var(--club-primary,#315f43) 88%,#15201a),color-mix(in srgb,var(--club-secondary,#f4f5ef) 58%,#15201a))}
+.app-shell .club-hero .hero-line{background:var(--club-accent,#d9ef91)}
+.app-shell .club-hero .division>span{background:var(--club-accent,#d9ef91)}
 .app-shell .club-navigation{display:flex;align-items:center;gap:2px;padding:0 18px;border-bottom:1px solid #e4e9df;background:#fbfcf8}
 .app-shell .club-navigation button{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-bottom:2px solid transparent;background:transparent;padding:13px 10px;font-size:9px;color:#778470}
-.app-shell .club-navigation button.selected{color:var(--club-primary);border-bottom-color:var(--club-primary);background:var(--theme-soft);font-weight:700}
-.app-shell .club-navigation button:hover{background:color-mix(in srgb,var(--club-primary) 6%,#fff)}
-
-/* v0.8 · acentos internos acompanham a identidade sem perder legibilidade */
-.app-shell .season-action,
-.app-shell .mode-selector button.active,
-.app-shell .control-row button.active,
-.app-shell .view-row button.active{background:var(--club-primary);border-color:var(--club-primary);color:var(--club-on-primary,#fff)}
-.app-shell .match-stat-track i{background:var(--club-primary)}
-.app-shell .highlight-rating{background:var(--theme-soft);color:var(--club-primary)}
-.app-shell .live-fixtures article.user-live-game{background:var(--theme-soft);box-shadow:inset 3px 0 var(--club-primary)}
-.app-shell .live-dot{background:var(--theme-soft);border-color:var(--theme-border);color:var(--club-primary)}
-.app-shell .stage-two-badge{background:var(--theme-soft);border-color:var(--theme-border);color:var(--club-primary)}
-.app-shell .position-tabs button.current{background:var(--theme-soft);border-color:var(--theme-border);color:var(--club-primary)}
-.app-shell .transfer-tabs button.active{color:var(--club-primary);border-bottom-color:var(--club-primary)}
-.app-shell .record-card.personal{background:linear-gradient(135deg,color-mix(in srgb,var(--club-primary) 86%,#122019),color-mix(in srgb,var(--club-secondary) 62%,#172019));border-color:var(--club-primary)}
-.app-shell .record-card.personal>strong{color:var(--club-accent)}
-
+.app-shell .club-navigation button.selected{color:#35582b;border-bottom-color:#73944a;background:#f3f7ee;font-weight:700}
+.app-shell .club-navigation button:hover{background:#f4f7ef;color:#35582b}
 
 /* v0.8.1 · contraste do seletor de clube */
 .app-shell .hero-action{gap:10px;align-items:flex-end;max-width:270px}
