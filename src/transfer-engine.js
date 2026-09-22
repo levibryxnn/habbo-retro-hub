@@ -99,6 +99,9 @@ export function evaluateTransferOffer(career,baseClubs,offer){
   if(!seller||!buyer)return{status:'rejected',reason:'Clube inválido.'};
   const current=currentOwnerId(career,offer.playerKey,originClub.id);
   if(current!==String(offer.fromClubId))return{status:'rejected',reason:'O jogador já não pertence a esse clube.'};
+  const permanent=String(career?.ownership?.[offer.playerKey]||originClub.id);
+  const isLoaned=current!==permanent;
+  if(isLoaned&&['sell','loan-out','swap','buy'].includes(offer.type))return{status:'rejected',reason:'O atleta está emprestado. O clube que o recebeu não pode vendê-lo, trocá-lo ou subemprestá-lo.'};
   const diff=transferDifficulty(player,originClub,buyer),rivalry=diff.rivalry,stars=diff.stars,seed=negotiationSeed(career,offer),random=.94+roll(seed)*.14;
   const sellerMeta=getClubWorld(seller.id),buyerMeta=getClubWorld(buyer.id);
   if(offer.type==='buy'){
