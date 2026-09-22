@@ -216,6 +216,51 @@ function generateDisciplineAndInjuries(result,home,away,rng,used,career,interact
   }
   return{...result,events:events.sort((a,b)=>a.second-b.second)};
 }
+function applyAiManagement(result,home,away,career,interactiveClubId,rng){
+  let next={...result,events:[...(result.events||[])],substitutions:[...(result.substitutions||[])]};
+  for(const side of['home','away']){
+    const club=side==='home'?home:away;
+    if(club.id===interactiveClubId)continue;
+    const initial=side==='home'?next.homeLineup:next.awayLineup;
+    const benchIds=side==='home'?next.homeBench:next.awayBench;
+    const usedIn=new Set(),usedOut=new Set();
+    const yellowIds=new Set(next.events.filter(e=>e.side===side&&e.type==='yellow').map(e=>String(e.playerId)));
+    const injuries=next.events.filter(e=>e.side===side&&e.type==='injury').sort((a,b)=>a.second-b.second);
+    const candidates=initial.map(id=>playerById(club,id)).filter(Boolean).sort(function(a,b){
+      const ai=injuries.some(e=>String(e.playerId)===String(a.id))?100:0;
+      const bi=injuries.some(e=>String(e.playerId)===String(b.id))?100:0;
+      const ay=yellowIds.has(String(a.id))?18:0,by=yellowIds.has(String(b.id))?18:0;
+      const ac=100-playerCondition(career,club.id,a.id),bc=100-playerCondition(career,club.id,b.id);
+      return(bi+by+bc)-(ai+ay+ac);
+    });
+    const targetCount=2+(rng()<.55?1:0);
+    for(const outgoing of candidates){
+      if(next.substitutions.filter(s=>s.side===side).length>=targetCount||next.substitutions.filter(s=>s.side===side).length>=MAX_SUBSTITUTIONS)break;
+      if(usedOut.has(String(outgoing.id)))continue;
+      const injury=injuries.find(e=>String(e.playerId)===String(outgoing.id));
+      let minute=injury?Math.max(12,Math.floor(injury.second/60)+1):58+Math.floor(rng()*24);
+      const second=Math.min(next.durationSecond-90,minute*60);
+      if(second<=0)continue;
+      const available=benchIds.map(id=>playerById(club,id)).filter(p=>p&&!usedIn.has(String(p.id))).sort(function(a,b){
+        const sameA=a.position===outgoing.position?10:0,sameB=b.position===outgoing.position?10:0;
+        return(playerGameStats(b).overall+sameB+playerCondition(career,club.id,b.id)*.08)-(playerGameStats(a).overall+sameA+playerCondition(career,club.id,a.id)*.08);
+      });
+      const incoming=available[0];if(!incoming)continue;
+      const sub={id:'ai-sub-'+next.id+'-'+side+'-'+next.substitutions.length,side,second,minute,outPlayerId:String(outgoing.id),outPlayer:outgoing.name,inPlayerId:String(incoming.id),inPlayer:incoming.name,halftime:false,windowId:'AI'+next.substitutions.length};
+      next.substitutions.push(sub);usedIn.add(String(incoming.id));usedOut.add(String(outgoing.id));
+      next.events=next.events.filter(e=>!(e.second>second&&String(e.playerId)===String(outgoing.id)&&['goal','yellow','red','injury','shot','big-chance','foul','corner'].includes(e.type)));
+      next.events.push(makeEvent(side,'substitution',second+1,club,incoming,'ai-'+sub.id,{outPlayerId:String(outgoing.id),outPlayer:outgoing.name}));
+      const stats=playerGameStats(incoming),score=scoreAtSecond(next,second),gf=side==='home'?score.home:score.away,ga=side==='home'?score.away:score.home;
+      const impact=clamp(.02,.25,.04+Math.max(0,stats.shooting-67)*.004+(minute>=70?.04:0)+(gf<=ga?.035:0));
+      if((incoming.position==='Forward'||incoming.position==='Attacker'||incoming.position==='Midfielder')&&rng()<impact){
+        const future=Math.min(next.durationSecond-20,second+180+Math.floor(rng()*480));
+        if(future>second+20)next.events.push(makeEvent(side,'goal',future,club,incoming,'ai-impact-'+sub.id,{substitutionImpact:true}));
+      }
+    }
+  }
+  return recalcScore(next);
+}
+
 export function simulateMatch(home,away,seed,context){
   const ctx=context||{},rng=rngFrom(seed);
   const homeLineup=(ctx.homeLineup||autoLineup(home,ctx.career||{},ctx.roundNumber||1)).map(String);
@@ -249,6 +294,7 @@ export function simulateMatch(home,away,seed,context){
   result.stats.possession[1]=100-result.stats.possession[0];
   result.stats.onTarget=[Math.max(homeGoals,Math.round(result.stats.shots[0]*(.34+rng()*.17))),Math.max(awayGoals,Math.round(result.stats.shots[1]*(.34+rng()*.17)))];
   result=generateDisciplineAndInjuries(result,home,away,rng,used,ctx.career||{},ctx.interactiveClubId);
+  result=applyAiManagement(result,home,away,ctx.career||{},ctx.interactiveClubId,rng);
   if(rng()<.30){
     const side=rng()<.5?'home':'away',club=side==='home'?home:away,lineup=side==='home'?homeLineup:awayLineup;
     const penalty=makeEvent(side,'penalty',uniqueEventSecond(rng,used,durationSecond,12*60),club,bestPenaltyTaker(club,lineup)||weightedPlayer(club,lineup,rng),eventIndex++,{
