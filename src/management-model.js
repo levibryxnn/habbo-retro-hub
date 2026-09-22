@@ -14,6 +14,7 @@ export const trophies = [
   {id:'copa',name:'Copa do Brasil',kind:'Nacional',label:'Uma taça. Todo o país.',shape:'cup'},
   {id:'libertadores',name:'CONMEBOL Libertadores',kind:'Continental',label:'A América espera por você',shape:'globe'},
   {id:'sulamericana',name:'CONMEBOL Sul-Americana',kind:'Continental',label:'Um novo capítulo continental',shape:'spire'},
+  {id:'world',name:'Mundial de Clubes',kind:'Mundial',label:'O topo do futebol mundial',shape:'globe'},
 ];
 export const emptyClub = () => ({ contracts: [], awards: [] });
 export function sanitizeState(raw, clubIds) {
