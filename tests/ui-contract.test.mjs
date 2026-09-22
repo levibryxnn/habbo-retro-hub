@@ -51,10 +51,19 @@ test('match background uses dedicated responsive stadium images instead of the o
   assert.ok(!match.includes('function PlayerDot'));
 });
 
-test('transfer market limits initial DOM size and loads more on demand', function(){
-  assert.ok(transfer.includes('useState(36)'));
-  assert.ok(transfer.includes('marketAll.slice(0,visibleCount)'));
-  assert.ok(transfer.includes('Carregar mais jogadores'));
+test('transfer market is filter-driven and renders no external player list before search', function(){
+  assert.ok(transfer.includes("const [appliedFilters,setAppliedFilters]=useState(null)"));
+  assert.ok(transfer.includes("if(!appliedFilters)return []"));
+  assert.ok(transfer.includes("Nome"));
+  assert.ok(transfer.includes("Posição"));
+  assert.ok(transfer.includes("Nacionalidade"));
+  assert.ok(transfer.includes("Clube"));
+  assert.ok(transfer.includes("type=\"submit\""));
+  assert.ok(transfer.includes("Todas as posições"));
+  assert.ok(transfer.includes("Todas as nacionalidades"));
+  assert.ok(transfer.includes("Todos os clubes"));
+  assert.ok(transfer.includes("marketAll.slice(0,visibleCount)"));
+  assert.ok(transfer.includes("Carregar mais jogadores"));
 });
 
 test('club-specific colors are scoped to the club hero rather than the whole interface', function(){
