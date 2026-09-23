@@ -121,3 +121,14 @@
   .club-project-chips{margin-top:9px}
   .club-project-chips>span{font-size:8px}
 }
+
+
+.club-browser-tools{display:flex;align-items:center;gap:6px}
+.surprise-club-button{height:30px;display:flex;align-items:center;gap:5px;border:1px solid #d8e2d2;background:#fff;color:#587054;border-radius:6px;padding:0 8px;font-size:8px;font-weight:750}
+.surprise-club-button:hover{background:#f0f5ec;border-color:#c4d3bd}
+.club-panel .club-card-top em.saved-career-tag{color:#6b6f7b;background:#eef0f3}
+@media(max-width:620px){
+  .club-browser-tools{flex-direction:column;align-items:flex-end}
+  .surprise-club-button{height:31px;padding:0 7px}
+  .surprise-club-button span{display:none}
+}
