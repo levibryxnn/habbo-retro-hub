@@ -139,3 +139,10 @@
 .competition-gate{box-shadow:0 8px 18px #6d5f2a0d}
 @media(max-width:850px){.world-match-grid{grid-template-columns:1fr}.world-match-stage .world-crest.large{width:72px;height:78px}}
 @media(max-width:620px){.world-match-stage .world-crest.large{width:62px;height:68px;padding:4px}.world-power-row{grid-template-columns:1fr 1fr}.world-power-row em{display:none}}
+
+
+/* V4 RC1.2 · histórico multicompetição */
+.history-filters{display:flex;gap:6px;overflow-x:auto;padding:9px 12px;border-top:1px solid #edf0ea;border-bottom:1px solid #edf0ea;scrollbar-width:none}.history-filters::-webkit-scrollbar{display:none}.history-filters button{flex:0 0 auto;border:1px solid #e0e6dd;background:#fff;color:#748171;border-radius:999px;padding:6px 10px;font-size:8px;font-weight:750;white-space:nowrap}.history-filters button.active{background:#315f43;border-color:#315f43;color:#fff}
+.match-history-list article.history-result{position:relative}.match-history-list article.history-result::before{content:'';position:absolute;left:0;top:9px;bottom:9px;width:3px;border-radius:999px;background:#d6ddd2}.match-history-list article.history-result.vitória::before{background:#6e9d62}.match-history-list article.history-result.empate::before{background:#c7a94c}.match-history-list article.history-result.derrota::before{background:#b86a63}
+.history-more{width:calc(100% - 24px);margin:10px 12px 13px;border:1px solid #dce5d7;background:#f5f8f2;color:#45644a;border-radius:8px;min-height:36px;font-size:9px;font-weight:800}
+@media(max-width:620px){.history-filters{padding:8px}.history-filters button{font-size:9px}.match-history-list article{grid-template-columns:78px minmax(0,1fr) 62px}.history-round{font-size:8px}.history-clubs span{font-size:8px}.history-points{font-size:8px}}
