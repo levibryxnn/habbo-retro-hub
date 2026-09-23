@@ -1,0 +1,108 @@
+import React, { useMemo } from 'react';
+import { ArrowRight, BadgeDollarSign, CalendarDays, CircleDot, Flag, Handshake, ShieldCheck, ShoppingBag, Target, TrendingUp, Trophy, Users } from 'lucide-react';
+import { fixtureForUser, standingsFromResults, topScorers, userMatchHistory } from './career-engine.js';
+import { activeContracts } from './finance-model.js';
+import { getClubWorld } from './club-world.js';
+import './dashboard.css';
+
+const money=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+
+function resultLetter(item){
+  if(!item)return'-';
+  if(item.points===3)return'V';
+  if(item.points===1)return'E';
+  return'D';
+}
+
+function objectiveFor(club){
+  const budget=getClubWorld(club.id).gameBudgetM||0;
+  if(budget>=100)return{label:'Brigar pelo título',target:'Top 2',maxPosition:2};
+  if(budget>=55)return{label:'Classificar para a Libertadores',target:'G6',maxPosition:6};
+  if(budget>=25)return{label:'Buscar competição continental',target:'Top 10',maxPosition:10};
+  return{label:'Permanecer na Série A',target:'Fora do Z4',maxPosition:16};
+}
+
+export default function ClubDashboard({career,club,clubs,Crest,onNavigate}){
+  const table=useMemo(()=>standingsFromResults(career.results,clubs),[career.results,clubs]);
+  const row=table.find(item=>item.clubId===club.id)||table.find(item=>item.clubId===career.userClubId);
+  const next=career.round<38?fixtureForUser(career,career.round+1):null;
+  const home=next?clubs.find(item=>item.id===next.homeId):null;
+  const away=next?clubs.find(item=>item.id===next.awayId):null;
+  const opponent=next?(next.homeId===club.id?away:home):null;
+  const world=getClubWorld(next?.homeId||club.id);
+  const history=userMatchHistory(career).slice(0,5);
+  const objective=objectiveFor(club);
+  const objectiveOk=row?row.position<=objective.maxPosition:false;
+  const scorer=topScorers(career.scorers,20).find(item=>item.clubId===club.id);
+  const sponsors=activeContracts(career);
+  const manager=career.managerName||'Técnico';
+  const played=row?.played||0;
+  const seasonProgress=Math.round((Math.min(career.round,38)/38)*100);
+
+  return <div className="dashboard-content">
+    <section className="dashboard-welcome">
+      <div>
+        <span className="eyebrow">CENTRO DE COMANDO</span>
+        <h2>Bom trabalho, {manager}.</h2>
+        <p>{career.round>=38?'Temporada encerrada. Revise o legado e prepare a próxima campanha.':`Rodada ${career.round+1} de 38 · cada decisão daqui altera o rumo da temporada.`}</p>
+      </div>
+      <div className="season-progress">
+        <span><strong>{seasonProgress}%</strong> da temporada</span>
+        <i><b style={{width:seasonProgress+'%'}}/></i>
+      </div>
+    </section>
+
+    <section className="dashboard-kpis">
+      <article><span><Trophy size={16}/></span><div><small>Posição</small><strong>{row?row.position+'º':'—'}</strong><em>{row?row.points+' pts':'0 pts'}</em></div></article>
+      <article><span><TrendingUp size={16}/></span><div><small>Aproveitamento</small><strong>{row?row.efficiency+'%':'0%'}</strong><em>{played} jogos</em></div></article>
+      <article><span><BadgeDollarSign size={16}/></span><div><small>Caixa</small><strong>{money.format(career.cash||0)}</strong><em>{sponsors.length} patrocinador{sponsors.length===1?'':'es'}</em></div></article>
+      <article><span><Target size={16}/></span><div><small>Saldo de gols</small><strong>{row?(row.goalDifference>0?'+':'')+row.goalDifference:'0'}</strong><em>{row?row.goalsFor+' marcados':'0 marcados'}</em></div></article>
+    </section>
+
+    <div className="dashboard-main-grid">
+      <section className="next-match-card">
+        <div className="dash-section-title"><div><CalendarDays size={17}/><span><small>PRÓXIMO COMPROMISSO</small><strong>{next?'Rodada '+(career.round+1):'Temporada encerrada'}</strong></span></div><span className="home-away-badge">{next?(next.homeId===club.id?'CASA':'FORA'):'FIM'}</span></div>
+        {next&&home&&away?<div className="next-match-body">
+          <div className="next-club"><Crest club={home}/><strong>{home.name}</strong></div>
+          <div className="next-match-center"><b>×</b><span>{world.stadium}</span><small>Brasileirão Série A</small></div>
+          <div className="next-club"><Crest club={away}/><strong>{away.name}</strong></div>
+        </div>:<div className="season-finished-card"><Trophy size={29}/><strong>38 rodadas concluídas</strong><span>Confira sua posição final, troféus e recordes.</span></div>}
+        <button onClick={()=>onNavigate(next?'match':'legacy')}>{next?'Preparar partida':'Ver história da temporada'} <ArrowRight size={15}/></button>
+      </section>
+
+      <section className="board-objective-card">
+        <div className="dash-section-title"><div><ShieldCheck size={17}/><span><small>DIRETORIA</small><strong>Objetivo da temporada</strong></span></div><span className={objectiveOk?'objective-ok':'objective-watch'}>{objectiveOk?'NO CAMINHO':'ATENÇÃO'}</span></div>
+        <div className="objective-copy"><strong>{objective.label}</strong><span>Meta: {objective.target}</span></div>
+        <div className="objective-position"><span>Posição atual</span><strong>{row?row.position+'º':'—'}</strong></div>
+        <p>{objectiveOk?'A campanha está dentro da meta definida para o tamanho e orçamento do clube.':'A posição atual está abaixo da meta. As próximas rodadas ganham peso para a temporada.'}</p>
+      </section>
+    </div>
+
+    <div className="dashboard-secondary-grid">
+      <section className="form-card">
+        <div className="dash-section-title"><div><CircleDot size={17}/><span><small>MOMENTO</small><strong>Últimos jogos</strong></span></div><button onClick={()=>onNavigate('match')}>Histórico</button></div>
+        {history.length?<div className="form-list">{history.map(item=>{
+          const opp=clubs.find(c=>c.id===(item.homeId===club.id?item.awayId:item.homeId));
+          const clubGoals=item.homeId===club.id?item.homeGoals:item.awayGoals;
+          const oppGoals=item.homeId===club.id?item.awayGoals:item.homeGoals;
+          return <article key={item.id}><span className={'form-letter result-'+item.points}>{resultLetter(item)}</span><Crest club={opp}/><div><strong>{opp?.name||'Adversário'}</strong><small>Rodada {item.roundNumber}</small></div><b>{clubGoals}–{oppGoals}</b></article>;
+        })}</div>:<div className="dashboard-empty">Sua sequência de resultados aparecerá aqui após a primeira rodada.</div>}
+      </section>
+
+      <section className="spotlight-card">
+        <div className="dash-section-title"><div><Target size={17}/><span><small>DESTAQUE</small><strong>Artilheiro do clube</strong></span></div></div>
+        {scorer?<div className="scorer-spotlight"><span>{scorer.name.split(' ').map((x,i,a)=>i===0||i===a.length-1?x[0]:'').join('').slice(0,2)}</span><div><strong>{scorer.name}</strong><small>{club.abbreviation} · Brasileirão {career.season}</small></div><b>{scorer.goals}<small> gols</small></b></div>:<div className="dashboard-empty">O primeiro gol da temporada vai inaugurar este quadro.</div>}
+      </section>
+    </div>
+
+    <section className="quick-actions">
+      <div className="dash-section-title"><div><Flag size={17}/><span><small>ATALHOS</small><strong>Decisões do técnico</strong></span></div></div>
+      <div>
+        <button onClick={()=>onNavigate('roster')}><span><Users size={18}/></span><div><strong>Elenco</strong><small>Escalação e jogadores</small></div><ArrowRight size={14}/></button>
+        <button onClick={()=>onNavigate('transfers')}><span><ShoppingBag size={18}/></span><div><strong>Mercado</strong><small>Comprar e negociar</small></div><ArrowRight size={14}/></button>
+        <button onClick={()=>onNavigate('sponsors')}><span><Handshake size={18}/></span><div><strong>Patrocínios</strong><small>Receitas e contratos</small></div><ArrowRight size={14}/></button>
+        <button onClick={()=>onNavigate('standings')}><span><Trophy size={18}/></span><div><strong>Classificação</strong><small>Veja a corrida da Série A</small></div><ArrowRight size={14}/></button>
+      </div>
+    </section>
+  </div>;
+}
