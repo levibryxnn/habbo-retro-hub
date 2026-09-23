@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createCareer, simulateRound } from '../src/career-engine.js';
-import { competitionTable, nextCareerEvent, worldCompetitionList } from '../src/competition-engine.js';
+import { competitionTable, finishPendingWorldFixture, nextCareerEvent, startWorldFixture, worldCompetitionList } from '../src/competition-engine.js';
 
 const data=JSON.parse(fs.readFileSync(new URL('../src/data/serie-a-2026.json',import.meta.url),'utf8'));
 const clubs=data.clubs;
@@ -52,4 +52,27 @@ test('full-season helper integrates early competitions instead of skipping direc
   assert.ok((career.world?.history||[]).length>0);
   const paulista=worldCompetitionList(career,clubs).find(c=>c.id==='paulista');
   assert.ok(competitionTable(paulista).some(row=>row.played>0));
+});
+
+
+test('non-league matches support all three simulation modes with a resumable pending state',function(){
+  for(const mode of ['normal','fast','instant']){
+    const career=createCareer(clubs,'874',2026);
+    const started=startWorldFixture(career,clubs,mode);
+    assert.ok(started.pendingWorldMatch);
+    assert.equal(started.pendingWorldMatch.mode,mode);
+    assert.equal(started.pendingWorldMatch.competitionId,'paulista');
+    assert.ok(started.pendingWorldMatch.result);
+    const finished=finishPendingWorldFixture(started,clubs);
+    assert.equal(finished.pendingWorldMatch,null);
+    assert.equal(finished.world.lastUserMatch.competitionId,'paulista');
+  }
+});
+
+test('pending world match keeps the exact fixture and deterministic result across sanitizable state',function(){
+  const career=createCareer(clubs,'874',2026);
+  const started=startWorldFixture(career,clubs,'fast');
+  const snapshot=JSON.parse(JSON.stringify(started.pendingWorldMatch));
+  assert.equal(snapshot.fixtureId,started.pendingWorldMatch.fixtureId);
+  assert.deepEqual(snapshot.result,started.pendingWorldMatch.result);
 });
