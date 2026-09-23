@@ -79,7 +79,7 @@ test('club-specific colors are scoped to the club hero rather than the whole int
 test('V3 asks for a manager name when taking control of a club', function(){
   assert.ok(main.includes("Nome do técnico"));
   assert.ok(main.includes("managerName"));
-  assert.ok(main.includes("V3 beta"));
+  assert.ok(main.includes("V3.1"));
   assert.ok(!main.includes("Protótipo de gestão"));
   assert.ok(!main.includes("ETAPA 2 ·"));
 });
@@ -135,4 +135,16 @@ test('V3 exposes confidence, adaptive AI and season review in the primary UI', f
   assert.ok(match.includes('IA adaptativa'));
   assert.ok(main.includes('<SeasonReviewModal'));
   assert.ok(management.includes('<Trophy3D'));
+});
+
+
+test('portable crest data URLs bypass the relative Vite base prefix', function(){
+  assert.ok(main.includes("if(/^(data:|blob:|https?:\\/\\/)/i.test(source))return source"));
+  assert.ok(main.includes("function assetUrl"));
+});
+
+test('finished match UI does not keep presenting the previous round as live', function(){
+  assert.ok(match.includes("live={Boolean(activeRound)}"));
+  assert.ok(match.includes("ENCERRADA"));
+  assert.ok(match.includes("userMatchFinished?Math.floor(userDuration/60)"));
 });
