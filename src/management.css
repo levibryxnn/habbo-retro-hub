@@ -16,3 +16,13 @@
 .offer-card:not(.unavailable){border-color:#dce5d7}
 .proposal-button:not(:disabled){background:#315f43;border-color:#315f43;color:#fff}
 @media(max-width:620px){.sponsor-mark{width:29px;height:29px}.sponsor-mark b{font-size:16px}.requirements-row dd{text-align:left}}
+
+
+/* beta00 · galeria histórica */
+.historical-trophy{position:relative;overflow:visible;padding-top:17px}
+.trophy-art-wrap{position:relative;width:140px;margin:0 auto}
+.trophy-art-wrap .cup-art{margin-left:auto;margin-right:auto}
+.trophy-number-pop{position:absolute;z-index:3;top:7px;right:4px;min-width:31px;height:31px;padding:0 8px;border-radius:999px;display:grid;place-items:center;background:#213d30;color:#f4f7eb;border:2px solid #eef2df;box-shadow:0 6px 15px #182b2040;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;line-height:1}
+.historical-trophy .trophy-card-top>svg{color:#a78b43}
+.historical-trophy h3{min-height:36px;display:flex;align-items:center;justify-content:center}
+@media(max-width:620px){.trophy-grid{grid-template-columns:1fr 1fr;gap:10px}.trophy-card{padding-left:10px;padding-right:10px}.trophy-art-wrap{width:112px}.cup-art{width:100px;height:116px}.trophy-number-pop{top:4px;right:0;min-width:28px;height:28px;font-size:14px}.historical-trophy h3{font-size:13px;min-height:32px}.trophy-card p{font-size:9px}.trophy-state{font-size:8px}}
