@@ -113,3 +113,14 @@ test('manager dashboard surfaces the next match finances objective form and quic
   assert.ok(dashboard.includes("Artilheiro do clube"));
   assert.ok(dashboard.includes("Decisões do técnico"));
 });
+
+
+test('app always boots into the club selector even when a career is saved', function(){
+  assert.ok(main.includes("const [tab,setTab]=useState('dashboard')"));
+  assert.ok(main.includes("const [clubBrowserOpen,setClubBrowserOpen]=useState(true)"));
+  assert.ok(main.includes("const [selected,setSelected]=useState(()=>data.clubs[0]?.id||'2029')"));
+  assert.ok(main.includes('{clubBrowserOpen&&<section className="club-selector-overlay"'));
+  assert.ok(!main.includes("useState(()=>!readSaved())"));
+  assert.ok(!main.includes("useState(()=>readSaved()||'2029')"));
+  assert.ok(!main.includes('{saved&&clubBrowserOpen&&<section className="club-selector-overlay"'));
+});
