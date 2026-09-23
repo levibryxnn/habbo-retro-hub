@@ -3,6 +3,7 @@ import { ArrowRight, BadgeDollarSign, CalendarDays, CircleDot, Flag, Handshake, 
 import { fixtureForUser, standingsFromResults, topScorers, userMatchHistory } from './career-engine.js';
 import { activeContracts } from './finance-model.js';
 import { getClubWorld } from './club-world.js';
+import { confidenceSnapshot } from './manager-confidence.js';
 import './dashboard.css';
 
 const money=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
@@ -39,6 +40,9 @@ export default function ClubDashboard({career,club,clubs,Crest,onNavigate,canMan
   const manager=career.managerName||'Técnico';
   const played=row?.played||0;
   const seasonProgress=Math.round((Math.min(career.round,38)/38)*100);
+  const confidence=confidenceSnapshot(career);
+  const confidenceEvents=(confidence.events||[]).slice(0,2);
+  const deltaText=value=>value>0?'+'+Number(value).toFixed(1):Number(value).toFixed(1);
   const attentionItems=[
     next?{
       tag:'PARTIDA',
@@ -93,6 +97,12 @@ export default function ClubDashboard({career,club,clubs,Crest,onNavigate,canMan
       <article><span><TrendingUp size={16}/></span><div><small>Aproveitamento</small><strong>{row?row.efficiency+'%':'0%'}</strong><em>{played} jogos</em></div></article>
       <article><span><BadgeDollarSign size={16}/></span><div><small>Caixa</small><strong>{money.format(career.cash||0)}</strong><em>{sponsors.length} patrocinador{sponsors.length===1?'':'es'}</em></div></article>
       <article><span><Target size={16}/></span><div><small>Saldo de gols</small><strong>{row?(row.goalDifference>0?'+':'')+row.goalDifference:'0'}</strong><em>{row?row.goalsFor+' marcados':'0 marcados'}</em></div></article>
+    </section>
+
+    <section className="confidence-panel">
+      <div className="confidence-card fan-confidence"><div className="confidence-copy"><span><Users size={17}/></span><div><small>CONFIANÇA DA TORCIDA</small><strong>{Math.round(confidence.fans)}%</strong><em>{confidence.fanLabel}</em></div><b className={(confidence.lastFanDelta||0)>=0?'positive':'negative'}>{deltaText(confidence.lastFanDelta||0)}</b></div><i className="confidence-track"><b style={{width:confidence.fans+'%'}}/></i></div>
+      <div className="confidence-card board-confidence"><div className="confidence-copy"><span><ShieldCheck size={17}/></span><div><small>CONFIANÇA DA DIRETORIA</small><strong>{Math.round(confidence.board)}%</strong><em>{confidence.jobSecurity} · {confidence.boardLabel}</em></div><b className={(confidence.lastBoardDelta||0)>=0?'positive':'negative'}>{deltaText(confidence.lastBoardDelta||0)}</b></div><i className="confidence-track"><b style={{width:confidence.board+'%'}}/></i></div>
+      <div className="confidence-pulse"><span className="eyebrow">PULSO DO CLUBE</span>{confidenceEvents.length?confidenceEvents.map(item=><p key={item.id}>{item.reason}</p>):<p>Você começou com 100% de confiança. Resultados e decisões administrativas passam a alterar esse ambiente.</p>}</div>
     </section>
 
     <div className="dashboard-main-grid">
