@@ -61,7 +61,7 @@ export default function LeagueTable({clubs,focusClubId,Crest,career}) {
     </section>
 
     <div className="league-footnotes">
-      <div><Info size={15}/><p><strong>Critérios:</strong> pontos, vitórias, saldo de gols e gols marcados são usados na ordenação desta versão. As zonas seguem a configuração-base do protótipo e podem ser ajustadas quando outras competições estiverem integradas.</p></div>
+      <div><Info size={15}/><p><strong>Critérios:</strong> pontos, vitórias, saldo de gols e gols marcados são os critérios atualmente processados na classificação. As zonas exibem campeão, Libertadores, Sul-Americana e rebaixamento.</p></div>
     </div>
   </div>;
 }
