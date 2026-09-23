@@ -39,3 +39,19 @@
 .dashboard-takeover p{max-width:560px;font-size:12px;line-height:1.65;color:#758171;margin:0 0 18px}
 .dashboard-takeover button{display:inline-flex;align-items:center;gap:7px;border:1px solid #315f43;background:#315f43;color:#fff;border-radius:7px;padding:11px 15px;font-size:11px;font-weight:750}
 @media(max-width:620px){.dashboard-takeover{min-height:330px;padding:28px 20px}.dashboard-takeover .crest{width:62px;height:62px}.dashboard-takeover h2{font-size:28px}.dashboard-takeover p{font-size:11px}.dashboard-takeover button{width:100%;justify-content:center;min-height:44px}.manager-inbox{padding:14px 12px}.manager-inbox-title{align-items:flex-start}.manager-inbox-title>span{font-size:8px}.manager-inbox-grid article{padding:13px}.manager-inbox-grid article strong{font-size:12px}.manager-inbox-grid article p{font-size:10px}}
+
+
+/* V3 · confiança e ambiente do clube */
+.confidence-panel{display:grid;grid-template-columns:1fr 1fr 1.1fr;gap:10px;margin:0 0 12px}
+.confidence-card,.confidence-pulse{border:1px solid #e1e6dc;background:#fff;border-radius:9px;padding:14px}
+.confidence-copy{display:grid;grid-template-columns:36px minmax(0,1fr) auto;align-items:center;gap:9px}
+.confidence-copy>span{width:36px;height:36px;border-radius:8px;display:grid;place-items:center;background:#eef4e9;color:#49674c}
+.confidence-copy small,.confidence-copy strong,.confidence-copy em{display:block;font-style:normal}
+.confidence-copy small{font-size:8px;letter-spacing:.65px;color:#879282}
+.confidence-copy strong{font-family:'Barlow Condensed',sans-serif;font-size:25px;color:#314633;line-height:1;margin-top:3px}
+.confidence-copy em{font-size:8px;color:#7b8877;margin-top:3px}
+.confidence-copy>b{font-size:9px;border-radius:999px;padding:5px 7px;min-width:38px;text-align:center}.confidence-copy>b.positive{background:#e6f1df;color:#4e7448}.confidence-copy>b.negative{background:#f4e3e1;color:#9a5e57}
+.confidence-track{display:block;height:7px;border-radius:999px;background:#edf0e9;overflow:hidden;margin-top:11px}.confidence-track>b{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#b85f58,#d0af56 47%,#6d9f5c);transition:width .35s ease}
+.confidence-pulse{background:linear-gradient(135deg,#f7faf4,#fff)}.confidence-pulse .eyebrow{font-size:8px;letter-spacing:.8px;color:#71826d}.confidence-pulse p{margin:7px 0 0;font-size:9px;line-height:1.5;color:#72806f}.confidence-pulse p+p{border-top:1px solid #e8ece4;padding-top:7px}
+@media(max-width:950px){.confidence-panel{grid-template-columns:1fr 1fr}.confidence-pulse{grid-column:1/-1}}
+@media(max-width:620px){.confidence-panel{grid-template-columns:1fr}.confidence-pulse{grid-column:auto}.confidence-card,.confidence-pulse{padding:13px}.confidence-copy strong{font-size:23px}.confidence-copy small{font-size:8px}.confidence-pulse p{font-size:10px}}
