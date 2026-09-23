@@ -118,3 +118,9 @@
 @media(max-width:760px){
   .live-round-board,.match-lower-grid,.match-history-panel,.champion-banner{contain-intrinsic-size:1px 760px}
 }
+
+
+/* V4 RC · calendário integrado */
+.competition-gate{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;margin:0 0 12px;padding:12px 13px;border:1px solid #dfd7a5;border-radius:9px;background:#fff9df;color:#6f6231}
+.competition-gate>span strong,.competition-gate>span small{display:block}.competition-gate>span strong{font-size:10px}.competition-gate>span small{font-size:8px;margin-top:2px;color:#8b7d4b}.competition-gate button{border:0;border-radius:7px;background:#315f43;color:#fff;min-height:34px;padding:0 11px;font-size:9px;font-weight:800}
+@media(max-width:620px){.competition-gate{grid-template-columns:auto 1fr}.competition-gate button{grid-column:1/-1;width:100%}}
