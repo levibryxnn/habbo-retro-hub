@@ -47,7 +47,7 @@
 .match-venue span{font-size:10px;line-height:1.25;color:#dff0bd;font-weight:700;text-shadow:0 2px 5px #0009}
 .match-event-line.compact{font-size:9px;background:#07170fd9}
 @media(max-width:850px){.match-score-layer{grid-template-columns:minmax(0,1fr) 205px minmax(0,1fr);inset:22px 22px auto}.match-team .crest{width:88px;height:94px}.match-team h3{font-size:24px}.match-clock{font-size:29px}.score-center>strong{font-size:62px}.match-venue{max-width:200px}.match-venue strong{font-size:14px}.match-venue span{font-size:9px}}
-@media(max-width:620px){.match-stage{height:auto;aspect-ratio:9/16.match-score-layer{grid-template-columns:minmax(0,1fr) 142px minmax(0,1fr);gap:7px;inset:17px 8px auto}.match-team .crest{width:66px;height:70px}.match-team h3{font-size:18px}.match-clock{font-size:24px}.score-center>strong{font-size:50px;gap:7px}.score-center>strong i{font-size:25px}.score-center>small{font-size:7px}.match-venue{max-width:136px;padding:7px 6px;gap:3px}.match-venue strong{font-size:11px}.match-venue span{font-size:7px}.match-event-line.compact{display:none}}
+@media(max-width:620px){.match-stage{height:auto;aspect-ratio:9/16}.match-score-layer{grid-template-columns:minmax(0,1fr) 142px minmax(0,1fr);gap:7px;inset:17px 8px auto}.match-team .crest{width:66px;height:70px}.match-team h3{font-size:18px}.match-clock{font-size:24px}.score-center>strong{font-size:50px;gap:7px}.score-center>strong i{font-size:25px}.score-center>small{font-size:7px}.match-venue{max-width:136px;padding:7px 6px;gap:3px}.match-venue strong{font-size:11px}.match-venue span{font-size:7px}.match-event-line.compact{display:none}}
 
 /* Mobile usa arte 9:16 própria: nenhum zoom lateral ou deslocamento artificial. */
 @media(max-width:620px){
