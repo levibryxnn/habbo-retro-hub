@@ -7,10 +7,11 @@ const leagueCss=fs.readFileSync(new URL('../src/league.css',import.meta.url),'ut
 const match=fs.readFileSync(new URL('../src/MatchSimulation.jsx',import.meta.url),'utf8');
 const transfer=fs.readFileSync(new URL('../src/TransferMarket.jsx',import.meta.url),'utf8');
 const management=fs.readFileSync(new URL('../src/Management.jsx',import.meta.url),'utf8');
+const dashboard=fs.readFileSync(new URL('../src/ClubDashboard.jsx',import.meta.url),'utf8');
 const styles=fs.readFileSync(new URL('../src/styles.css',import.meta.url),'utf8');
 
-test('every stage two area is present in navigation and has a renderer', function(){
-  const tabs=['match','roster','standings','transfers','trophies','sponsors','legacy'];
+test('every career area is present in navigation and has a renderer', function(){
+  const tabs=['dashboard','match','roster','standings','transfers','trophies','sponsors','legacy'];
   for(const tab of tabs){
     assert.ok(main.includes("['"+tab+"'"),tab+' is missing from navigation');
     if(tab==='roster'||tab==='match') assert.ok(main.includes("hidden={tab!=='"+tab+"'}"),tab+' persistent renderer is missing');
@@ -23,9 +24,10 @@ test('match engine stays mounted while the user navigates to other pages', funct
   assert.ok(main.includes("isVisible={tab==='match'}"));
 });
 
-test('mobile navigation exposes all tabs in a grid instead of hidden horizontal overflow', function(){
-  assert.match(leagueCss,/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
-  assert.match(leagueCss,/overflow:visible!important/);
+test('mobile navigation is a compact sticky horizontal career bar', function(){
+  assert.match(leagueCss,/position:sticky/);
+  assert.match(leagueCss,/overflow-x:auto!important/);
+  assert.match(leagueCss,/min-width:max-content!important/);
 });
 
 test('match screen exposes Normal Fast and Instant simulation modes', function(){
@@ -97,4 +99,17 @@ test('historical trophy gallery exposes count bubbles instead of future placehol
   assert.ok(management.includes("trophy-number-pop"));
   assert.ok(!management.includes("Competição preparada para fases futuras"));
   assert.ok(!management.includes("Na Etapa 2"));
+});
+
+
+test('manager dashboard surfaces the next match finances objective form and quick actions', function(){
+  assert.ok(main.includes("['dashboard','Painel'"));
+  assert.ok(main.includes("<ClubDashboard"));
+  assert.ok(dashboard.includes("CENTRO DE COMANDO"));
+  assert.ok(dashboard.includes("PRÓXIMO COMPROMISSO"));
+  assert.ok(dashboard.includes("Objetivo da temporada"));
+  assert.ok(dashboard.includes("Caixa"));
+  assert.ok(dashboard.includes("Últimos jogos"));
+  assert.ok(dashboard.includes("Artilheiro do clube"));
+  assert.ok(dashboard.includes("Decisões do técnico"));
 });
