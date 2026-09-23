@@ -76,10 +76,10 @@ test('club-specific colors are scoped to the club hero rather than the whole int
 });
 
 
-test('beta00 asks for a manager name when taking control of a club', function(){
+test('V3 asks for a manager name when taking control of a club', function(){
   assert.ok(main.includes("Nome do técnico"));
   assert.ok(main.includes("managerName"));
-  assert.ok(main.includes("beta00"));
+  assert.ok(main.includes("V3 beta"));
   assert.ok(!main.includes("Protótipo de gestão"));
   assert.ok(!main.includes("ETAPA 2 ·"));
 });
@@ -126,4 +126,13 @@ test('app always boots into the canonical club selector even when a career is sa
   assert.ok(!main.includes('<aside className="club-panel">'));
   assert.ok(!main.includes("useState(()=>!readSaved())"));
   assert.ok(!main.includes("useState(()=>readSaved()||'2029')"));
+});
+
+
+test('V3 exposes confidence, adaptive AI and season review in the primary UI', function(){
+  assert.ok(dashboard.includes('CONFIANÇA DA TORCIDA'));
+  assert.ok(dashboard.includes('CONFIANÇA DA DIRETORIA'));
+  assert.ok(match.includes('IA adaptativa'));
+  assert.ok(main.includes('<SeasonReviewModal'));
+  assert.ok(management.includes('<Trophy3D'));
 });
