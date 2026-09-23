@@ -1,6 +1,6 @@
-# Linha de Frente — Etapa 2 · v0.8
+# Linha de Frente — beta00
 
-Simulador de gerenciamento de clubes em desenvolvimento. A Etapa 2 conecta uma temporada funcional da Série A a partidas, classificação, artilharia, patrocínios, caixa, troféus e histórico do save.
+Simulador de gerenciamento de clubes com temporada funcional da Série A, partidas, classificação, artilharia, transferências, patrocínios, caixa, galeria histórica de troféus e histórico do save.
 
 ## Executar
 
@@ -22,7 +22,7 @@ O projeto usa React + Vite puro e mantém o campo da tela de partida em SVG/CSS 
 
 `src/data/serie-a-2026.json` contém uma fotografia dos cadastros de elenco da temporada 2026 consultados na ESPN. Os elencos podem incluir atletas transferidos e não equivalem à lista oficial de inscrições da CBF.
 
-Os 20 escudos usados pela interface estão em `public/crests/`, evitando requisições externas durante o jogo. O protótipo não é afiliado aos clubes, à CBF ou à ESPN.
+Os 20 escudos usados pela interface estão em `public/crests/`, evitando requisições externas durante o jogo. O projeto não é afiliado aos clubes, à CBF ou à ESPN.
 
 Para atualizar a fotografia de elencos:
 
@@ -100,7 +100,7 @@ O GitHub Actions valida automaticamente testes e build e gera o artefato `linha-
 Para um domínio próprio no futuro, basta conectar este mesmo repositório a uma hospedagem estática como Vercel, Cloudflare Pages ou Netlify e apontar o DNS; não será necessário reescrever o jogo.
 
 
-### IA de partidas v2
+### Motor de partidas
 
 A força deixou de ser um único número genérico. A engine calcula blocos separados de goleiro, defesa, meio-campo e ataque, cruza ataque contra defesa rival, considera disputa do meio, profundidade do elenco, faixa etária, mando de campo e forma recente dos últimos cinco jogos. Os eventos continuam determinísticos por seed, permitindo testes reproduzíveis sem depender de APIs pagas.
 
@@ -109,16 +109,16 @@ Durante uma rodada em andamento, o componente de simulação permanece montado m
 
 ## v0.7 · decisões do técnico
 
-- **Escalação pré-jogo:** o usuário escolhe os 11 titulares; condição física e ratings internos de jogo alimentam a IA.
+- **Escalação pré-jogo:** o usuário escolhe os 11 titulares; condição física e ratings internos de jogo alimentam o motor da partida.
 - **Ratings internos:** finalização, passe, defesa, pênaltis, compostura, ritmo, resistência e defesa de goleiro são gerados deterministicamente para o simulador. São atributos do jogo, não estatísticas reais dos atletas.
 - **Intervalo:** a simulação pausa aos 45 minutos nos modos Normal e Rápido e oferece alterações antes do segundo tempo.
 - **Substituições:** até cinco atletas; a engine controla três janelas durante o jogo, enquanto mudanças no intervalo não consomem uma janela. Jogadores expulsos não podem ser substituídos.
 - **Banco e fadiga:** jogadores descansados podem gerar impacto real quando entram; uma substituição tardia pode criar um gol futuro ou eliminar acontecimentos que envolveriam o atleta retirado.
 - **Cartões e suspensões:** amarelos e vermelhos são gerados pela partida; três amarelos acumulados geram uma partida de suspensão e uma expulsão gera suspensão automática na versão atual.
 - **Lesões:** a probabilidade cresce com condição física baixa; a gravidade gera indisponibilidade por partidas futuras e pode abrir uma decisão de substituição durante o jogo.
-- **IA adversária:** clubes controlados pela máquina reagem a cansaço, cartões e lesões e utilizam o banco.
+- **Gestão adversária:** clubes controlados pela máquina reagem a cansaço, cartões e lesões e utilizam o banco.
 - **Pênalti interativo:** nos modos Normal e Rápido, um pênalti do clube do usuário pausa o relógio e permite escolher o cobrador entre os jogadores em campo. A chance considera atributo de pênalti, compostura e capacidade do goleiro.
-- **Modo Instantânea:** todas as decisões, inclusive escalação, substituições e pênaltis, são assumidas automaticamente pela IA.
+- **Modo Instantânea:** todas as decisões, inclusive escalação, substituições e pênaltis, são assumidas automaticamente automaticamente pelo adversário.
 
 
 ## v0.8 · clubes, estádios e mercado
@@ -128,7 +128,7 @@ Durante uma rodada em andamento, o componente de simulação permanece montado m
 - **Matchday:** público é projetado por capacidade, força de torcida, rivalidade e momento da temporada. A parcela do clube entra no caixa quando a rodada é encerrada.
 - **Economia inicial:** cada clube recebe um orçamento de gameplay diferente, calibrado por escala financeira, receita e estrutura. Esses valores não representam saldo bancário ou orçamento oficial publicado.
 - **Patrocínios:** nove marcas fictícias com símbolos, níveis, pagamentos diferentes e requisitos cumulativos. As propostas mais valiosas exigem reputação, posição e/ou vitórias maiores.
-- **Transferências:** compra, venda, empréstimo, saída por empréstimo e troca de jogadores são funcionais. A IA aceita, recusa ou envia contraproposta.
+- **Transferências:** compra, venda, empréstimo, saída por empréstimo e troca de jogadores são funcionais. A diretoria adversária aceita, recusa ou envia contraproposta.
 - **Rivalidades:** negociações entre rivais históricos recebem resistência adicional, especialmente por jogadores considerados estrelas.
 - **Empréstimos:** taxa, percentual salarial, duração até o fim da temporada e opção de compra. O jogo impede venda/troca/subempréstimo pelo clube que apenas recebeu o atleta emprestado.
 - **Elencos dinâmicos:** uma negociação concluída muda o jogador de clube no próprio save e essa mudança chega à escalação e à engine de partidas.
@@ -173,3 +173,15 @@ Orçamento inicial, salário estimado, preço de ingresso, receita líquida de m
 - Para preservar desempenho em celulares e computadores modestos, os resultados aparecem em lotes de 24 cards com carregamento adicional sob demanda.
 - A busca por nome ignora acentos e aceita parte do nome.
 - Posições são exibidas em português e nacionalidades são apresentadas em português quando o código do país está disponível.
+
+
+## beta00 · primeira versão operacional
+
+- O usuário define o **nome do técnico** ao assumir um clube; a identidade fica salva junto da carreira.
+- A **galeria de troféus** mostra o acervo histórico dos 20 clubes e soma novas conquistas obtidas no save.
+- Cada troféu exibe um **contador de títulos** sobre a taça.
+- Os destaques individuais usam notas de **0.0 a 10.0**, calculadas por participação real nos eventos da partida, posição, gols, assistências, finalizações, cartões, disciplina, resultado e clean sheet quando aplicável.
+- O relógio visual da partida usa tempo real: **60 segundos no Normal**, **30 segundos no Rápido** e resultado imediato no modo Instantânea.
+- A tela de estatísticas recebeu ícones e hierarquia visual melhorada.
+- Foram retirados os seletores sem função de Visão Tática, Visão TV e Dados.
+- A interface não exibe rótulos de versão experimental, avisos de engine de teste ou mensagens de protótipo.
