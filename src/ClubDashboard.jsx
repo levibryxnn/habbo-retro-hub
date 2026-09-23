@@ -39,6 +39,41 @@ export default function ClubDashboard({career,club,clubs,Crest,onNavigate,canMan
   const manager=career.managerName||'Técnico';
   const played=row?.played||0;
   const seasonProgress=Math.round((Math.min(career.round,38)/38)*100);
+  const attentionItems=[
+    next?{
+      tag:'PARTIDA',
+      title:(opponent?.name||'Próximo adversário')+' é o próximo teste',
+      copy:(next.homeId===club.id?'Em casa':'Fora')+' · rodada '+(career.round+1)+' · '+world.stadium,
+      action:'Abrir partida',
+      nav:'match',
+    }:{
+      tag:'TEMPORADA',
+      title:'A campanha terminou',
+      copy:'Revise sua colocação, troféus e marcas antes de iniciar a próxima temporada.',
+      action:'Ver legado',
+      nav:'legacy',
+    },
+    sponsors.length<3?{
+      tag:'FINANÇAS',
+      title:'Há espaço comercial disponível',
+      copy:(3-sponsors.length)+' cota'+(3-sponsors.length===1?'':'s')+' de patrocínio ainda pode'+(3-sponsors.length===1?'':'m')+' gerar receita para o clube.',
+      action:'Ver propostas',
+      nav:'sponsors',
+    }:null,
+    !objectiveOk?{
+      tag:'DIRETORIA',
+      title:'A meta da temporada está pressionada',
+      copy:'Você está em '+(row?row.position+'º':'—')+'. A diretoria espera '+objective.target+'.',
+      action:'Ver classificação',
+      nav:'standings',
+    }:{
+      tag:'ELENCO',
+      title:'Mantenha o grupo pronto para a sequência',
+      copy:'Revise o elenco antes da próxima rodada e ajuste suas escolhas de titulares e banco.',
+      action:'Abrir elenco',
+      nav:'roster',
+    },
+  ].filter(Boolean).slice(0,3);
 
   return <div className="dashboard-content">
     <section className="dashboard-welcome">
@@ -78,6 +113,14 @@ export default function ClubDashboard({career,club,clubs,Crest,onNavigate,canMan
         <p>{objectiveOk?'A campanha está dentro da meta definida para o tamanho e orçamento do clube.':'A posição atual está abaixo da meta. As próximas rodadas ganham peso para a temporada.'}</p>
       </section>
     </div>
+
+    <section className="manager-inbox">
+      <div className="dash-section-title manager-inbox-title"><div><Flag size={17}/><span><small>PRIORIDADES</small><strong>Agenda do treinador</strong></span></div><span>{attentionItems.length} ações agora</span></div>
+      <div className="manager-inbox-grid">{attentionItems.map((item,index)=><article key={item.tag+'-'+index}>
+        <div><span>{item.tag}</span><strong>{item.title}</strong><p>{item.copy}</p></div>
+        <button onClick={()=>onNavigate(item.nav)}>{item.action}<ArrowRight size={14}/></button>
+      </article>)}</div>
+    </section>
 
     <div className="dashboard-secondary-grid">
       <section className="form-card">
