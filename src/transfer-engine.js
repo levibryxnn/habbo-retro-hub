@@ -1,6 +1,7 @@
 import { addTransaction } from './finance-model.js';
 import { getClubWorld, marketSquadReference, rivalryLevel } from './club-world.js';
 import { playerGameStats } from './player-engine.js';
+import { applyConfidenceEvent } from './manager-confidence.js';
 
 export const EUR_BRL_REFERENCE=6.25;
 const clamp=(min,max,n)=>Math.max(min,Math.min(max,n));
@@ -140,7 +141,30 @@ export function evaluateTransferOffer(career,baseClubs,offer){
   return{status:'rejected',reason:'Tipo de proposta não suportado.'};
 }
 function transferRecord(career,offer,item,result){
-  return{id:'tr-'+career.season+'-'+career.round+'-'+(career.transferHistory?.length||0),season:career.season,round:career.round,type:offer.type,playerKey:offer.playerKey,player:item.player.name,fromClubId:String(offer.fromClubId),toClubId:String(offer.toClubId),amount:result.agreedAmount??result.cashAmount??result.agreedLoanFee??0,salaryShare:result.salaryShare??offer.salaryShare??null,buyOption:result.buyOption??offer.buyOption??null};
+  const amount=result.agreedAmount??result.cashAmount??result.agreedLoanFee??0,marketValue=playerMarketValueBRL(item.player,item.originClub).valueBRL;
+  return{id:'tr-'+career.season+'-'+career.round+'-'+(career.transferHistory?.length||0),season:career.season,round:career.round,type:offer.type,playerKey:offer.playerKey,player:item.player.name,fromClubId:String(offer.fromClubId),toClubId:String(offer.toClubId),amount,marketValue,valueRatio:marketValue?Number((Number(amount||0)/marketValue).toFixed(3)):null,salaryShare:result.salaryShare??offer.salaryShare??null,buyOption:result.buyOption??offer.buyOption??null};
+}
+function applyTransferConfidence(career,offer,item,evaluation){
+  const user=String(career.userClubId),from=String(offer.fromClubId),to=String(offer.toClubId),market=playerMarketValueBRL(item.player,item.originClub).valueBRL;
+  if(!market)return career;
+  if(offer.type==='sell'&&from===user){
+    const amount=Number(evaluation.agreedAmount||offer.amount||0),ratio=amount/market;
+    const board=ratio>=1.15?5:ratio>=.98?2:ratio>=.85?-2:ratio>=.7?-6:-12;
+    const reason=board>=0?'Venda de '+item.player.name+' valorizou o patrimônio do clube.':'Venda de '+item.player.name+' por '+Math.round(ratio*100)+'% do valor de mercado desagradou a diretoria.';
+    return applyConfidenceEvent(career,{board,kind:'transfer',reason});
+  }
+  if(offer.type==='buy'&&to===user){
+    const amount=Number(evaluation.agreedAmount||offer.amount||0),ratio=amount/market;
+    const board=ratio>=1.5?-6:ratio>=1.25?-3:ratio<=.9?3:ratio<=1.05?1:0;
+    const reason=board<0?'A diretoria considera alto o investimento feito em '+item.player.name+'.':'A negociação por '+item.player.name+' foi considerada financeiramente equilibrada.';
+    return applyConfidenceEvent(career,{board,kind:'transfer',reason});
+  }
+  if(offer.type==='loan-out'&&from===user)return applyConfidenceEvent(career,{board:1,kind:'transfer',reason:'O empréstimo de '+item.player.name+' reduziu pressão sobre o elenco e a folha.'});
+  if(offer.type==='loan-in'&&to===user){
+    const share=Number(evaluation.salaryShare??offer.salaryShare??60);
+    return applyConfidenceEvent(career,{board:share>=90?-1:.5,kind:'transfer',reason:'A diretoria avaliou o custo do empréstimo de '+item.player.name+'.'});
+  }
+  return career;
 }
 export function executeTransfer(career,baseClubs,offer,evaluation){
   if(!evaluation||evaluation.status!=='accepted')return{career,error:'A negociação ainda não foi aceita.'};
@@ -169,6 +193,7 @@ export function executeTransfer(career,baseClubs,offer,evaluation){
     if(to===user&&fee>0)next=addTransaction(next,-fee,'Empréstimo · '+item.player.name,career.round,'transfer');
     if(from===user&&fee>0)next=addTransaction(next,fee,'Taxa de empréstimo · '+item.player.name,career.round,'transfer');
   }
+  next=applyTransferConfidence(next,offer,item,evaluation);
   next.transferHistory.push(transferRecord(next,offer,item,evaluation));
   return{career:next,error:null};
 }
