@@ -52,6 +52,8 @@ jobs:
                grep -q "60 segundos em tempo real" /tmp/app.js &&
                grep -q "30 segundos em tempo real" /tmp/app.js &&
                grep -q "Galeria de troféus" /tmp/app.js &&
+               grep -q "Qual história você quer conhecer?" /tmp/app.js &&
+               grep -q "Clube surpresa" /tmp/app.js &&
                grep -q "trophy-number-pop" /tmp/app.css &&
                grep -q "Transferências" /tmp/app.js &&
                grep -q "Negociar compra" /tmp/app.js &&
