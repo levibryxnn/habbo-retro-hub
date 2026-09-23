@@ -61,3 +61,63 @@
   .career-strip-meta .career-explore{font-size:0}
   .career-strip-meta .career-explore svg{width:15px;height:15px}
 }
+
+
+/* beta01 · seletor de clubes aprimorado */
+.club-browser-strip{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px;padding:12px 14px;border:1px solid #d8e2d3;border-radius:9px;background:linear-gradient(100deg,#f6f9f2,#fff);box-shadow:0 8px 22px #17251b0b}
+.club-browser-strip>div{display:flex;align-items:center;gap:10px;min-width:0}
+.club-browser-strip .crest{width:34px;height:34px}
+.club-browser-strip small,.club-browser-strip strong{display:block}
+.club-browser-strip small{font-size:8px;letter-spacing:.9px;color:#84927f}
+.club-browser-strip strong{font-size:11px;color:#364936;margin-top:2px}
+.club-browser-strip>div:last-child>span{font-size:9px;color:#778373;white-space:nowrap}
+.club-browser-strip button{display:flex;align-items:center;gap:6px;border:1px solid #315f43;background:#315f43;color:#fff;border-radius:6px;padding:9px 11px;font-size:9px;font-weight:750;white-space:nowrap}
+.club-browser-strip button:hover{background:#284f38}
+
+.club-browser-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px}
+.club-browser-heading .eyebrow{font-size:7px;letter-spacing:1px;color:#91a08b}
+.club-browser-heading h2{font-family:'Barlow Condensed',sans-serif;font-size:23px;line-height:1;margin:4px 0 5px;color:#304434}
+.club-browser-heading p{font-size:9px;line-height:1.45;color:#879282;margin:0;max-width:205px}
+.return-career-button{width:100%;display:flex;align-items:center;gap:9px;border:1px solid #d7e2d2;background:#eff5eb;color:#486448;border-radius:7px;padding:9px 10px;margin-bottom:11px;text-align:left}
+.return-career-button>span{min-width:0}.return-career-button small,.return-career-button strong{display:block}
+.return-career-button small{font-size:7px;letter-spacing:.8px;color:#83917e}.return-career-button strong{font-size:10px;color:#3d533f;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.return-career-button:hover{background:#e7f0e1;border-color:#c8d7c1}
+
+.club-panel .club-grid{gap:9px}
+.club-panel .club-card{align-items:stretch;justify-content:flex-start;gap:7px;min-height:132px;padding:10px 9px;text-align:left}
+.club-panel .club-card-top{display:flex;align-items:center;justify-content:space-between;min-height:38px}
+.club-panel .club-card-top .crest{width:38px;height:38px}
+.club-panel .club-card-top em{font-style:normal;font-size:6px;font-weight:850;letter-spacing:.7px;color:#4d6c4c;background:#e8f2e3;border-radius:999px;padding:4px 5px}
+.club-panel .club-card-copy{display:block!important;text-align:left!important}
+.club-panel .club-card-copy strong,.club-panel .club-card-copy small{display:block}
+.club-panel .club-card-copy strong{font-size:10px;line-height:1.2;color:#344837}
+.club-panel .club-card-copy small{font-size:7px;line-height:1.3;color:#8a9586;margin-top:3px}
+.club-panel .club-card-foot{display:flex!important;align-items:flex-end;justify-content:space-between;gap:5px;margin-top:auto;padding-top:7px;border-top:1px solid #edf0e9;text-align:left!important}
+.club-panel .club-card-foot small{font-size:6px;line-height:1.25;color:#778675;max-width:70px}
+.club-panel .club-card-foot b{font-size:7px;color:#4e694e;white-space:nowrap}
+.club-panel .club-card.career-club{border-color:#bfd0b7;background:#f6faf2}
+.club-panel .club-card.active{background:#edf5e8;border-color:#789250;box-shadow:0 0 0 1px #789250 inset,0 8px 18px #315f430d}
+.club-panel .selected-dot{top:7px;right:7px}
+
+.club-project-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:11px}
+.club-project-chips>span{display:inline-flex!important;width:auto!important;height:auto!important;border:1px solid #ffffff22;background:#ffffff10;color:#dce8d6;border-radius:999px;padding:5px 7px;font-size:7px;font-weight:650;white-space:nowrap}
+
+@media(max-width:620px){
+  .club-browser-strip{padding:10px 11px;align-items:flex-start}
+  .club-browser-strip>div:first-child{flex:1}
+  .club-browser-strip>div:last-child>span{display:none}
+  .club-browser-strip strong{font-size:10px;white-space:normal}
+  .club-browser-strip button{min-height:36px;padding:8px 9px;font-size:8px}
+  .club-panel{padding:18px 14px 0}
+  .club-browser-heading h2{font-size:25px}
+  .club-browser-heading p{font-size:10px;max-width:250px}
+  .club-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+  .club-panel .club-card{min-height:136px;padding:10px 9px}
+  .club-panel .club-card-copy strong{font-size:11px}
+  .club-panel .club-card-copy small{font-size:8px}
+  .club-panel .club-card-foot small{font-size:7px;max-width:78px}
+  .club-panel .club-card-foot b{font-size:8px}
+  .return-career-button{min-height:44px}
+  .club-project-chips{margin-top:9px}
+  .club-project-chips>span{font-size:8px}
+}
