@@ -12,6 +12,7 @@ const styles=fs.readFileSync(new URL('../src/styles.css',import.meta.url),'utf8'
 const competition=fs.readFileSync(new URL('../src/CompetitionHub.jsx',import.meta.url),'utf8');
 const celebration=fs.readFileSync(new URL('../src/SeasonReviewModal.jsx',import.meta.url),'utf8');
 const trophy=fs.readFileSync(new URL('../src/Trophy3D.jsx',import.meta.url),'utf8');
+const worldCrest=fs.readFileSync(new URL('../src/WorldCrest.jsx',import.meta.url),'utf8');
 
 test('every career area is present in navigation and has a renderer', function(){
   const tabs=['dashboard','competitions','match','roster','standings','transfers','trophies','sponsors','legacy'];
@@ -183,4 +184,26 @@ test('major trophies have dedicated lightweight 3D vector families', function(){
   for(const id of ['brasileirao','libertadores','sulamericana','champions-league','paulista','supercopa','mundial']){
     assert.ok(trophy.includes(id),id+' trophy mapping is missing');
   }
+});
+
+
+test('external crest loader never uses open search results or stale cache keys', function(){
+  assert.ok(worldCrest.includes("CACHE_PREFIX='ldf.worldcrest.v3.'"));
+  assert.ok(worldCrest.includes("action=query&titles="));
+  assert.ok(!worldCrest.includes("generator=search"));
+  assert.ok(worldCrest.includes("club?.country==='BRA'?'pt.wikipedia.org':'en.wikipedia.org'"));
+});
+
+test('match history merges competitions and exposes mobile-friendly filters', function(){
+  assert.ok(match.includes("unifiedUserMatchHistory"));
+  assert.ok(match.includes("history-filters"));
+  assert.ok(match.includes("Mostrar mais"));
+  assert.ok(match.includes("WorldCrest"));
+});
+
+test('world pre-match screen exposes decision context before kickoff', function(){
+  assert.ok(match.includes("PESO DO JOGO"));
+  assert.ok(match.includes("TORCIDA"));
+  assert.ok(match.includes("DIRETORIA"));
+  assert.ok(match.includes("FORÇA PROJETADA"));
 });
