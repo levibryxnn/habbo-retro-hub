@@ -354,10 +354,10 @@ export function nextCareerEvent(career,serieAClubs){
 function competitionImportance(id){return id==='mundial'?1.5:id==='libertadores'?1.35:id==='copa-do-brasil'?1.15:id==='sudamericana'?1.05:id==='champions-league'?1.2:.75;}
 function trophyFor(comp){return{id:comp.id==='copa-do-brasil'?'copa':comp.id,name:comp.name,kind:comp.type==='state'?'Estadual':comp.type==='continental'?'Continental':comp.type==='world'?'Mundial':'Nacional',shape:comp.id==='libertadores'?'libertadores':comp.id==='sudamericana'?'sulamericana':comp.id==='mundial'?'world':comp.id==='copa-do-brasil'?'cup':'league',season:comp.edition,earnedAtRound:null};}
 export function playNextWorldFixture(career,serieAClubs){
-  let next=syncWorldToDate(career,serieAClubs,'2999-12-31'),world=next.world,event=activeUserFixture(world,next.userClubId);
-  // syncWorldToDate intentionally leaves user games, but using 2999 would also finish CPU-only tournaments.
+  const initialWorld=sanitizeWorldState(career.world,career,serieAClubs),initialEvent=activeUserFixture(initialWorld,career.userClubId);
+  if(!initialEvent)return{...career,world:initialWorld};
+  let next=syncWorldToDate({...career,world:initialWorld},serieAClubs,initialEvent.game.date),world=next.world,event=activeUserFixture(world,next.userClubId);
   if(!event)return next;
-  // Rewind CPU scope is harmless: the user fixture result remains the next unresolved user event.
   const before=event.comp,game=event.game;
   world=playFixture(world,next,serieAClubs,event.key,game.id);
   const comp=world.competitions[event.key],result=comp.results.find(item=>item.fixtureId===game.id),home=result.homeId===String(next.userClubId),gf=home?result.homeGoals:result.awayGoals,ga=home?result.awayGoals:result.homeGoals,won=gf>ga,draw=gf===ga,importance=competitionImportance(comp.id);
@@ -371,6 +371,10 @@ export function playNextWorldFixture(career,serieAClubs){
   }else{
     const wasAlive=before.teams.includes(String(next.userClubId))&&!before.eliminated.includes(String(next.userClubId))&&!before.championId,nowOut=comp.eliminated.includes(String(next.userClubId));
     if(wasAlive&&nowOut)next=applyConfidenceEvent(next,{fans:-2.4*importance,board:-1.4*importance,kind:'elimination',reason:'Eliminação na '+comp.name+' ('+game.stage+').'});
+  }
+  if(next.round>=38&&next.seasonReview&&!pendingSeasonFixtures(next,serieAClubs).length){
+    const confidence=next.managerConfidence||{};
+    next={...next,seasonReview:{...next.seasonReview,pending:true,waiting:false,titles:(next.trophies||[]).filter(item=>Number(item.season)===Number(next.season)),fanConfidence:confidence.fans??next.seasonReview.fanConfidence,boardConfidence:confidence.board??next.seasonReview.boardConfidence,cash:next.cash}};
   }
   return next;
 }
