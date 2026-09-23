@@ -1,6 +1,6 @@
 import { applyMatchdayIncome, applySponsorPayments, expireSeasonSponsors, initialCashForClub } from './finance-model.js';
 import { worldRecordMessage } from './records-data.js';
-import { matchdayProjection } from './club-world.js';
+import { getClubWorld, matchdayProjection } from './club-world.js';
 import { applyTransferPayroll } from './transfer-engine.js';
 import { positionGroup } from './position-labels.js';
 import {
@@ -13,9 +13,11 @@ import {
   matchBench,
   playerCondition,
   playerGameStats,
+  matchPlayerPerformances,
   sanitizeLineup,
   statusKey,
 } from './player-engine.js';
+import { applyConfidenceEvent, createManagerConfidence, sanitizeManagerConfidence } from './manager-confidence.js';
 
 export const CAREER_KEY='ldf.career.v2';
 export const FULL_TIME_SECOND=90*60;
@@ -395,9 +397,65 @@ export function userMatchHistory(career){return(career.history||[]).slice().sort
 function defaultConditions(clubs){
   const conditions={};for(const club of clubs)for(const p of club.players||[])conditions[statusKey(club.id,p.id)]=100;return conditions;
 }
+function objectiveMaxPosition(clubId){
+  const budget=getClubWorld(clubId).gameBudgetM||0;
+  if(budget>=100)return 2;
+  if(budget>=55)return 6;
+  if(budget>=25)return 10;
+  return 16;
+}
+function applyRoundConfidence(career,clubs,userResult,roundNumber){
+  if(!userResult)return career;
+  const table=standingsFromResults(career.results,clubs),row=table.find(item=>item.clubId===career.userClubId);
+  const outcome=userOutcome(userResult,career.userClubId),margin=outcome.goalsFor-outcome.goalsAgainst;
+  const objective=objectiveMaxPosition(career.userClubId),position=row?.position||20;
+  let fans=outcome.winner==='user'?3:outcome.winner==='draw'?.35:-4.2;
+  if(margin>=3)fans+=1.2;
+  if(margin<=-3)fans-=1.4;
+  if(position===1)fans+=1.6;
+  else if(position<=4)fans+=.9;
+  else if(position<=objective)fans+=.2;
+  else if(position>=17)fans-=2.4;
+  else if(position>objective+3)fans-=1.1;
+  const recent=(career.history||[]).slice(-3);
+  if(recent.length===3&&recent.every(item=>item.points===3))fans+=1.2;
+  if(recent.length===3&&recent.every(item=>item.points===0))fans-=2;
+  let board=position<=objective?.8:-Math.min(3,(position-objective)*.42);
+  if(roundNumber<=5)board*=.45;
+  const opening=Math.max(1,Number(career.openingCash)||initialCashForClub(career.userClubId));
+  const cashRatio=(Number(career.cash)||0)/opening;
+  if(cashRatio>=1.18)board+=.8;
+  else if(cashRatio<.35)board-=2.4;
+  else if(cashRatio<.65)board-=1.15;
+  const resultText=outcome.winner==='user'?'vitória':outcome.winner==='draw'?'empate':'derrota';
+  return applyConfidenceEvent(career,{
+    fans,
+    board,
+    kind:'round',
+    reason:'Rodada '+roundNumber+': '+resultText+' e '+position+'º lugar na tabela.',
+  });
+}
+function clubTopScorer(career){
+  return topScorers(career.scorers,100).find(item=>String(item.clubId)===String(career.userClubId))||null;
+}
+function seasonBestPerformer(career,clubs){
+  const club=clubs.find(item=>item.id===career.userClubId);if(!club)return null;
+  const aggregate={};
+  for(const result of career.results||[]){
+    if(result.homeId!==career.userClubId&&result.awayId!==career.userClubId)continue;
+    const side=result.homeId===career.userClubId?'home':'away';
+    for(const row of matchPlayerPerformances(club,result,side,result.durationSecond||FULL_TIME_SECOND)){
+      const key=String(row.playerId),current=aggregate[key]||{playerId:key,name:row.name,appearances:0,totalRating:0,goals:0,assists:0,minutes:0};
+      current.appearances++;current.totalRating+=Number(row.rating)||0;current.goals+=row.goals||0;current.assists+=row.assists||0;current.minutes+=row.minutes||0;aggregate[key]=current;
+    }
+  }
+  return Object.values(aggregate).map(item=>({...item,averageRating:item.appearances?Number((item.totalRating/item.appearances).toFixed(2)):0}))
+    .sort((a,b)=>b.averageRating-a.averageRating||b.goals-a.goals||b.assists-a.assists||b.minutes-a.minutes)[0]||null;
+}
 export function createCareer(clubs,userClubId,season){
   const userClub=clubs.find(c=>c.id===userClubId);
-  const base={version:6,userClubId,managerName:'',season:season||2026,round:0,schedule:buildSchedule(clubs),results:[],scorers:{},allTimeScorers:{},cash:initialCashForClub(userClubId),transactions:[],sponsors:[],trophies:[],messages:[],seasons:[],history:[],pendingRound:null,lastRoundResults:[],lastUserMatch:null,preferredSimulationMode:'normal',playerStatus:{},conditions:defaultConditions(clubs),lineup:[],ownership:{},loans:[],transferHistory:[],transferContracts:[]};
+  const initialCash=initialCashForClub(userClubId);
+  const base={version:7,userClubId,managerName:'',season:season||2026,round:0,schedule:buildSchedule(clubs),results:[],scorers:{},allTimeScorers:{},cash:initialCash,openingCash:initialCash,transactions:[],sponsors:[],trophies:[],messages:[],seasons:[],history:[],pendingRound:null,lastRoundResults:[],lastUserMatch:null,preferredSimulationMode:'normal',playerStatus:{},conditions:defaultConditions(clubs),lineup:[],ownership:{},loans:[],transferHistory:[],transferContracts:[],managerConfidence:createManagerConfidence(),seasonReview:null,pendingCelebration:null};
   base.lineup=userClub?autoLineup(userClub,base,1):[];
   return base;
 }
@@ -407,7 +465,7 @@ export function sanitizeCareer(raw,clubs,userClubId){
   const pending=raw.pendingRound&&Array.isArray(raw.pendingRound.matches)?{...raw.pendingRound,matches:normalizeResults(raw.pendingRound.matches,season)}:null;
   const club=clubs.find(c=>c.id===userClubId),roundNumber=(raw.round||0)+1;
   const migratedCash=Number(raw.version||0)<5&&(raw.round||0)===0&&!(raw.transactions||[]).length&&Number(raw.cash||0)===20000000?base.cash:raw.cash;
-  const merged={...base,...raw,cash:Number.isFinite(migratedCash)?migratedCash:base.cash,version:6,managerName:String(raw.managerName||''),schedule:Array.isArray(raw.schedule)&&raw.schedule.length===38?raw.schedule:buildSchedule(clubs),results,scorers:raw.scorers&&typeof raw.scorers==='object'?raw.scorers:{},allTimeScorers:raw.allTimeScorers&&typeof raw.allTimeScorers==='object'?raw.allTimeScorers:{},sponsors:Array.isArray(raw.sponsors)?raw.sponsors:[],trophies:Array.isArray(raw.trophies)?raw.trophies:[],transactions:Array.isArray(raw.transactions)?raw.transactions:[],messages:Array.isArray(raw.messages)?raw.messages:[],seasons:Array.isArray(raw.seasons)?raw.seasons:[],history,pendingRound:pending,lastRoundResults:Array.isArray(raw.lastRoundResults)?normalizeResults(raw.lastRoundResults,season):[],preferredSimulationMode:SIMULATION_MODES[raw.preferredSimulationMode]?raw.preferredSimulationMode:'normal',playerStatus:raw.playerStatus&&typeof raw.playerStatus==='object'?raw.playerStatus:{},conditions:{...base.conditions,...(raw.conditions||{})},ownership:raw.ownership&&typeof raw.ownership==='object'?raw.ownership:{},loans:Array.isArray(raw.loans)?raw.loans:[],transferHistory:Array.isArray(raw.transferHistory)?raw.transferHistory:[],transferContracts:Array.isArray(raw.transferContracts)?raw.transferContracts:[]};
+  const merged={...base,...raw,cash:Number.isFinite(migratedCash)?migratedCash:base.cash,openingCash:Number.isFinite(Number(raw.openingCash))?Number(raw.openingCash):base.cash,version:7,managerName:String(raw.managerName||''),schedule:Array.isArray(raw.schedule)&&raw.schedule.length===38?raw.schedule:buildSchedule(clubs),results,scorers:raw.scorers&&typeof raw.scorers==='object'?raw.scorers:{},allTimeScorers:raw.allTimeScorers&&typeof raw.allTimeScorers==='object'?raw.allTimeScorers:{},sponsors:Array.isArray(raw.sponsors)?raw.sponsors:[],trophies:Array.isArray(raw.trophies)?raw.trophies:[],transactions:Array.isArray(raw.transactions)?raw.transactions:[],messages:Array.isArray(raw.messages)?raw.messages:[],seasons:Array.isArray(raw.seasons)?raw.seasons:[],history,pendingRound:pending,lastRoundResults:Array.isArray(raw.lastRoundResults)?normalizeResults(raw.lastRoundResults,season):[],preferredSimulationMode:SIMULATION_MODES[raw.preferredSimulationMode]?raw.preferredSimulationMode:'normal',playerStatus:raw.playerStatus&&typeof raw.playerStatus==='object'?raw.playerStatus:{},conditions:{...base.conditions,...(raw.conditions||{})},ownership:raw.ownership&&typeof raw.ownership==='object'?raw.ownership:{},loans:Array.isArray(raw.loans)?raw.loans:[],transferHistory:Array.isArray(raw.transferHistory)?raw.transferHistory:[],transferContracts:Array.isArray(raw.transferContracts)?raw.transferContracts:[],managerConfidence:sanitizeManagerConfidence(raw.managerConfidence),seasonReview:raw.seasonReview&&typeof raw.seasonReview==='object'?raw.seasonReview:null,pendingCelebration:raw.pendingCelebration&&typeof raw.pendingCelebration==='object'?raw.pendingCelebration:null};
   merged.lineup=club?sanitizeLineup(club,merged,roundNumber,raw.lineup):[];
   return merged;
 }
@@ -492,12 +550,23 @@ function autoResolveOutstandingUserPenalties(career,clubs){
   return next;
 }
 function finalizeSeason(career,clubs){
-  const table=standingsFromResults(career.results,clubs),champion=table[0],leaders=topScorers(career.scorers,1);
+  const table=standingsFromResults(career.results,clubs),champion=table[0],leaders=topScorers(career.scorers,1),userRow=table.find(item=>item.clubId===career.userClubId);
   let next={...career,seasons:[...(career.seasons||[]),{season:career.season,championId:champion?.clubId,topScorer:leaders[0]||null}]};
+  let newTitle=null;
   if(champion?.clubId===career.userClubId){
     const club=clubs.find(c=>c.id===career.userClubId);
-    next={...next,trophies:[...(next.trophies||[]),{id:'brasileirao',season:career.season,earnedAtRound:38}],messages:[{id:'brasileirao-'+career.season,type:'title',title:'Campeão brasileiro!',text:(club?.name||'Seu clube')+' conquistou o Brasileirão '+career.season+'. A taça foi adicionada automaticamente à galeria.'},...(next.messages||[])]};
+    newTitle={id:'brasileirao',name:'Campeonato Brasileiro',kind:'Nacional',shape:'league',season:career.season,earnedAtRound:38};
+    next={...next,trophies:[...(next.trophies||[]),newTitle],messages:[{id:'brasileirao-'+career.season,type:'title',title:'Campeão brasileiro!',text:(club?.name||'Seu clube')+' conquistou o Brasileirão '+career.season+'. A taça foi adicionada automaticamente à galeria.'},...(next.messages||[])]};
+    next=applyConfidenceEvent(next,{fans:12,board:10,kind:'title',reason:'Título brasileiro conquistado na temporada '+career.season+'.'});
   }
+  const titles=(next.trophies||[]).filter(item=>Number(item.season)===Number(next.season));
+  const confidence=sanitizeManagerConfidence(next.managerConfidence);
+  next={...next,seasonReview:{
+    pending:true,season:next.season,position:userRow?.position||20,points:userRow?.points||0,wins:userRow?.wins||0,draws:userRow?.draws||0,losses:userRow?.losses||0,
+    goalsFor:userRow?.goalsFor||0,goalsAgainst:userRow?.goalsAgainst||0,goalDifference:userRow?.goalDifference||0,
+    topScorer:clubTopScorer(next),bestPlayer:seasonBestPerformer(next,clubs),titles,
+    fanConfidence:confidence.fans,boardConfidence:confidence.board,cash:next.cash,openingCash:next.openingCash,
+  },pendingCelebration:newTitle?{id:'celebration-'+next.season+'-'+newTitle.id,type:'trophy',trophy:newTitle}:next.pendingCelebration};
   return expireSeasonSponsors(next);
 }
 export function canStartRound(career){return!career.pendingRound&&career.round<career.schedule.length;}
@@ -584,6 +653,7 @@ export function finishPendingRound(career,clubs){
   next=applyDisciplineAndInjuries(next,roundResults,roundNumber);next=updateConditions(next,roundResults,clubs);
   const userClub=clubs.find(c=>c.id===next.userClubId);if(userClub)next={...next,lineup:sanitizeLineup(userClub,next,roundNumber+1,next.lineup)};
   if(userResult){next=applySponsorPayments(next,roundNumber,userOutcome(userResult,prepared.userClubId));next=applyMatchdayIncome(next,userResult);} next=applyTransferPayroll(next,clubs,roundNumber);
+  next=applyRoundConfidence(next,clubs,userResult,roundNumber);
   if(roundNumber===prepared.schedule.length)next=finalizeSeason(next,clubs);
   return next;
 }
@@ -591,7 +661,7 @@ export function simulateRound(career,clubs){const started=startRound(career,club
 export function startNextSeason(career,clubs){
   if(career.pendingRound||career.round<career.schedule.length)return career;
   const cleanStatus={};for(const[key,value]of Object.entries(career.playerStatus||{}))cleanStatus[key]={...value,yellowCount:0,suspensionThroughRound:0,injuryThroughRound:0,injuryLabel:null};
-  const next={...career,season:career.season+1,round:0,schedule:buildSchedule(clubs),results:[],scorers:{},lastRoundResults:[],lastUserMatch:null,pendingRound:null,playerStatus:cleanStatus,conditions:defaultConditions(clubs),sponsors:(career.sponsors||[]).map(contract=>({...contract,active:false}))};
+  const next={...career,season:career.season+1,round:0,schedule:buildSchedule(clubs),results:[],scorers:{},lastRoundResults:[],lastUserMatch:null,pendingRound:null,playerStatus:cleanStatus,conditions:defaultConditions(clubs),sponsors:(career.sponsors||[]).map(contract=>({...contract,active:false})),openingCash:career.cash,seasonReview:null,pendingCelebration:null};
   const userClub=clubs.find(c=>c.id===next.userClubId);return userClub?{...next,lineup:autoLineup(userClub,next,1)}:next;
 }
 export function addWorldTitle(career,clubName){
