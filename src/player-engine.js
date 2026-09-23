@@ -94,9 +94,19 @@ export function autoLineup(club,career,roundNumber){
     Midfielder:available.filter(p=>positionGroup(p.position)==='MEI').sort(sort),
     Forward:available.filter(p=>positionGroup(p.position)==='ATA').sort(sort),
   };
+  const mean=function(list,count){
+    const picked=list.slice(0,count);if(!picked.length)return 0;
+    return picked.reduce((sum,p)=>sum+roleScore(p,career,club.id),0)/picked.length;
+  };
+  const avgCondition=available.length?available.reduce((sum,p)=>sum+playerCondition(career,club.id,p.id),0)/available.length:100;
+  const attackStrength=mean(groups.Forward,3),midStrength=mean(groups.Midfielder,4),defStrength=mean(groups.Defender,5);
+  let formation={def:4,mid:3,fwd:3,label:'4-3-3'};
+  if(groups.Defender.length>=5&&avgCondition<76&&defStrength>=attackStrength-2)formation={def:5,mid:3,fwd:2,label:'5-3-2'};
+  else if(groups.Midfielder.length>=4&&midStrength>=attackStrength+1)formation={def:4,mid:4,fwd:2,label:'4-4-2'};
+  else if(groups.Defender.length>=3&&groups.Midfielder.length>=4&&groups.Forward.length>=3&&attackStrength>defStrength+3)formation={def:3,mid:4,fwd:3,label:'3-4-3'};
   const chosen=[];
   function take(group,count){for(const p of group.slice(0,count))if(!chosen.includes(p.id))chosen.push(p.id);}
-  take(groups.Goalkeeper,1);take(groups.Defender,4);take(groups.Midfielder,3);take(groups.Forward,3);
+  take(groups.Goalkeeper,1);take(groups.Defender,formation.def);take(groups.Midfielder,formation.mid);take(groups.Forward,formation.fwd);
   const rest=available.slice().sort(sort);
   for(const p of rest){if(chosen.length>=11)break;if(!chosen.includes(p.id))chosen.push(p.id);}
   return chosen.slice(0,11);
