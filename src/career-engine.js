@@ -19,7 +19,7 @@ import {
 } from './player-engine.js';
 import { applyConfidenceEvent, createManagerConfidence, sanitizeManagerConfidence } from './manager-confidence.js';
 import { advancePlayerLifecycle } from './development-engine.js';
-import { brasileiraoDateForRound, createWorldState, nextCareerEvent, pendingSeasonFixtures, rollWorldToNextSeason, sanitizeWorldState, syncWorldToDate } from './competition-engine.js';
+import { brasileiraoDateForRound, createWorldState, nextCareerEvent, pendingSeasonFixtures, playNextWorldFixture, rollWorldToNextSeason, sanitizeWorldState, syncWorldToDate } from './competition-engine.js';
 
 export const CAREER_KEY='ldf.career.v2';
 export const FULL_TIME_SECOND=90*60;
@@ -637,8 +637,6 @@ function finalizeSeason(career,clubs){
 export function canStartRound(career){return career.managerStatus!=='dismissed'&&!career.pendingRound&&career.round<career.schedule.length;}
 export function startRound(career,clubs,mode){
   if(!canStartRound(career))return career;
-  const nextEvent=nextCareerEvent(career,clubs);
-  if(nextEvent&&nextEvent.type==='world')return career;
   const selectedMode=SIMULATION_MODES[mode]?mode:'normal',roundNumber=career.round+1,fixtures=career.schedule[career.round];
   const userClub=clubs.find(c=>c.id===career.userClubId);
   const userLineup=userClub?sanitizeLineup(userClub,career,roundNumber,career.lineup):[];
@@ -726,7 +724,24 @@ export function finishPendingRound(career,clubs){
   if(roundNumber===prepared.schedule.length)next=finalizeSeason(next,clubs);
   return next;
 }
-export function simulateRound(career,clubs){const started=startRound(career,clubs,'instant');if(started===career)return career;return finishPendingRound(started,clubs);}
+export function simulateRound(career,clubs){
+  let prepared=career,guard=0;
+  const targetDate=brasileiraoDateForRound(Math.min(38,prepared.round+1),prepared.season);
+  while(guard++<40){
+    const event=nextCareerEvent(prepared,clubs);
+    if(!event||event.type!=='world'||event.date>targetDate)break;
+    const advanced=playNextWorldFixture(prepared,clubs);if(advanced===prepared)break;prepared=advanced;
+  }
+  const started=startRound(prepared,clubs,'instant');if(started===prepared)return prepared;
+  let next=finishPendingRound(started,clubs);
+  if(next.round>=38){
+    guard=0;
+    while(pendingSeasonFixtures(next,clubs).length&&guard++<40){
+      const advanced=playNextWorldFixture(next,clubs);if(advanced===next)break;next=advanced;
+    }
+  }
+  return next;
+}
 export function startNextSeason(career,clubs){
   if(career.pendingRound||career.round<career.schedule.length)return career;
   if(pendingSeasonFixtures(career,clubs).length)return career;
