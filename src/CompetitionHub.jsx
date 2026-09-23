@@ -1,7 +1,7 @@
 import React,{useMemo,useState}from'react';
 import{CalendarDays,ChevronRight,Globe2,Play,Shield,Trophy}from'lucide-react';
 import WorldCrest from './WorldCrest.jsx';
-import{competitionTable,nextCareerEvent,pendingSeasonFixtures,playNextWorldFixture,worldClub,worldCompetitionList}from'./competition-engine.js';
+import{competitionTable,nextCareerEvent,pendingSeasonFixtures,worldClub,worldCompetitionList}from'./competition-engine.js';
 import'./competition.css';
 
 const fmtDate=value=>{try{return new Date(value+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}).replace('.','');}catch{return value;}};
@@ -23,16 +23,13 @@ export default function CompetitionHub({career,clubs,onCareerChange,onNavigate})
   const comp=comps.find(c=>c.key===selected)||comps[0],remaining=pendingSeasonFixtures(career,clubs);
   const table=comp&&['league','group'].includes(comp.stage)||comp?.format==='ucl-league'?competitionTable(comp):[];
   const userId=String(career.userClubId),last=career.world?.lastUserMatch;
-  function playNext(){
-    if(next?.type==='brasileirao'){onNavigate?.('match');return;}
-    if(next?.type==='world')onCareerChange(playNextWorldFixture(career,clubs));
-  }
+  function playNext(){if(next)onNavigate?.('match');}
   return <div className="competition-hub">
     <header className="competition-heading"><div><span className="eyebrow">CALENDÁRIO INTEGRADO</span><h2>A temporada inteira em um só lugar</h2><p>Estadual, Brasileirão, Copa do Brasil e torneios continentais avançam no mesmo calendário. A Europa roda em segundo plano para alimentar o Mundial.</p></div><span className="competition-season"><CalendarDays size={15}/> {career.season}</span></header>
 
     <section className="next-event-card">
       <div className="next-event-icon"><Play size={19}/></div><div className="next-event-copy"><small>PRÓXIMO COMPROMISSO</small><strong>{next?next.competitionName:'Temporada concluída'}</strong><span>{next?fmtDate(next.date)+' · '+next.stage:'Nenhuma partida pendente neste ano.'}</span></div>
-      {next&&<button onClick={playNext}>{next.type==='brasileirao'?'Abrir partida':'Simular compromisso'}<ChevronRight size={16}/></button>}
+      {next&&<button onClick={playNext}>Abrir partida<ChevronRight size={16}/></button>}
     </section>
 
     {last&&<section className="competition-last"><small>ÚLTIMO JOGO FORA DO BRASILEIRÃO</small><strong>{last.competitionName} · {last.stage}</strong><span>{scoreLine(last,clubs,career)}</span></section>}
