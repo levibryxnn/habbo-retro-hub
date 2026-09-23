@@ -39,3 +39,12 @@ test('the actual simulated champion receives the Brasileirao trophy automaticall
   assert.equal(championCareer.pendingCelebration?.trophy?.id,'brasileirao');
   assert.ok(championCareer.seasonReview.titles.some(function(trophy){return trophy.id==='brasileirao';}));
 });
+
+
+test('serialized save stays compact after a full season', function(){
+  const career=completeSeason(clubs[0].id);
+  const bytes=Buffer.byteLength(JSON.stringify(career),'utf8');
+  assert.ok(bytes<900000,'expected compact save below 900 KB, got '+bytes+' bytes');
+  assert.ok(career.results.every(result=>!('events' in result)&&!('stats' in result)&&!('homeLineup' in result)));
+  assert.ok(career.seasonReview.bestPlayer===null||career.seasonReview.bestPlayer.averageRating>0);
+});
