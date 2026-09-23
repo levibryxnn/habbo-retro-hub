@@ -204,3 +204,14 @@
   .selector-preview-club span strong{font-size:22px}
   .selector-preview-facts strong{font-size:10px}
 }
+
+
+.club-selector-new{display:flex;flex-direction:column;align-items:flex-end;justify-content:center;min-width:170px;padding:9px 11px;border:1px solid #d9e2d4;background:#f4f8f1;border-radius:8px}
+.club-selector-new small,.club-selector-new strong{display:block}
+.club-selector-new small{font-size:7px;letter-spacing:.8px;color:#82917c}
+.club-selector-new strong{margin-top:2px;font-size:10px;color:#3e5540}
+@media(max-width:700px){
+  .club-selector-new{min-width:0;padding:8px 9px;align-items:flex-end}
+  .club-selector-new small{font-size:6px}
+  .club-selector-new strong{max-width:105px;font-size:9px;text-align:right;line-height:1.15}
+}
