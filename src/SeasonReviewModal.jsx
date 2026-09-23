@@ -7,9 +7,9 @@ const money=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maxim
 
 function initials(name){return String(name||'').split(' ').filter(Boolean).map((part,index,array)=>index===0||index===array.length-1?part[0]:'').join('').slice(0,2);}
 
-export default function SeasonReviewModal({career,club,mode,onClose,onContinue}) {
+export default function SeasonReviewModal({career,club,mode,onClose,onContinue,Crest}) {
   const review=career.seasonReview||{};
-  const celebration=career.pendingCelebration;
+  const celebration=career.pendingCelebration,seasonClosed=Boolean(review?.pending);
   if(mode==='trophy'&&celebration){
     const trophy=celebration.trophy||{};
     return <div className="season-modal-backdrop" role="dialog" aria-modal="true" aria-label="Celebração de título">
@@ -17,18 +17,19 @@ export default function SeasonReviewModal({career,club,mode,onClose,onContinue})
         <button className="season-modal-close" onClick={onClose}><X size={19}/></button>
         <div className="celebration-stage">
           <div className="confetti" aria-hidden="true">{Array.from({length:18}).map((_,i)=><i key={i}/>)}</div>
-          <span className="season-eyebrow">CONQUISTA DESBLOQUEADA</span>
+          <span className="season-eyebrow">NOITE DE TAÇA</span>
+          <div className="celebration-clubline">{Crest?<Crest club={club}/>:<b>{club.abbreviation}</b>}<span>{club.name} · temporada {career.season}</span></div>
           <Trophy3D id={trophy.id} shape={trophy.shape} className="celebration-trophy"/>
           <h2>Parabéns, campeão!</h2>
-          <p>{club.name} conquistou {trophy.name||'um novo título'} na temporada {career.season}. A torcida transformou a noite em festa e a taça já entrou para a galeria.</p>
+          <p>{club.name} conquistou {trophy.name||'um novo título'} na temporada {career.season}. A torcida transformou a noite em festa, a galeria foi atualizada e a conquista agora faz parte da memória do clube.</p>
           <div className="players-celebration" aria-label="Jogadores celebrando a conquista">
-            <span><b>{initials(review.bestPlayer?.name||review.topScorer?.name||club.abbreviation)}</b></span>
+            <span className="celebration-player left"><b>{initials(review.bestPlayer?.name||review.topScorer?.name||club.abbreviation)}</b></span>
             <span className="raised-cup"><Trophy3D id={trophy.id} shape={trophy.shape}/></span>
-            <span><b>{initials(review.topScorer?.name||review.bestPlayer?.name||club.abbreviation)}</b></span>
+            <span className="celebration-player right"><b>{initials(review.topScorer?.name||review.bestPlayer?.name||club.abbreviation)}</b></span>
           </div>
-          <div className="celebration-badges"><span><Crown size={14}/>{trophy.name||'Título'}</span><span><Star size={14}/>Temporada {career.season}</span></div>
+          <div className="celebration-badges"><span><Crown size={14}/>{trophy.name||'Título'}</span><span><Star size={14}/>Temporada {career.season}</span><span><Trophy size={14}/>Galeria atualizada</span></div>
         </div>
-        <button className="season-primary" onClick={onClose}>Ver resumo da temporada <ArrowRight size={16}/></button>
+        <button className="season-primary" onClick={onClose}>{seasonClosed?'Ver resumo da temporada':'Continuar temporada'} <ArrowRight size={16}/></button>
       </section>
     </div>;
   }
