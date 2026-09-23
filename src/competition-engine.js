@@ -117,6 +117,18 @@ function groupCompetition({id,name,season,groups,type,knockoutPlan,knockoutDates
   }
   return{id,edition:season,key:id+':'+season,name,type,season,format:'groups',teams:Object.values(normalized).flat(),groups:normalized,stage:'group',stageIndex:-1,fixtures,results:[],knockoutPlan,knockoutDates:koDates,championId:null,runnerUpId:null,eliminated:[],metadata:{}};
 }
+function supercopaCompetition(season,career){
+  let teams;
+  if(season===2026)teams=['819','874'];
+  else{
+    const previous=season-1,br=career.lastSeasonTable?.[0]?.clubId||null,runner=career.lastSeasonTable?.[1]?.clubId||null,cdb=career.world?.competitions?.['copa-do-brasil:'+previous]?.championId||null;
+    if(!br||!cdb)return null;
+    teams=br===cdb?[br,runner]:[br,cdb];
+  }
+  if(!teams?.[0]||!teams?.[1])return null;
+  const comp={id:'supercopa',edition:season,key:'supercopa:'+season,name:'Supercopa Rei',type:'cup',season,format:'knockout',teams:teams.map(String),groups:[],stage:'Final',stageIndex:0,fixtures:[],results:[],knockoutPlan:[{name:'Final',legs:1}],knockoutDates:[[iso(season,2,1)]],championId:null,runnerUpId:null,eliminated:[],metadata:{neutralVenue:true}};
+  comp.fixtures=makeTieFixtures(comp,comp.teams,0);return comp;
+}
 function copaDoBrasil(season,serieAClubs){
   const teams=[...serieAClubs.map(c=>String(c.id)),...COPA_DO_BRASIL_QUALIFIERS.map(c=>String(c.id))].slice(0,32);
   const shuffled=teams.slice().sort((a,b)=>hashString(a+'|cdb|'+season)-hashString(b+'|cdb|'+season));
@@ -290,6 +302,7 @@ function qualifiersFromPrevious(career,count,start=0){
 export function createWorldState(career,serieAClubs,season=career.season){
   const stateConfig=stateConfigForClub(career.userClubId),competitions={};
   if(stateConfig){const c=stateCompetition(stateConfig,season,serieAClubs);competitions[c.key]=c;}
+  const supercopa=supercopaCompetition(season,career);if(supercopa)competitions[supercopa.key]=supercopa;
   const cdb=copaDoBrasil(season,serieAClubs);competitions[cdb.key]=cdb;
   const libGroups=season===2026?LIBERTADORES_GROUPS_2026:dynamicGroupsFromPool(Object.values(LIBERTADORES_GROUPS_2026),qualifiersFromPrevious(career,6,0),'lib|'+season);
   const sudGroups=season===2026?SUDAMERICANA_GROUPS_2026:dynamicGroupsFromPool(Object.values(SUDAMERICANA_GROUPS_2026),qualifiersFromPrevious(career,7,6),'sud|'+season);
@@ -351,7 +364,7 @@ export function nextCareerEvent(career,serieAClubs){
   if(brDate)return{type:'brasileirao',date:brDate,competitionName:'Brasileirão Série A',stage:'Rodada '+brRound,roundNumber:brRound};
   return worldEvent?{type:'world',date:worldEvent.game.date,competitionKey:worldEvent.key,competitionId:worldEvent.comp.id,competitionName:worldEvent.comp.name,stage:worldEvent.game.stage,fixture:worldEvent.game}:null;
 }
-function competitionImportance(id){return id==='mundial'?1.5:id==='libertadores'?1.35:id==='copa-do-brasil'?1.15:id==='sudamericana'?1.05:id==='champions-league'?1.2:.75;}
+function competitionImportance(id){return id==='mundial'?1.5:id==='libertadores'?1.35:id==='copa-do-brasil'?1.15:id==='supercopa'?1.05:id==='sudamericana'?1.05:id==='champions-league'?1.2:.75;}
 function trophyFor(comp){return{id:comp.id==='copa-do-brasil'?'copa':comp.id,name:comp.name,kind:comp.type==='state'?'Estadual':comp.type==='continental'?'Continental':comp.type==='world'?'Mundial':'Nacional',shape:comp.id==='libertadores'?'libertadores':comp.id==='sudamericana'?'sulamericana':comp.id==='mundial'?'world':comp.id==='copa-do-brasil'?'cup':'league',season:comp.edition,earnedAtRound:null};}
 export function playNextWorldFixture(career,serieAClubs){
   const initialWorld=sanitizeWorldState(career.world,career,serieAClubs),initialEvent=activeUserFixture(initialWorld,career.userClubId);
