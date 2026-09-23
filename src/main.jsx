@@ -54,6 +54,12 @@ function App() {
   const [mobileSquad,setMobileSquad]=useState(false);
   const [clubBrowserOpen,setClubBrowserOpen]=useState(()=>!readSaved());
   const [managerNameInput,setManagerNameInput]=useState('');
+  useEffect(()=>{
+    if(!clubBrowserOpen||!saved)return;
+    const previous=document.body.style.overflow;
+    document.body.style.overflow='hidden';
+    return()=>{document.body.style.overflow=previous;};
+  },[clubBrowserOpen,saved]);
   const baseClub=data.clubs.find(c=>c.id===selected)||data.clubs[0];
   const rawCareer=careers[baseClub.id];
   const careerClubs=useMemo(()=>applyCareerRoster(data.clubs,rawCareer||{season:data.season,round:0}),[rawCareer,baseClub.id]);
@@ -126,6 +132,32 @@ function App() {
     <main>
       {saved&&clubBrowserOpen?<section className="club-browser-strip"><div><Crest club={savedClub}/><span><small>EXPLORANDO A SÉRIE A</small><strong>Sua carreira no {savedClub?.name||'clube'} continua salva.</strong></span></div><div><span>Temporada {savedSeason} · Rodada {savedRound}/38</span><button onClick={()=>{closeClubBrowser();setTab('dashboard');}}><ArrowLeft size={14}/> Retomar carreira</button></div></section>:careerActive?<section className="career-strip"><div className="career-strip-club"><Crest club={club}/><span><small>MODO CARREIRA · TEMPORADA {career.season}</small><strong>{club.name}{career.managerName?' · '+career.managerName:''}</strong></span></div><div className="career-strip-meta"><span>Rodada <strong>{career.round}/38</strong></span><button className="career-continue" onClick={()=>{setClubBrowserOpen(false);setTab(career.round>=38?'legacy':'match');}}><CirclePlay size={14}/>{career.pendingRound?'Voltar ao jogo':career.round>=38?'Revisar temporada':'Continuar'}</button><button className="career-explore" onClick={openClubBrowser}>Explorar clubes <ArrowRight size={14}/></button></div></section>:<section className="intro"><div><div className="eyebrow"><span>01 /</span> O PRIMEIRO PASSO</div><h1>Seu clube. Sua história.</h1><p>Escolha as cores que você vai defender. Conheça quem entra em campo.</p></div><div className="competition"><span className="trophy-icon"><Trophy size={25}/></span><div><strong>BRASILEIRÃO</strong><span>Série A <b>·</b> Temporada {career.season}</span></div><span className="brazil-tag">BR</span></div></section>}
       {savedClub&&!careerActive&&!clubBrowserOpen&&<div className="saved-banner" role="status"><Check size={16}/><span><strong>{savedClub.name}</strong>{savedManager?' · Técnico '+savedManager:''}. {storageError?'Carreira ativa nesta sessão.':'Carreira salva neste navegador.'}</span><button onClick={()=>{selectClub(savedClub.id);setClubBrowserOpen(false);setTab('dashboard');}}>Continuar carreira <ArrowRight size={15}/></button></div>}
+      {saved&&clubBrowserOpen&&<section className="club-selector-overlay" aria-label="Seletor de clubes">
+        <div className="club-selector-shell">
+          <header className="club-selector-header">
+            <div className="club-selector-title"><span className="eyebrow">BRASILEIRÃO SÉRIE A · 20 CLUBES</span><h2>Qual história você quer conhecer?</h2><p>Explore livremente. Sua carreira atual permanece salva até você decidir assumir outro projeto.</p></div>
+            <button className="club-selector-return" onClick={()=>{closeClubBrowser();setTab('dashboard');}}><ArrowLeft size={16}/><span><small>RETOMAR CARREIRA</small><strong>{savedClub?.name||'Meu clube'}</strong></span></button>
+          </header>
+          <div className="club-selector-toolbar">
+            <label className="search-box"><Search size={17}/><input placeholder="Buscar clube..." aria-label="Buscar clube no seletor" value={clubSearch} onChange={e=>setClubSearch(e.target.value)}/>{clubSearch&&<button onClick={()=>setClubSearch('')} aria-label="Limpar busca"><X size={15}/></button>}</label>
+            <button className="selector-surprise" onClick={surpriseClub}><Shuffle size={15}/> Clube surpresa</button>
+          </div>
+          <div className="club-selector-body">
+            <div className="club-selector-grid">{clubs.map(c=>{const meta=getClubWorld(c.id);return <button key={'overlay-'+c.id} className={`club-selector-card ${c.id===club.id?'selected':''} ${c.id===saved?'career':''}`} onClick={()=>{setSelected(c.id);setPlayerSearch('');setFilter('Todos');}}>
+              <div className="selector-card-head"><Crest club={c}/>{c.id===saved?<em>MINHA CARREIRA</em>:careers[c.id]?<em className="other-save">SAVE</em>:null}</div>
+              <strong>{c.name}</strong><small>{locations[c.id]||meta.city+', '+meta.state}</small>
+              <div className="selector-card-meta"><span>{clubChallenge(c)}</span><b>R$ {meta.gameBudgetM} mi</b></div>
+            </button>;})}</div>
+            {!clubs.length&&<div className="club-empty selector-empty">Nenhum clube encontrado.<button onClick={()=>setClubSearch('')}>Limpar busca</button></div>}
+            <aside className="club-selector-preview">
+              <div className="selector-preview-club"><Crest club={club} large/><span><small>CLUBE SELECIONADO</small><strong>{club.name}</strong><em>{locations[club.id]}</em></span></div>
+              <div className="selector-preview-facts"><span><small>DESAFIO</small><strong>{clubChallenge(club)}</strong></span><span><small>ORÇAMENTO</small><strong>R$ {getClubWorld(club.id).gameBudgetM} mi</strong></span><span><small>ESTÁDIO</small><strong>{getClubWorld(club.id).stadium}</strong></span><span><small>ELENCO</small><strong>{club.players.length} jogadores</strong></span></div>
+              {club.id===saved?<button className="selector-primary" onClick={()=>{closeClubBrowser();setTab('dashboard');}}><CirclePlay size={16}/> Voltar ao meu clube</button>:<button className="selector-primary" onClick={()=>{setClubBrowserOpen(false);setMobileSquad(true);setTab('dashboard');}}>Conhecer este projeto <ArrowRight size={16}/></button>}
+              <button className="selector-secondary" onClick={()=>{closeClubBrowser();setTab('dashboard');}}>Cancelar e retomar carreira</button>
+            </aside>
+          </div>
+        </div>
+      </section>}
       <div className={`workspace ${mobileSquad?'show-squad':''} ${careerActive&&!clubBrowserOpen?'career-focus':''}`}>
         <aside className="club-panel"><div className="club-browser-heading"><div><span className="eyebrow">BRASILEIRÃO SÉRIE A</span><h2>{saved?'Explorar clubes':'Escolha seu clube'}</h2><p>{saved?'Conheça outros projetos sem perder sua carreira atual.':'Compare os 20 clubes antes de começar sua história.'}</p></div><div className="club-browser-tools"><span className="count">20</span><button className="surprise-club-button" onClick={surpriseClub} title="Escolher um clube aleatório" aria-label="Escolher um clube surpresa"><Shuffle size={14}/><span>Surpresa</span></button></div></div>{saved&&<button className="return-career-button" onClick={()=>{closeClubBrowser();setTab('dashboard');}}><ArrowLeft size={14}/><span><small>MINHA CARREIRA</small><strong>{savedClub?.name}{savedManager?' · '+savedManager:''}</strong></span></button>}<label className="search-box club-search"><Search size={17}/><input placeholder="Buscar clube..." aria-label="Buscar clube" value={clubSearch} onChange={e=>setClubSearch(e.target.value)}/>{clubSearch&&<button onClick={()=>setClubSearch('')} aria-label="Limpar busca de clubes"><X size={15}/></button>}</label><div className="club-grid">{clubs.map(c=>{const meta=getClubWorld(c.id);return <button key={c.id} className={`club-card ${c.id===club.id?'active':''} ${c.id===saved?'career-club':''}`} onClick={()=>selectClub(c.id)} aria-pressed={c.id===club.id}><span className="club-card-top"><Crest club={c}/>{c.id===saved?<em>CARREIRA</em>:careers[c.id]?<em className="saved-career-tag">SAVE</em>:null}</span><span className="club-card-copy"><strong>{c.name}</strong><small>{locations[c.id]||meta.city+', '+meta.state}</small></span><span className="club-card-foot"><small>{clubChallenge(c)}</small><b>R$ {meta.gameBudgetM} mi</b></span>{c.id===club.id&&<span className="selected-dot"><Check size={10}/></span>}</button>;})}</div>{!clubs.length&&<div className="club-empty">Nenhum clube encontrado.<button onClick={()=>setClubSearch('')}>Limpar busca</button></div>}<div className="league-footer"><Flag size={14}/><span>20 clubes. 20 histórias diferentes.</span></div></aside>
         <section className="squad-panel" aria-label={`Painel do ${club.name}`}>
