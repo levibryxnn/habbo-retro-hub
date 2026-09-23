@@ -33,3 +33,13 @@
 .manager-confirm{width:100%;margin-top:12px}
 .manager-confirm:disabled{opacity:.45}
 @media(max-width:620px){.manager-chip{margin-left:0;margin-top:4px}.division{flex-wrap:wrap}.manager-name-field input{font-size:16px}}
+
+
+/* beta01 · foco na carreira ativa */
+.workspace.career-focus{grid-template-columns:minmax(0,1fr)}
+.workspace.career-focus .club-panel{display:none}
+.career-strip{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px;padding:12px 14px;border:1px solid #dfe6da;border-radius:9px;background:#fbfcf8;box-shadow:0 8px 22px #17251b0b}
+.career-strip-club{display:flex;align-items:center;gap:10px;min-width:0}.career-strip-club .crest{width:34px;height:34px}.career-strip-club span{min-width:0}.career-strip-club small,.career-strip-club strong{display:block}.career-strip-club small{font-size:7px;letter-spacing:.9px;color:#929d8c}.career-strip-club strong{font-size:11px;color:#364936;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.career-strip-meta{display:flex;align-items:center;gap:13px}.career-strip-meta>span{font-size:8px;color:#8d9786}.career-strip-meta>span strong{font-size:10px;color:#4a6048}.career-strip-meta button{display:flex;align-items:center;gap:6px;border:1px solid #d7e0d1;background:#eef4e9;color:#4d694d;border-radius:6px;padding:8px 10px;font-size:8px;font-weight:700}
+.career-strip-meta button:hover{background:#e6efdf}
+@media(max-width:620px){.career-strip{margin-bottom:12px;padding:10px 11px}.career-strip-club .crest{width:31px;height:31px}.career-strip-club small{font-size:6px}.career-strip-club strong{font-size:9px}.career-strip-meta>span{display:none}.career-strip-meta button{font-size:8px;padding:8px}.workspace.career-focus .squad-panel{display:block!important}}
