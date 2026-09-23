@@ -10,3 +10,9 @@
 .season-open-note{display:flex;align-items:center;gap:9px;border:1px solid #e3d59d;background:#fff9df;border-radius:9px;padding:11px;color:#705f2e}.season-open-note strong,.season-open-note small{display:block}.season-open-note strong{font-size:10px}.season-open-note small{font-size:8px;margin-top:2px}
 @media(max-width:820px){.competition-layout{grid-template-columns:1fr}.competition-list{display:flex;overflow:auto;padding-bottom:4px}.competition-list>button{min-width:190px}.competition-detail{padding:13px}.competition-heading h2{font-size:29px}.competition-season{display:none}}
 @media(max-width:620px){.competition-hub{padding:14px 10px 24px}.competition-heading p{font-size:10px}.next-event-card{grid-template-columns:auto 1fr;padding:13px}.next-event-card button{grid-column:1/-1;width:100%;justify-content:center}.competition-last{display:grid;grid-template-columns:1fr auto}.competition-last span{grid-column:2;grid-row:1/3}.competition-fixtures article{grid-template-columns:48px 76px minmax(0,1fr)}}
+
+
+/* V4 RC1.2 · brasões externos seguros */
+.world-crest.fallback{position:relative;border-radius:7px 7px 11px 11px;clip-path:polygon(12% 0,88% 0,100% 24%,90% 74%,50% 100%,10% 74%,0 24%);background:linear-gradient(160deg,#f4f7f1,#cbd7c8);border:0;box-shadow:inset 0 0 0 1px #b9c7b6,0 2px 8px #263c2d18}
+.world-crest.fallback>span{display:grid;place-items:center;width:100%;height:100%;font-family:'Barlow Condensed',sans-serif;font-weight:850;font-size:11px;letter-spacing:.4px;color:#3f5d45;text-shadow:0 1px #fff}
+.world-crest.mini.fallback>span{font-size:8px}.world-crest.large.fallback>span{font-size:22px}
