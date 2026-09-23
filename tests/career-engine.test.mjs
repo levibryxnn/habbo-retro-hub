@@ -139,7 +139,7 @@ test('manager identity is stored and preserved by career sanitization',function(
   const named={...base,managerName:'Levi'};
   const restored=sanitizeCareer(named,clubs,clubs[0].id);
   assert.equal(restored.managerName,'Levi');
-  assert.equal(restored.version,6);
+  assert.equal(restored.version,7);
 });
 
 test('simulated matches persist the selected presentation mode for their history clock',function(){
@@ -148,4 +148,18 @@ test('simulated matches persist the selected presentation mode for their history
   const finished=finishPendingRound(started,clubs);
   assert.equal(finished.lastUserMatch.simulationMode,'fast');
   assert.equal(userMatchHistory(finished)[0].simulationMode,'fast');
+});
+
+
+test('manager confidence starts at 100 for both fans and board',function(){
+  const career=createCareer(clubs,clubs[0].id);
+  assert.equal(career.managerConfidence.fans,100);
+  assert.equal(career.managerConfidence.board,100);
+  assert.equal(career.openingCash,career.cash);
+});
+
+test('adaptive match AI records a tactical plan for both CPU sides',function(){
+  const result=simulateMatch(clubs[0],clubs[1],'adaptive-ai-plan',{results:[],season:2026,roundNumber:1});
+  assert.ok(['Vertical','Controle','Compacto','Pressão alta','Equilibrado'].includes(result.intelligence.homePlan));
+  assert.ok(['Vertical','Controle','Compacto','Pressão alta','Equilibrado'].includes(result.intelligence.awayPlan));
 });
