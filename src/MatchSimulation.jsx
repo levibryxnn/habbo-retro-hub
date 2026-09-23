@@ -16,7 +16,6 @@ import {
   startRound,
   updateUserLineup,
   userLineupForNextMatch,
-  userMatchHistory,
 } from './career-engine';
 import {
   currentBench,
@@ -29,7 +28,7 @@ import {
 } from './player-engine';
 import { getClubWorld } from './club-world.js';
 import { positionGroup, translatePosition } from './position-labels.js';
-import { finishPendingWorldFixture, nextCareerEvent, pendingSeasonFixtures, startWorldFixture, worldClub } from './competition-engine.js';
+import { finishPendingWorldFixture, nextCareerEvent, pendingSeasonFixtures, startWorldFixture, unifiedUserMatchHistory, worldClub } from './competition-engine.js';
 import WorldCrest from './WorldCrest.jsx';
 import './match.css';
 
@@ -93,11 +92,16 @@ function LiveRoundBoard({matches,clubs,userClubId,roundNumber,Crest,live=true}) 
   })}</div></section>;
 }
 function MatchHistory({career,clubs,Crest}) {
-  const history=userMatchHistory(career);
-  return <section className="match-history-panel"><div className="match-history-title"><div><History size={16}/><span><strong>Histórico de partidas</strong><small>Resultados oficiais do seu clube no save.</small></span></div><b>{history.length} jogos</b></div>{history.length?<div className="match-history-list">{history.slice(0,12).map(item=>{
-    const home=clubs.find(c=>c.id===item.homeId),away=clubs.find(c=>c.id===item.awayId);
-    return <article key={item.id}><span className="history-round">Rodada {item.roundNumber}<small>{item.season}</small></span><div className="history-score"><div className="history-clubs"><span><Crest club={home}/>{home?.name||'Clube'}</span><strong>{item.homeGoals}<i>×</i>{item.awayGoals}</strong><span>{away?.name||'Clube'}<Crest club={away}/></span></div><small>{item.competition}</small></div><span className={'history-points points-'+item.points}>{item.points} {item.points===1?'ponto':'pontos'}<small>{item.result}</small></span></article>;
-  })}</div>:<p className="match-empty history-empty">O histórico será preenchido quando a primeira rodada for encerrada.</p>}</section>;
+  const history=unifiedUserMatchHistory(career),[filter,setFilter]=useState('Todos'),[visibleCount,setVisibleCount]=useState(12);
+  const filters=['Todos',...Array.from(new Set(history.map(item=>item.competition)))],filtered=filter==='Todos'?history:history.filter(item=>item.competition===filter),visible=filtered.slice(0,visibleCount);
+  useEffect(()=>setVisibleCount(12),[filter]);
+  const formatDate=value=>value?new Date(value+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}):'—';
+  const crestFor=team=>team?.external?<WorldCrest club={team} size="mini"/>:<Crest club={team}/>;
+  return <section className="match-history-panel"><div className="match-history-title"><div><History size={16}/><span><strong>Histórico da temporada</strong><small>Brasileirão e copas no mesmo registro oficial.</small></span></div><b>{history.length} jogos</b></div>
+    {history.length?<><div className="history-filters" aria-label="Filtrar histórico">{filters.map(item=><button key={item} className={filter===item?'active':''} onClick={()=>setFilter(item)}>{item}</button>)}</div><div className="match-history-list">{visible.map(item=>{
+      const home=worldClub(career,clubs,item.homeId),away=worldClub(career,clubs,item.awayId);
+      return <article key={item.id} className={'history-result '+item.result.toLowerCase()}><span className="history-round">{item.stage||('Rodada '+item.roundNumber)}<small>{formatDate(item.date)} · {item.season}</small></span><div className="history-score"><div className="history-clubs"><span>{crestFor(home)}{home?.name||'Clube'}</span><strong>{item.homeGoals}<i>×</i>{item.awayGoals}</strong><span>{away?.name||'Clube'}{crestFor(away)}</span></div><small>{item.competition}</small></div><span className={'history-points points-'+item.points}>{item.points} {item.points===1?'ponto':'pontos'}<small>{item.result}</small></span></article>;
+    })}</div>{filtered.length>visibleCount&&<button className="history-more" onClick={()=>setVisibleCount(value=>value+12)}>Mostrar mais {Math.min(12,filtered.length-visibleCount)} partidas</button>}</>:<p className="match-empty history-empty">O histórico será preenchido depois da primeira partida oficial.</p>}</section>;
 }
 function RatingPills({player}) {
   const s=playerGameStats(player);
