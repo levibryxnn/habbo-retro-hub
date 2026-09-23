@@ -146,3 +146,8 @@
 .match-history-list article.history-result{position:relative}.match-history-list article.history-result::before{content:'';position:absolute;left:0;top:9px;bottom:9px;width:3px;border-radius:999px;background:#d6ddd2}.match-history-list article.history-result.vitória::before{background:#6e9d62}.match-history-list article.history-result.empate::before{background:#c7a94c}.match-history-list article.history-result.derrota::before{background:#b86a63}
 .history-more{width:calc(100% - 24px);margin:10px 12px 13px;border:1px solid #dce5d7;background:#f5f8f2;color:#45644a;border-radius:8px;min-height:36px;font-size:9px;font-weight:800}
 @media(max-width:620px){.history-filters{padding:8px}.history-filters button{font-size:9px}.match-history-list article{grid-template-columns:78px minmax(0,1fr) 62px}.history-round{font-size:8px}.history-clubs span{font-size:8px}.history-points{font-size:8px}}
+
+
+/* V4 RC1.2 · contexto de pré-jogo */
+.pregame-insights{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 12px}.pregame-insights article{border:1px solid #e2e8de;background:linear-gradient(180deg,#fff,#f8faf6);border-radius:9px;padding:10px 11px;min-width:0}.pregame-insights small,.pregame-insights strong,.pregame-insights span{display:block}.pregame-insights small{font-size:7px;letter-spacing:.65px;color:#8b9687;font-weight:800}.pregame-insights strong{font-family:'Barlow Condensed',sans-serif;font-size:19px;color:#36543d;margin-top:3px}.pregame-insights span{font-size:8px;color:#879384;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:760px){.pregame-insights{grid-template-columns:1fr 1fr}.pregame-insights strong{font-size:18px}.pregame-insights span{font-size:9px}}
