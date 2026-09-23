@@ -3,6 +3,7 @@ import { applyConfidenceEvent } from './manager-confidence.js';
 import {
   COPA_DO_BRASIL_QUALIFIERS,
   LIBERTADORES_GROUPS_2026,
+  REGIONAL_GROUPS_2026,
   SERIE_A_STATE,
   STATE_CONFIGS,
   SUDAMERICANA_GROUPS_2026,
@@ -106,6 +107,25 @@ function stateCompetition(config,season,serieAClubs){
     championId:null,runnerUpId:null,eliminated:[],metadata:{region:config.region},
   };
 }
+function regionalCompetition(config,season){
+  const groups=Object.fromEntries(Object.entries(config.groups).map(([key,list])=>[key,list.map(clubId)])),fixtures=[];
+  let rounds=[];
+  if(config.format==='cross6'){
+    const keys=Object.keys(groups);rounds=crossRounds(groups[keys[0]],groups[keys[1]]);
+  }else{
+    const perGroup=Object.entries(groups).map(([g,ids])=>({g,rounds:circleRounds(ids)}));
+    const max=Math.max(...perGroup.map(item=>item.rounds.length));
+    rounds=Array.from({length:max},()=>[]);
+    for(const item of perGroup)item.rounds.forEach((games,r)=>games.forEach(pair=>rounds[r].push([...pair,item.g])));
+  }
+  const leagueDates=spreadDates(season,config.start,addDays(iso(season,...config.end.split('-').map(Number)),-21).slice(5),rounds.length);
+  rounds.forEach((games,r)=>games.forEach((pair,i)=>{
+    const g=pair[2]||null;fixtures.push(fixture(config.id+'-'+season+'-L'+(r+1)+'-'+i,config.id,g?'Grupo '+g:'Primeira fase',leagueDates[r],pair[0],pair[1],{phase:'group',group:g,round:r+1}));
+  }));
+  const plan=config.knockout||[],koDates=knockoutDates(iso(season,...config.end.split('-').map(Number)),plan);
+  return{id:config.id,edition:season,key:config.id+':'+season,name:config.name,type:'regional',season,format:config.format==='cross6'?'regional-cross':'regional-groups',teams:Object.values(groups).flat(),groups,stage:'group',stageIndex:-1,fixtures,results:[],knockoutPlan:plan,knockoutDates:koDates,qualifyPerGroup:config.qualifyPerGroup||2,championId:null,runnerUpId:null,eliminated:[],metadata:{regional:true}};
+}
+
 function groupCompetition({id,name,season,groups,type,knockoutPlan,knockoutDates:koDates}){
   const normalized=Object.fromEntries(Object.entries(groups).map(([key,list])=>[key,list.map(clubId)])),fixtures=[];
   const dates=id==='libertadores'
@@ -222,6 +242,8 @@ function progressStandard(comp){
     }else if(comp.id==='sudamericana'){
       const direct=Object.keys(comp.groups).map(g=>competitionTable(comp,g)[0]?.clubId).filter(Boolean),runners=Object.keys(comp.groups).map(g=>competitionTable(comp,g)[1]?.clubId).filter(Boolean);
       return{...comp,stage:'Aguardando playoffs',metadata:{...comp.metadata,directR16:direct,runnersUp:runners},stageIndex:-2};
+    }else if(comp.type==='regional'){
+      qualifiers=Object.keys(comp.groups).flatMap(g=>competitionTable(comp,g).slice(0,comp.qualifyPerGroup||2).map(r=>r.clubId));
     }else if(comp.id==='champions-league'){
       const table=competitionTable(comp),direct=table.slice(0,8).map(r=>r.clubId),playoff=table.slice(8,24).map(r=>r.clubId),eliminated=table.slice(24).map(r=>r.clubId);
       const next={...comp,metadata:{...comp.metadata,directR16:direct},eliminated:[...comp.eliminated,...eliminated],stageIndex:0,stage:'Play-off'};
@@ -302,6 +324,9 @@ function qualifiersFromPrevious(career,count,start=0){
 export function createWorldState(career,serieAClubs,season=career.season){
   const stateConfig=stateConfigForClub(career.userClubId),competitions={};
   if(stateConfig){const c=stateCompetition(stateConfig,season,serieAClubs);competitions[c.key]=c;}
+  for(const config of Object.values(REGIONAL_GROUPS_2026)){
+    if((config.userClubs||[]).includes(String(career.userClubId))){const regional=regionalCompetition(config,season);competitions[regional.key]=regional;}
+  }
   const supercopa=supercopaCompetition(season,career);if(supercopa)competitions[supercopa.key]=supercopa;
   const cdb=copaDoBrasil(season,serieAClubs);competitions[cdb.key]=cdb;
   const libGroups=season===2026?LIBERTADORES_GROUPS_2026:dynamicGroupsFromPool(Object.values(LIBERTADORES_GROUPS_2026),qualifiersFromPrevious(career,6,0),'lib|'+season);
@@ -364,7 +389,7 @@ export function nextCareerEvent(career,serieAClubs){
   if(brDate){const game=career.schedule?.[brRound-1]?.find(item=>item.homeId===career.userClubId||item.awayId===career.userClubId)||null;return{type:'brasileirao',date:brDate,competitionName:'Brasileirão Série A',stage:'Rodada '+brRound,roundNumber:brRound,fixture:game};}
   return worldEvent?{type:'world',date:worldEvent.game.date,competitionKey:worldEvent.key,competitionId:worldEvent.comp.id,competitionName:worldEvent.comp.name,stage:worldEvent.game.stage,fixture:worldEvent.game}:null;
 }
-function competitionImportance(id){return id==='mundial'?1.5:id==='libertadores'?1.35:id==='copa-do-brasil'?1.15:id==='supercopa'?1.05:id==='sudamericana'?1.05:id==='champions-league'?1.2:.75;}
+function competitionImportance(id){return id==='mundial'?1.5:id==='libertadores'?1.35:id==='copa-do-brasil'?1.15:id==='supercopa'?1.05:id==='sudamericana'?1.05:id==='champions-league'?1.2:id==='copa-nordeste'||id==='copa-verde'||id==='copa-sul-sudeste'?.9:.75;}
 function trophyFor(comp){return{id:comp.id==='copa-do-brasil'?'copa':comp.id,name:comp.name,kind:comp.type==='state'?'Estadual':comp.type==='continental'?'Continental':comp.type==='world'?'Mundial':'Nacional',shape:comp.id==='libertadores'?'libertadores':comp.id==='sudamericana'?'sulamericana':comp.id==='mundial'?'world':comp.id==='copa-do-brasil'?'cup':'league',season:comp.edition,earnedAtRound:null};}
 export function playNextWorldFixture(career,serieAClubs){
   const initialWorld=sanitizeWorldState(career.world,career,serieAClubs),initialEvent=activeUserFixture(initialWorld,career.userClubId);
