@@ -34,7 +34,7 @@ export default function WorldCrest({club,size='normal'}){
       try{
         const cacheKey=CACHE_PREFIX+key,cached=sessionStorage.getItem(cacheKey);
         if(cached){if(!cancelled){memory.set(key,cached);setSrc(cached);}return;}
-        const url='https://en.wikipedia.org/w/api.php?action=query&titles='+encodeURIComponent(wikiTitle)+'&prop=pageimages&piprop=thumbnail&pithumbsize=180&format=json&origin=*';
+        const host=club?.country==='BRA'?'pt.wikipedia.org':'en.wikipedia.org',url='https://'+host+'/w/api.php?action=query&titles='+encodeURIComponent(wikiTitle)+'&prop=pageimages&piprop=thumbnail&pithumbsize=180&format=json&origin=*';
         const response=await fetch(url,{mode:'cors',credentials:'omit'});if(!response.ok)throw new Error('crest');
         const data=await response.json(),page=Object.values(data?.query?.pages||{})[0],image=page?.thumbnail?.source;
         if(!page||page.missing!==undefined||!image)throw new Error('crest');
