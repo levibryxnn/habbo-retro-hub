@@ -9,9 +9,12 @@ const transfer=fs.readFileSync(new URL('../src/TransferMarket.jsx',import.meta.u
 const management=fs.readFileSync(new URL('../src/Management.jsx',import.meta.url),'utf8');
 const dashboard=fs.readFileSync(new URL('../src/ClubDashboard.jsx',import.meta.url),'utf8');
 const styles=fs.readFileSync(new URL('../src/styles.css',import.meta.url),'utf8');
+const competition=fs.readFileSync(new URL('../src/CompetitionHub.jsx',import.meta.url),'utf8');
+const celebration=fs.readFileSync(new URL('../src/SeasonReviewModal.jsx',import.meta.url),'utf8');
+const trophy=fs.readFileSync(new URL('../src/Trophy3D.jsx',import.meta.url),'utf8');
 
 test('every career area is present in navigation and has a renderer', function(){
-  const tabs=['dashboard','match','roster','standings','transfers','trophies','sponsors','legacy'];
+  const tabs=['dashboard','competitions','match','roster','standings','transfers','trophies','sponsors','legacy'];
   for(const tab of tabs){
     assert.ok(main.includes("['"+tab+"'"),tab+' is missing from navigation');
     if(tab==='roster'||tab==='match') assert.ok(main.includes("hidden={tab!=='"+tab+"'}"),tab+' persistent renderer is missing');
@@ -155,4 +158,29 @@ test('V4 RC exposes the full-season competition hub and retirement flow', functi
   assert.ok(main.includes("<CompetitionHub"));
   assert.ok(main.includes("<RetirementModal"));
   assert.ok(match.includes("competition-gate"));
+});
+
+
+test('all managed competitions route through the same match screen and expose all speed modes', function(){
+  assert.ok(match.includes("startWorldFixture"));
+  assert.ok(match.includes("finishPendingWorldFixture"));
+  assert.ok(match.includes("WorldCrest"));
+  assert.ok(match.includes("world-match-stage"));
+  assert.ok(match.includes("selectedMode==='normal'"));
+  assert.ok(match.includes("selectedMode==='fast'"));
+  assert.ok(match.includes("selectedMode==='instant'"));
+  assert.ok(competition.includes("onNavigate?.('match')"));
+  assert.ok(!competition.includes("playNextWorldFixture"));
+});
+
+test('champion celebration does not pretend an early title ended the season', function(){
+  assert.ok(celebration.includes("seasonClosed?'Ver resumo da temporada':'Continuar temporada'"));
+  assert.ok(celebration.includes("NOITE DE TAÇA"));
+  assert.ok(celebration.includes("Galeria atualizada"));
+});
+
+test('major trophies have dedicated lightweight 3D vector families', function(){
+  for(const id of ['brasileirao','libertadores','sulamericana','champions-league','paulista','supercopa','mundial']){
+    assert.ok(trophy.includes(id),id+' trophy mapping is missing');
+  }
 });
