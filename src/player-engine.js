@@ -22,9 +22,11 @@ function ageModifier(age){
 export function playerGameStats(player){
   const pos=positionGroup(player?.position);
   const id=player?.id||player?.name||'player';
-  const cacheKey=String(id)+'|'+String(player?.position||'')+'|'+String(player?.age??'');
+  const careerAge=player?._careerAge??player?.age,baseAge=player?._baseAge??player?.age;
+  const delta=Number(player?._overallDelta||0),generated=Number.isFinite(Number(player?._generatedOverall))?Number(player._generatedOverall):null;
+  const cacheKey=String(id)+'|'+String(player?.position||'')+'|'+String(baseAge??'')+'|'+String(careerAge??'')+'|'+String(delta)+'|'+String(generated??'');
   const cached=playerStatsCache.get(cacheKey);if(cached)return cached;
-  const ageMod=ageModifier(player?.age);
+  const ageMod=ageModifier(baseAge);
   let shooting=seeded(id,'shot',55,72);
   let passing=seeded(id,'pass',58,74);
   let defending=seeded(id,'def',50,70);
@@ -64,7 +66,12 @@ export function playerGameStats(player){
       : pos==='MEI'
         ? fields.passing*.36+fields.composure*.19+fields.stamina*.16+fields.pace*.11+fields.shooting*.11+fields.defending*.07
         : fields.shooting*.38+fields.composure*.2+fields.pace*.17+fields.passing*.1+fields.stamina*.1+fields.penalties*.05;
-  const computed=Object.freeze({...fields,overall:clamp(45,90,Math.round(overall))});
+  const rawOverall=clamp(45,90,Math.round(overall));
+  const targetOverall=clamp(42,94,Math.round((generated??rawOverall)+delta)),shift=targetOverall-rawOverall;
+  const adjusted={...fields};
+  const fieldWeights=pos==='GOL'?{goalkeeping:1,passing:.45,composure:.65,stamina:.45}:{shooting:.72,passing:.72,defending:.72,pace:.48,stamina:.62,penalties:.38,composure:.72};
+  for(const [key,weight] of Object.entries(fieldWeights))adjusted[key]=clamp(20,94,Math.round((adjusted[key]??50)+shift*weight));
+  const computed=Object.freeze({...adjusted,overall:targetOverall});
   playerStatsCache.set(cacheKey,computed);
   return computed;
 }
