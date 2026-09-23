@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createCareer, simulateRound } from '../src/career-engine.js';
-import { competitionTable, finishPendingWorldFixture, nextCareerEvent, startWorldFixture, worldCompetitionList } from '../src/competition-engine.js';
+import { competitionTable, finishPendingWorldFixture, nextCareerEvent, startWorldFixture, unifiedUserMatchHistory, worldCompetitionList } from '../src/competition-engine.js';
 
 const data=JSON.parse(fs.readFileSync(new URL('../src/data/serie-a-2026.json',import.meta.url),'utf8'));
 const clubs=data.clubs;
@@ -99,4 +99,16 @@ test('world-match start cannot skip an earlier Brasileirao commitment',function(
   const next=nextCareerEvent(career,clubs);
   assert.equal(next?.type,'brasileirao');
   assert.deepEqual(startWorldFixture(career,clubs,'normal'),career);
+});
+
+
+test('unified history includes cup matches with competition and stage metadata',function(){
+  let career=createCareer(clubs,'874',2026);
+  career=finishPendingWorldFixture(startWorldFixture(career,clubs,'instant'),clubs);
+  const history=unifiedUserMatchHistory(career);
+  assert.ok(history.length>=1);
+  assert.equal(history[0].competition,'Paulistão');
+  assert.ok(history[0].stage);
+  assert.ok(history[0].date);
+  assert.ok(['Vitória','Empate','Derrota'].includes(history[0].result));
 });
