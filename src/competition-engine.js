@@ -235,7 +235,7 @@ function orderedStateKnockout(comp,qualifiers){
   return qualifiers;
 }
 function progressStandard(comp){
-  if(comp.championId||!stageComplete(comp))return comp;
+  if(comp.championId||(comp.id==='sudamericana'&&comp.stageIndex===-2)||!stageComplete(comp))return comp;
   if(comp.stageIndex<0){
     let qualifiers;
     if(comp.type==='state')qualifiers=orderedStateKnockout(comp,stateQualifiers(comp));
