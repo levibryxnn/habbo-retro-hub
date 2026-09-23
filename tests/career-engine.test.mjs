@@ -139,7 +139,7 @@ test('manager identity is stored and preserved by career sanitization',function(
   const named={...base,managerName:'Levi'};
   const restored=sanitizeCareer(named,clubs,clubs[0].id);
   assert.equal(restored.managerName,'Levi');
-  assert.equal(restored.version,7);
+  assert.equal(restored.version,8);
 });
 
 test('simulated matches persist the selected presentation mode for their history clock',function(){
@@ -169,4 +169,14 @@ test('dismissed managers cannot start another round',function(){
   const career={...createCareer(clubs,clubs[0].id),managerStatus:'dismissed'};
   assert.equal(canStartRound(career),false);
   assert.deepEqual(startRound(career,clubs,'normal'),career);
+});
+
+
+test('historical results are compacted while season performance stays available',function(){
+  let career=createCareer(clubs,clubs[0].id);
+  career=simulateRound(career,clubs);
+  assert.equal(career.results.length,10);
+  assert.ok(career.results.every(result=>!('events' in result)&&!('homeLineup' in result)&&!('stats' in result)));
+  assert.ok(Object.keys(career.seasonPerformance).length>0);
+  assert.ok(career.lastUserMatch&&Array.isArray(career.lastUserMatch.events));
 });
