@@ -6,6 +6,7 @@ const main=fs.readFileSync(new URL('../src/main.jsx',import.meta.url),'utf8');
 const leagueCss=fs.readFileSync(new URL('../src/league.css',import.meta.url),'utf8');
 const match=fs.readFileSync(new URL('../src/MatchSimulation.jsx',import.meta.url),'utf8');
 const transfer=fs.readFileSync(new URL('../src/TransferMarket.jsx',import.meta.url),'utf8');
+const management=fs.readFileSync(new URL('../src/Management.jsx',import.meta.url),'utf8');
 const styles=fs.readFileSync(new URL('../src/styles.css',import.meta.url),'utf8');
 
 test('every stage two area is present in navigation and has a renderer', function(){
@@ -70,4 +71,30 @@ test('club-specific colors are scoped to the club hero rather than the whole int
   assert.ok(styles.includes('.app-shell .club-hero{background:linear-gradient'));
   assert.ok(!styles.includes('.app-shell .topbar{background:linear-gradient'));
   assert.ok(!styles.includes('.app-shell .match-stat-track i{background:var(--club-primary)'));
+});
+
+
+test('beta00 asks for a manager name when taking control of a club', function(){
+  assert.ok(main.includes("Nome do técnico"));
+  assert.ok(main.includes("managerName"));
+  assert.ok(main.includes("beta00"));
+  assert.ok(!main.includes("Protótipo de gestão"));
+  assert.ok(!main.includes("ETAPA 2 ·"));
+});
+
+test('match controls no longer expose inactive tactical TV or data views', function(){
+  assert.ok(!match.includes("Visão tática"));
+  assert.ok(!match.includes("Visão TV"));
+  assert.ok(!match.includes(">Dados<"));
+  assert.ok(!match.includes("Engine v3"));
+  assert.ok(!match.includes("IA v3"));
+  assert.ok(match.includes("realElapsed"));
+  assert.ok(match.includes("realDurationSeconds"));
+});
+
+test('historical trophy gallery exposes count bubbles instead of future placeholders', function(){
+  assert.ok(management.includes("honoursWithCareer"));
+  assert.ok(management.includes("trophy-number-pop"));
+  assert.ok(!management.includes("Competição preparada para fases futuras"));
+  assert.ok(!management.includes("Na Etapa 2"));
 });
