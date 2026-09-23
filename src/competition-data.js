@@ -103,6 +103,34 @@ export const UCL_POTS_2026=[
 
 export const UCL_2025_26_CHAMPION='ucl:psg';
 
+export const REGIONAL_GROUPS_2026={
+  nordeste:{
+    id:'copa-nordeste',name:'Copa do Nordeste',userClubs:['3457'],format:'groups-one-leg',start:'03-25',end:'06-07',
+    groups:{
+      A:['3457',external('ne:asa','ASA','ASA','BRA',62),external('ne:sousa','Sousa','SOU','BRA',61),external('ne:itabaiana','Itabaiana','ITA','BRA',61),external('ne:fluminense-pi','Fluminense-PI','FPI','BRA',59)],
+      B:[external('ba:juazeirense','Juazeirense','JUA','BRA',62),external('cdb:crb','CRB','CRB','BRA',67),external('ne:botafogo-pb','Botafogo-PB','BPB','BRA',64),external('ne:confianca','Confiança','CON','BRA',64),external('ne:piaui','Piauí','PIA','BRA',58)],
+      C:[external('cdb:ceara','Ceará','CEA','BRA',70),external('cdb:sport','Sport','SPO','BRA',69),external('ne:america-rn','América-RN','ARN','BRA',63),external('ne:imperatriz','Imperatriz','IMP','BRA',58),external('ne:ferroviario','Ferroviário','FER','BRA',62)],
+      D:[external('cdb:fortaleza','Fortaleza','FOR','BRA',73),external('ne:retro','Retrô','RET','BRA',64),external('ne:abc','ABC','ABC','BRA',64),external('ne:maranhao','Maranhão','MAR','BRA',60),external('ba:jacuipense','Jacuipense','JAC','BRA',62)]
+    },qualifyPerGroup:2,knockout:[{name:'Quartas de final',legs:1},{name:'Semifinal',legs:1},{name:'Final',legs:2}]
+  },
+  verde:{
+    id:'copa-verde',name:'Copa Verde',userClubs:['4936'],format:'groups-one-leg',start:'03-24',end:'06-07',
+    groups:{
+      A:[external('cv:gas','Grêmio Sampaio','GAS','BRA',56),external('cv:guapore','Guaporé','GUA','BRA',56),external('cv:independencia','Independência-AC','IND','BRA',57),external('cv:nacional','Nacional-AM','NAC','BRA',62),external('pa:paysandu','Paysandu','PAY','BRA',68),external('cv:trem','Trem','TRE','BRA',58)],
+      B:[external('pa:aguia','Águia de Marabá','AGU','BRA',62),external('cv:amazonas','Amazonas','AMA','BRA',67),external('cv:galvez','Galvez','GAL','BRA',56),external('cv:monte-roraima','Monte Roraima','MRO','BRA',55),external('cv:porto-velho','Porto Velho','PVE','BRA',59),'4936'],
+      C:[external('cv:araguaina','Araguaína','ARA','BRA',58),external('cv:capital','Capital-DF','CAP','BRA',59),external('cv:operario-ms','Operário-MS','OMS','BRA',59),external('cv:primavera-mt','Primavera-MT','PRI','BRA',58),external('cv:rio-branco','Rio Branco-ES','RBE','BRA',60),external('cv:vila-nova','Vila Nova','VNO','BRA',68)],
+      D:[external('cv:anapolis','Anápolis','ANA','BRA',61),external('cv:atletico-go','Atlético-GO','ACG','BRA',69),external('cv:cuiaba','Cuiabá','CUI','BRA',68),external('cv:gama','Gama','GAM','BRA',61),external('cv:porto-vitoria','Porto Vitória','PVI','BRA',59),external('cv:tocantinopolis','Tocantinópolis','TOC','BRA',60)]
+    },qualifyPerGroup:2,knockout:[{name:'Quartas de final',legs:1},{name:'Semifinal',legs:2},{name:'Final',legs:2}]
+  },
+  sulSudeste:{
+    id:'copa-sul-sudeste',name:'Copa Sul-Sudeste',userClubs:['9318'],format:'cross6',start:'03-24',end:'06-07',
+    groups:{
+      A:[external('rs:caxias','Caxias','CAX','BRA',66),'9318',external('pr:cianorte','Cianorte','CIA','BRA',62),external('sp:novorizontino','Novorizontino','NOV','BRA',70),external('rj:sampaio','Sampaio Corrêa-RJ','SAM','BRA',59),external('mg:tombense','Tombense','TOM','BRA',64)],
+      B:[external('mg:america','América-MG','AME','BRA',70),external('sc:avai','Avaí','AVA','BRA',68),external('rs:juventude','Juventude','JUV','BRA',69),external('pr:operario','Operário-PR','OPE','BRA',67),external('sp:sao-bernardo','São Bernardo','SBE','BRA',69),external('rj:volta-redonda','Volta Redonda','VOL','BRA',67)]
+    },qualifyPerGroup:2,knockout:[{name:'Semifinal',legs:2},{name:'Final',legs:2}]
+  }
+};
+
 export const COPA_DO_BRASIL_QUALIFIERS=[
  external('cdb:ceara','Ceará','CEA','BRA',70),external('cdb:fortaleza','Fortaleza','FOR','BRA',73),external('cdb:sport','Sport','SPO','BRA',69),external('mg:america','América-MG','AME','BRA',70),
  external('rs:juventude','Juventude','JUV','BRA',69),external('sc:criciuma','Criciúma','CRI','BRA',69),external('sc:avai','Avaí','AVA','BRA',68),external('pr:operario','Operário-PR','OPE','BRA',67),
@@ -115,6 +143,7 @@ export function flattenWorldClubs(){
   for(const state of Object.values(S))for(const item of [...(state.teams||[]),...(state.groups||[]).flat()])add(item);
   for(const groups of [LIBERTADORES_GROUPS_2026,SUDAMERICANA_GROUPS_2026])for(const list of Object.values(groups))for(const item of list)add(item);
   for(const pot of UCL_POTS_2026)for(const item of pot)add(item);
+  for(const config of Object.values(REGIONAL_GROUPS_2026))for(const item of Object.values(config.groups).flat())add(item);
   for(const item of COPA_DO_BRASIL_QUALIFIERS)add(item);
   return Array.from(map.values());
 }
