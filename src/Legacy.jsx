@@ -31,7 +31,7 @@ export default function Legacy({career,club,clubs}) {
   return <div className="legacy-content">
     <div className="legacy-heading">
       <div><div className="eyebrow">A HISTÓRIA CONTINUA</div><h2>Recordes & Hall da Fama</h2><p>O que acontece no seu save passa a fazer parte da memória do clube.</p></div>
-      <span className="stage-two-badge"><History size={13}/> Etapa 2</span>
+      <span className="stage-two-badge"><History size={13}/> História da carreira</span>
     </div>
 
     {(career.messages||[]).length>0 && <section className="legacy-messages">
