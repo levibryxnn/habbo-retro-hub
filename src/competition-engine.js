@@ -368,12 +368,17 @@ function updateRatings(world,result){
   const hp=Number(world.ratings?.[result.homeId]||0),ap=Number(world.ratings?.[result.awayId]||0),expected=1/(1+Math.pow(10,(ap-hp)/14)),actual=result.homeGoals>result.awayGoals?1:result.homeGoals===result.awayGoals?.5:0,k=1.5,delta=k*(actual-expected);
   return{...world,ratings:{...world.ratings,[result.homeId]:clamp(-8,8,hp+delta),[result.awayId]:clamp(-8,8,ap-delta)}};
 }
-function playFixture(world,career,serieAClubs,compKey,fixtureId){
+function commitFixtureResult(world,compKey,fixtureId,result){
   let comp=world.competitions[compKey],game=comp?.fixtures.find(item=>item.id===fixtureId);if(!comp||!game||game.played)return world;
-  const score=simulateScore(world,career,serieAClubs,game),result={id:'wr-'+game.id,fixtureId:game.id,competitionId:comp.id,competitionName:comp.name,stage:game.stage,date:game.date,homeId:game.homeId,awayId:game.awayId,homeGoals:score.homeGoals,awayGoals:score.awayGoals,homePower:score.homePower,awayPower:score.awayPower};
-  comp={...comp,fixtures:comp.fixtures.map(item=>item.id===game.id?{...item,played:true}:item),results:[...comp.results,result]};
-  let next={...world,competitions:{...world.competitions,[compKey]:comp},history:[result,...(world.history||[])].slice(0,180)};
-  next=updateRatings(next,result);return ensureCompetitionProgress(next);
+  const official={...result,id:'wr-'+game.id,fixtureId:game.id,competitionId:comp.id,competitionName:comp.name,stage:game.stage,date:game.date,homeId:game.homeId,awayId:game.awayId,durationSecond:90*60};
+  comp={...comp,fixtures:comp.fixtures.map(item=>item.id===game.id?{...item,played:true}:item),results:[...comp.results,official]};
+  let next={...world,competitions:{...world.competitions,[compKey]:comp},history:[official,...(world.history||[])].slice(0,180)};
+  next=updateRatings(next,official);return ensureCompetitionProgress(next);
+}
+function playFixture(world,career,serieAClubs,compKey,fixtureId){
+  const comp=world.competitions[compKey],game=comp?.fixtures.find(item=>item.id===fixtureId);if(!comp||!game||game.played)return world;
+  const score=simulateScore(world,career,serieAClubs,game),result={fixtureId:game.id,competitionId:comp.id,competitionName:comp.name,stage:game.stage,date:game.date,homeId:game.homeId,awayId:game.awayId,homeGoals:score.homeGoals,awayGoals:score.awayGoals,homePower:score.homePower,awayPower:score.awayPower};
+  return commitFixtureResult(world,compKey,fixtureId,result);
 }
 export function syncWorldToDate(career,serieAClubs,date){
   let world=sanitizeWorldState(career.world,career,serieAClubs),guard=0;
@@ -399,6 +404,24 @@ function trophyFor(comp){
   const shape=comp.id==='libertadores'?'libertadores':comp.id==='sudamericana'?'sulamericana':comp.id==='mundial'?'world':comp.id==='copa-do-brasil'?'cup':comp.id==='champions-league'?'champions':comp.id==='supercopa'?'supercup':comp.type==='state'?'state':comp.type==='regional'?'regional':'league';
   return{id,name:comp.name,kind,shape,season:comp.edition,earnedAtRound:null};
 }
+function applyUserWorldOutcome(next,before,game,comp,result,serieAClubs){
+  const home=result.homeId===String(next.userClubId),gf=home?result.homeGoals:result.awayGoals,ga=home?result.awayGoals:result.homeGoals,won=gf>ga,draw=gf===ga,importance=competitionImportance(comp.id);
+  next={...next,world:{...next.world,lastUserMatch:result}};
+  next=applyConfidenceEvent(next,{fans:(won?2.8:draw?.2:-3.4)*importance,board:(won?.9:draw?.1:-1.1)*importance,kind:'competition',reason:comp.name+' · '+game.stage+': '+(won?'vitória':draw?'empate':'derrota')+' por '+gf+' a '+ga+'.'});
+  const trophy=trophyFor(comp),userNowChampion=comp.championId===String(next.userClubId),already=(next.trophies||[]).some(t=>t.id===trophy.id&&Number(t.season)===Number(comp.edition));
+  if(userNowChampion&&!already){
+    next={...next,trophies:[...(next.trophies||[]),trophy],pendingCelebration:{id:'celebration-'+comp.key,type:'trophy',trophy},messages:[{id:'title-'+comp.key,type:'title',title:'Campeão: '+comp.name,text:'Seu trabalho terminou com taça. '+comp.name+' foi adicionada à galeria.'},...(next.messages||[])]};
+    next=applyConfidenceEvent(next,{fans:10*importance,board:8*importance,kind:'title',reason:'Título conquistado: '+comp.name+'.'});
+  }else{
+    const wasAlive=before.teams.includes(String(next.userClubId))&&!before.eliminated.includes(String(next.userClubId))&&!before.championId,nowOut=comp.eliminated.includes(String(next.userClubId));
+    if(wasAlive&&nowOut)next=applyConfidenceEvent(next,{fans:-2.4*importance,board:-1.4*importance,kind:'elimination',reason:'Eliminação na '+comp.name+' ('+game.stage+').'});
+  }
+  if(next.round>=38&&next.seasonReview&&!pendingSeasonFixtures(next,serieAClubs).length){
+    const confidence=next.managerConfidence||{};
+    next={...next,seasonReview:{...next.seasonReview,pending:true,waiting:false,titles:(next.trophies||[]).filter(item=>Number(item.season)===Number(next.season)),fanConfidence:confidence.fans??next.seasonReview.fanConfidence,boardConfidence:confidence.board??next.seasonReview.boardConfidence,cash:next.cash}};
+  }
+  return next;
+}
 export function previewNextWorldFixture(career,serieAClubs){
   const initialWorld=sanitizeWorldState(career.world,career,serieAClubs),initialEvent=activeUserFixture(initialWorld,career.userClubId);
   if(!initialEvent)return null;
@@ -420,11 +443,14 @@ export function startWorldFixture(career,serieAClubs,mode='normal'){
 export function finishPendingWorldFixture(career,serieAClubs){
   if(!career.pendingWorldMatch)return career;
   const pending=career.pendingWorldMatch,base={...career,pendingWorldMatch:null};
-  const event=nextCareerEvent(base,serieAClubs);
-  if(!event||event.type!=='world'||String(event.fixture?.id)!==String(pending.fixtureId))return base;
-  return playNextWorldFixture(base,serieAClubs);
+  let next=syncWorldToDate(base,serieAClubs,pending.date),world=next.world;
+  const before=world.competitions[pending.competitionKey],game=before?.fixtures.find(item=>String(item.id)===String(pending.fixtureId));
+  if(!before||!game||game.played)return next;
+  world=commitFixtureResult(world,pending.competitionKey,pending.fixtureId,pending.result);
+  const comp=world.competitions[pending.competitionKey],result=comp.results.find(item=>String(item.fixtureId)===String(pending.fixtureId));
+  next={...next,world};
+  return result?applyUserWorldOutcome(next,before,game,comp,result,serieAClubs):next;
 }
-
 export function playNextWorldFixture(career,serieAClubs){
   const cleanCareer=career.pendingWorldMatch?{...career,pendingWorldMatch:null}:career;
   const initialWorld=sanitizeWorldState(cleanCareer.world,cleanCareer,serieAClubs),initialEvent=activeUserFixture(initialWorld,cleanCareer.userClubId);
@@ -433,23 +459,9 @@ export function playNextWorldFixture(career,serieAClubs){
   if(!event)return next;
   const before=event.comp,game=event.game;
   world=playFixture(world,next,serieAClubs,event.key,game.id);
-  const comp=world.competitions[event.key],result=comp.results.find(item=>item.fixtureId===game.id),home=result.homeId===String(next.userClubId),gf=home?result.homeGoals:result.awayGoals,ga=home?result.awayGoals:result.homeGoals,won=gf>ga,draw=gf===ga,importance=competitionImportance(comp.id);
-  next={...next,world:{...world,lastUserMatch:result}};
-  next=applyConfidenceEvent(next,{fans:(won?2.8:draw?.2:-3.4)*importance,board:(won?.9:draw?.1:-1.1)*importance,kind:'competition',reason:comp.name+' · '+game.stage+': '+(won?'vitória':draw?'empate':'derrota')+' por '+gf+' a '+ga+'.'});
-  const userNowChampion=comp.championId===String(next.userClubId),already=(next.trophies||[]).some(t=>t.id===trophyFor(comp).id&&Number(t.season)===Number(comp.edition));
-  if(userNowChampion&&!already){
-    const trophy=trophyFor(comp);
-    next={...next,trophies:[...(next.trophies||[]),trophy],pendingCelebration:{id:'celebration-'+comp.key,type:'trophy',trophy},messages:[{id:'title-'+comp.key,type:'title',title:'Campeão: '+comp.name,text:'Seu trabalho terminou com taça. '+comp.name+' foi adicionada à galeria.'},...(next.messages||[])]};
-    next=applyConfidenceEvent(next,{fans:10*importance,board:8*importance,kind:'title',reason:'Título conquistado: '+comp.name+'.'});
-  }else{
-    const wasAlive=before.teams.includes(String(next.userClubId))&&!before.eliminated.includes(String(next.userClubId))&&!before.championId,nowOut=comp.eliminated.includes(String(next.userClubId));
-    if(wasAlive&&nowOut)next=applyConfidenceEvent(next,{fans:-2.4*importance,board:-1.4*importance,kind:'elimination',reason:'Eliminação na '+comp.name+' ('+game.stage+').'});
-  }
-  if(next.round>=38&&next.seasonReview&&!pendingSeasonFixtures(next,serieAClubs).length){
-    const confidence=next.managerConfidence||{};
-    next={...next,seasonReview:{...next.seasonReview,pending:true,waiting:false,titles:(next.trophies||[]).filter(item=>Number(item.season)===Number(next.season)),fanConfidence:confidence.fans??next.seasonReview.fanConfidence,boardConfidence:confidence.board??next.seasonReview.boardConfidence,cash:next.cash}};
-  }
-  return next;
+  const comp=world.competitions[event.key],result=comp.results.find(item=>item.fixtureId===game.id);
+  next={...next,world};
+  return result?applyUserWorldOutcome(next,before,game,comp,result,serieAClubs):next;
 }
 export function worldCompetitionList(career,serieAClubs){
   const world=sanitizeWorldState(career.world,career,serieAClubs);
