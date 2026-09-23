@@ -26,7 +26,14 @@ jobs:
       - name: Run tests
         run: npm test
       - name: Build production app
-        run: npm run build
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee build.log
+          if grep -q "css-syntax-error" build.log; then
+            echo "CSS syntax warning detected; failing validation."
+            exit 1
+          fi
       - name: Upload preview build
         uses: actions/upload-artifact@v4
         with:
