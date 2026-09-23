@@ -29,7 +29,8 @@ import {
 } from './player-engine';
 import { getClubWorld } from './club-world.js';
 import { positionGroup, translatePosition } from './position-labels.js';
-import { nextCareerEvent, pendingSeasonFixtures } from './competition-engine.js';
+import { finishPendingWorldFixture, nextCareerEvent, pendingSeasonFixtures, startWorldFixture, worldClub } from './competition-engine.js';
+import WorldCrest from './WorldCrest.jsx';
 import './match.css';
 
 const eventSymbol={goal:'⚽',yellow:'■',red:'▰',injury:'✚',penalty:'●','penalty-miss':'×',corner:'⚑',foul:'◆',shot:'◎','big-chance':'!','substitution':'↕'};
@@ -59,6 +60,23 @@ function visibleStats(stats,second,duration) {
 function matchMomentum(stats){
   const raw=50+(stats.possession[0]-50)*.35+(stats.shots[0]-stats.shots[1])*2.2+(stats.onTarget[0]-stats.onTarget[1])*4.6+(stats.corners[0]-stats.corners[1])*1.3;
   return Math.max(18,Math.min(82,Math.round(raw)));
+}
+function worldHash(value){let h=2166136261;for(const ch of String(value)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return h>>>0;}
+function worldGoalTimeline(result){
+  if(!result)return[];
+  const goals=[];
+  for(let i=0;i<(result.homeGoals||0);i++)goals.push({side:'home',second:360+(worldHash(result.fixtureId+'|h|'+i)%4620)});
+  for(let i=0;i<(result.awayGoals||0);i++)goals.push({side:'away',second:360+(worldHash(result.fixtureId+'|a|'+i)%4620)});
+  return goals.sort((a,b)=>a.second-b.second);
+}
+function worldScoreAt(result,second){
+  const score={home:0,away:0};for(const goal of worldGoalTimeline(result))if(goal.second<=second)score[goal.side]++;return score;
+}
+function worldMatchStats(result,second){
+  if(!result)return{possession:[50,50],shots:[0,0],onTarget:[0,0],corners:[0,0],fouls:[0,0]};
+  const hp=result.homePower||70,ap=result.awayPower||70,homePoss=Math.max(38,Math.min(62,Math.round(50+(hp-ap)*.45))),factor=Math.max(.03,Math.min(1,second/FULL_TIME));
+  const homeShots=Math.max(result.homeGoals+5,Math.round(8+(hp-ap)*.18)),awayShots=Math.max(result.awayGoals+5,Math.round(8+(ap-hp)*.18));
+  return{possession:[homePoss,100-homePoss],shots:[Math.round(homeShots*factor),Math.round(awayShots*factor)],onTarget:[Math.round(Math.max(result.homeGoals+2,homeShots*.42)*factor),Math.round(Math.max(result.awayGoals+2,awayShots*.42)*factor)],corners:[Math.round((3+(worldHash(result.fixtureId+'|hc')%5))*factor),Math.round((3+(worldHash(result.fixtureId+'|ac')%5))*factor)],fouls:[Math.round((8+(worldHash(result.fixtureId+'|hf')%8))*factor),Math.round((8+(worldHash(result.fixtureId+'|af')%8))*factor)]};
 }
 const latestFor=(events,side,second)=>[...(events||[])].reverse().find(e=>e.side===side&&e.second<=second)||null;
 function PlayerHighlight({club,result,side,second}) {
@@ -139,14 +157,25 @@ function PenaltyDecision({career,club,clubs,match,event,onCareerChange,onClose})
 }
 
 export default function MatchSimulation({club,clubs,Crest,career,onCareerChange,canManage,onChoose,onNavigate,isVisible=true}) {
-  const activeRound=career.pendingRound,fixture=fixtureForUser(career),pendingUserMatch=activeRound?.matches?.find(match=>match.id===activeRound.userMatchId),displayMatch=pendingUserMatch||career.lastUserMatch||fixture;
+  const activeRound=career.pendingRound,activeWorld=career.pendingWorldMatch,fixture=fixtureForUser(career),pendingUserMatch=activeRound?.matches?.find(match=>match.id===activeRound.userMatchId),displayMatch=pendingUserMatch||career.lastUserMatch||fixture;
   const [second,setSecond]=useState(0),[realElapsed,setRealElapsed]=useState(0),[paused,setPaused]=useState(false),[selectedMode,setSelectedMode]=useState(career.preferredSimulationMode||'normal');
-  const [lineupOpen,setLineupOpen]=useState(false),[subOpen,setSubOpen]=useState(false),[subContext,setSubContext]=useState(null),[halftimeOpen,setHalftimeOpen]=useState(false),[penaltyEvent,setPenaltyEvent]=useState(null);
+  const [lineupOpen,setLineupOpen]=useState(false),[subOpen,setSubOpen]=useState(false),[subContext,setSubContext]=useState(null),[halftimeOpen,setHalftimeOpen]=useState(false),[penaltyEvent,setPenaltyEvent]=useState(null),[worldCompleted,setWorldCompleted]=useState(null);
   const finalizeLock=useRef(false),halftimeDone=useRef(false),acknowledgedInjuries=useRef(new Set());
 
-  useEffect(()=>{if(activeRound){setSecond(0);setRealElapsed(0);setPaused(false);finalizeLock.current=false;halftimeDone.current=false;acknowledgedInjuries.current=new Set();}else if(career.lastUserMatch){const mode=SIMULATION_MODES[career.lastUserMatch.simulationMode]||SIMULATION_MODES.normal;setSecond(career.lastUserMatch.durationSecond||FULL_TIME);setRealElapsed(mode.realDurationSeconds ?? 0);setPaused(true);finalizeLock.current=false;}else{setSecond(0);setRealElapsed(0);setPaused(true);finalizeLock.current=false;}},[activeRound?.id]);
+  useEffect(()=>{if(activeWorld){setSecond(0);setRealElapsed(0);setPaused(activeWorld.mode==='instant');setWorldCompleted(null);finalizeLock.current=false;}else if(activeRound){setSecond(0);setRealElapsed(0);setPaused(false);finalizeLock.current=false;halftimeDone.current=false;acknowledgedInjuries.current=new Set();}else if(career.lastUserMatch){const mode=SIMULATION_MODES[career.lastUserMatch.simulationMode]||SIMULATION_MODES.normal;setSecond(career.lastUserMatch.durationSecond||FULL_TIME);setRealElapsed(mode.realDurationSeconds ?? 0);setPaused(true);finalizeLock.current=false;}else{setSecond(0);setRealElapsed(0);setPaused(true);finalizeLock.current=false;}},[activeRound?.id,activeWorld?.id]);
 
   const activeMode=activeRound?SIMULATION_MODES[activeRound.mode]:null,totalRoundDuration=roundDuration(activeRound);
+  const worldMode=activeWorld?SIMULATION_MODES[activeWorld.mode]:null;
+  useEffect(()=>{
+    if(!activeWorld||paused||activeWorld.mode==='instant')return;
+    const target=Math.max(1,worldMode?.realDurationSeconds||60);
+    const timer=setInterval(()=>setRealElapsed(value=>{const nextReal=Math.min(target,value+1);setSecond(Math.min(FULL_TIME,Math.round(FULL_TIME*(nextReal/target))));return nextReal;}),1000);
+    return()=>clearInterval(timer);
+  },[activeWorld?.id,activeWorld?.mode,paused,worldMode?.realDurationSeconds]);
+  useEffect(()=>{
+    if(!activeWorld||second<FULL_TIME||finalizeLock.current)return;
+    finalizeLock.current=true;setPaused(true);setWorldCompleted(activeWorld.result||null);onCareerChange(finishPendingWorldFixture(career,clubs));
+  },[activeWorld?.id,second]);
   useEffect(()=>{
     if(!activeRound||paused||activeRound.mode==='instant'||penaltyEvent||subOpen||halftimeOpen)return;
     const config=activeMode||SIMULATION_MODES.normal,target=Math.max(1,config.realDurationSeconds||60);
@@ -187,19 +216,29 @@ export default function MatchSimulation({club,clubs,Crest,career,onCareerChange,
     finalizeLock.current=true;setPaused(true);onCareerChange(finishPendingRound(career,clubs));
   },[second,totalRoundDuration,activeRound?.id,penaltyEvent,subOpen,halftimeOpen]);
 
-  useEffect(()=>{if(!activeRound&&career.lastUserMatch){const mode=SIMULATION_MODES[career.lastUserMatch.simulationMode]||SIMULATION_MODES.normal;setSecond(career.lastUserMatch.durationSecond||FULL_TIME);setRealElapsed(mode.realDurationSeconds ?? 0);}},[career.lastUserMatch?.id,activeRound]);
+  useEffect(()=>{if(!activeRound&&!activeWorld&&career.lastUserMatch){const mode=SIMULATION_MODES[career.lastUserMatch.simulationMode]||SIMULATION_MODES.normal;setSecond(career.lastUserMatch.durationSecond||FULL_TIME);setRealElapsed(mode.realDurationSeconds ?? 0);}},[career.lastUserMatch?.id,activeRound,activeWorld]);
 
   const officialTable=useMemo(()=>standingsFromResults(career.results,clubs),[career.results,clubs]);
   if(!isVisible)return null;
   const home=clubs.find(item=>item.id===displayMatch?.homeId)||club,away=clubs.find(item=>item.id===displayMatch?.awayId)||clubs.find(item=>item.id!==club.id)||club,userDuration=displayMatch?.durationSecond||FULL_TIME,displaySecond=Math.min(second,userDuration);
   const score=displayMatch?.events?scoreAtSecond(displayMatch,displaySecond):{home:0,away:0},stats=visibleStats(displayMatch?.stats,displaySecond,userDuration),visible=(displayMatch?.events||[]).filter(e=>e.second<=displaySecond).slice().reverse().slice(0,7),latestHome=latestFor(displayMatch?.events,'home',displaySecond),latestAway=latestFor(displayMatch?.events,'away',displaySecond),nextEvent=(displayMatch?.events||[]).find(e=>e.second>displaySecond),completed=career.round>=38&&!activeRound,userMatchFinished=Boolean(displayMatch?.events)&&displaySecond>=userDuration;
-  const careerEvent=nextCareerEvent(career,clubs),blockedByCompetition=!activeRound&&careerEvent?.type==='world',remainingSeason=pendingSeasonFixtures(career,clubs),seasonFinished=completed&&remainingSeason.length===0;
+  const careerEvent=nextCareerEvent(career,clubs),blockedByCompetition=!activeRound&&!activeWorld&&careerEvent?.type==='world',remainingSeason=pendingSeasonFixtures(career,clubs),seasonFinished=completed&&remainingSeason.length===0;
   const momentum=matchMomentum(stats),pressureLabel=momentum>=57?(home.abbreviation||home.name)+' está pressionando':momentum<=43?(away.abbreviation||away.name)+' está pressionando':'Jogo equilibrado';
   const homePlan=displayMatch?.intelligence?.homePlan||'Equilibrado',awayPlan=displayMatch?.intelligence?.awayPlan||'Equilibrado';
   const userRow=officialTable.find(row=>row.clubId===career.userClubId),liveMatches=activeRound?liveRoundMatches(activeRound,second):(career.lastRoundResults||[]).map(result=>({...result,liveHomeGoals:result.homeGoals,liveAwayGoals:result.awayGoals,finished:true,minute:Math.floor((result.durationSecond||FULL_TIME)/60)})),boardRound=activeRound?.roundNumber||(career.round||1);
   const userSide=pendingUserMatch?(pendingUserMatch.homeId===career.userClubId?'home':'away'):null;
   const matchYellows=pendingUserMatch?(pendingUserMatch.events||[]).filter(e=>e.type==='yellow'&&e.side===userSide&&e.second<=second).length:0,matchReds=pendingUserMatch?(pendingUserMatch.events||[]).filter(e=>e.type==='red'&&e.side===userSide&&e.second<=second).length:0;
 
+  function runWorld(){
+    if(!canManage||activeRound||activeWorld||careerEvent?.type!=='world')return;
+    const started=startWorldFixture(career,clubs,selectedMode);if(started===career)return;
+    const preview=started.pendingWorldMatch?.result||null;setWorldCompleted(null);
+    if(selectedMode==='instant'){
+      const finished=finishPendingWorldFixture(started,clubs);setWorldCompleted(preview);setSecond(FULL_TIME);setRealElapsed(0);setPaused(true);onCareerChange(finished);return;
+    }
+    onCareerChange(started);setSecond(0);setRealElapsed(0);setPaused(false);
+  }
+  function clearWorldResult(){setWorldCompleted(null);setSecond(0);setRealElapsed(0);setPaused(true);}
   function runRound(){
     if(!canManage||activeRound||completed||blockedByCompetition)return;
     if(selectedMode==='instant'){const started=startRound(career,clubs,'instant'),finished=finishPendingRound(started,clubs);onCareerChange(finished);setSecond(finished.lastUserMatch?.durationSecond||FULL_TIME);setRealElapsed(0);setPaused(true);return;}
@@ -211,6 +250,22 @@ export default function MatchSimulation({club,clubs,Crest,career,onCareerChange,
   function resumeFromHalf(){halftimeDone.current=true;setHalftimeOpen(false);setPaused(false);}
   function openSubstitution(halftime=false){setPaused(true);setSubContext({halftime});setSubOpen(true);}
   function closeSubstitution(){setSubOpen(false);setSubContext(null);if(!halftimeOpen)setPaused(false);}
+
+  const worldContext=activeWorld||blockedByCompetition||worldCompleted;
+  if(worldContext){
+    const pending=activeWorld||null,event=activeWorld?{competitionName:activeWorld.competitionName,stage:activeWorld.stage,date:activeWorld.date,fixture:{id:activeWorld.fixtureId,homeId:activeWorld.result?.homeId,awayId:activeWorld.result?.awayId}}:blockedByCompetition?careerEvent:null;
+    const result=pending?.result||worldCompleted||null,homeWorld=worldClub(career,clubs,result?.homeId||event?.fixture?.homeId),awayWorld=worldClub(career,clubs,result?.awayId||event?.fixture?.awayId),playing=Boolean(activeWorld),finished=Boolean(worldCompleted&&!activeWorld),virtualSecond=finished?FULL_TIME:playing?Math.min(second,FULL_TIME):0,worldScore=result?worldScoreAt(result,virtualSecond):{home:0,away:0},worldStats=worldMatchStats(result,virtualSecond),worldMomentum=matchMomentum(worldStats),modeLocked=playing;
+    return <div className="match-content world-match-content">
+      <div className="match-heading"><div><div className="eyebrow">CALENDÁRIO INTEGRADO</div><h2>{event?.competitionName||result?.competitionName||'Competição'}</h2><p>{event?.stage||result?.stage||'Partida oficial'} · as três velocidades usam a mesma engine e o resultado permanece no save.</p></div><span className="stage-two-badge"><Trophy size={13}/> {event?.stage||result?.stage}</span></div>
+      {!canManage&&<div className="choose-notice"><Target size={18}/><p>Escolha o {club.name} para administrar esta partida.</p><button onClick={onChoose}>Escolher clube</button></div>}
+      <div className="match-meta"><span><CalendarDays size={15}/> {event?.date||result?.date}</span><span><Trophy size={15}/> {event?.competitionName||result?.competitionName}</span><span><Timer size={15}/> {finished?'Partida encerrada':playing?'Partida em andamento':'Pré-jogo'}</span></div>
+      <section className="match-stage world-match-stage" aria-label={(homeWorld?.name||'Mandante')+' contra '+(awayWorld?.name||'Visitante')}><SidelineField/><div className="match-score-layer"><div className="match-team home"><WorldCrest club={homeWorld} size="large"/><h3>{homeWorld?.name||'Mandante'}</h3></div><div className="score-center"><span className="match-period">{finished?'FIM DE JOGO':playing?(virtualSecond<45*60?'1º TEMPO':'2º TEMPO'):'PRÉ-JOGO'}</span><span className="match-clock">{playing?Math.min(90,Math.floor(virtualSecond/60))+"'":finished?"90'":"00:00"}</span><strong>{worldScore.home}<i>–</i>{worldScore.away}</strong><small>{finished?'RESULTADO OFICIAL':playing?paused?'JOGO PAUSADO':'PARTIDA EM ANDAMENTO':'AGUARDANDO SIMULAÇÃO'}</small><div className="match-venue"><strong>{event?.competitionName||result?.competitionName}</strong><span>{event?.stage||result?.stage}</span></div></div><div className="match-team away"><WorldCrest club={awayWorld} size="large"/><h3>{awayWorld?.name||'Visitante'}</h3></div></div></section>
+      <section className="match-momentum-panel" aria-label="Momento da partida"><div className="momentum-copy"><Activity size={15}/><span><small>MOMENTO DO JOGO</small><strong>{worldMomentum>=57?(homeWorld?.abbreviation||homeWorld?.name)+' pressiona':worldMomentum<=43?(awayWorld?.abbreviation||awayWorld?.name)+' pressiona':'Jogo equilibrado'}</strong></span></div><div className="momentum-teams"><span>{homeWorld?.abbreviation}</span><div className="momentum-track"><i style={{width:worldMomentum+'%'}}/><b style={{width:(100-worldMomentum)+'%'}}/></div><span>{awayWorld?.abbreviation}</span></div><small className="momentum-note">Leitura calculada por força das equipes, posse projetada e volume ofensivo.</small></section>
+      <div className="simulation-mode-panel"><div className="mode-copy"><Gauge size={18}/><div><strong>Velocidade da partida</strong><span>{playing?'A partida já está em andamento.':SIMULATION_MODES[selectedMode].description}</span></div></div><div className="mode-selector"><button disabled={modeLocked||finished} className={selectedMode==='normal'?'active':''} onClick={()=>setSelectedMode('normal')}><Clock3 size={14}/> Normal</button><button disabled={modeLocked||finished} className={selectedMode==='fast'?'active':''} onClick={()=>setSelectedMode('fast')}><FastForward size={14}/> Rápido</button><button disabled={modeLocked||finished} className={selectedMode==='instant'?'active':''} onClick={()=>setSelectedMode('instant')}><Zap size={14}/> Instantânea</button></div></div>
+      <div className="match-action-strip"><div><strong>{finished?'Partida encerrada':playing?'Partida em andamento':'Próximo compromisso oficial'}</strong><span>{homeWorld?.name} × {awayWorld?.name} · {event?.stage||result?.stage}</span></div>{playing?<button className="season-action" onClick={()=>setPaused(value=>!value)}>{paused?<Play size={16}/>:<Pause size={16}/>} {paused?'Continuar':'Pausar'}</button>:finished?<button className="season-action" onClick={clearWorldResult}><CalendarDays size={16}/> Próximo compromisso</button>:<button className="season-action" disabled={!canManage} onClick={runWorld}><Play size={16}/> {selectedMode==='instant'?'Simular instantaneamente':'Iniciar partida'}</button>}</div>
+      <div className="match-lower-grid world-match-grid"><section className="match-card stats-card"><div className="match-card-title stats-title"><div><Activity size={17}/><h3>Estatísticas projetadas</h3></div><span>{homeWorld?.abbreviation} × {awayWorld?.abbreviation}</span></div><Comparison Icon={Gauge} label="Posse de bola" values={worldStats.possession} percent/><Comparison Icon={Target} label="Finalizações" values={worldStats.shots}/><Comparison Icon={Target} label="Finalizações no gol" values={worldStats.onTarget}/><Comparison Icon={Flag} label="Escanteios" values={worldStats.corners}/><Comparison Icon={ShieldAlert} label="Faltas" values={worldStats.fouls}/></section><section className="match-card world-engine-card"><div className="match-card-title"><h3>Engine da competição</h3><span>Sincronizada</span></div><p>Este jogo usa o mesmo calendário da carreira. O resultado altera classificação, chaveamento, confiança, eliminação e títulos sem sair da tela de partida.</p><div className="world-power-row"><span>{homeWorld?.abbreviation}<b>{Math.round(result?.homePower||0)}</b></span><em>força calculada</em><span>{awayWorld?.abbreviation}<b>{Math.round(result?.awayPower||0)}</b></span></div></section></div>
+    </div>;
+  }
 
   return <div className="match-content">
     <div className="match-heading"><div><div className="eyebrow">DA BEIRA DO CAMPO</div><h2>Simulação de partida</h2><p>Escalação, condição, momento e uma CPU adaptativa alteram cada partida em tempo real.</p></div><span className="stage-two-badge"><Trophy size={13}/> Brasileirão {career.season}</span></div>
