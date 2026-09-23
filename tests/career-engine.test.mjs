@@ -9,6 +9,8 @@ import {
   roundDuration,
   simulateMatch,
   simulateRound,
+  SIMULATION_MODES,
+  sanitizeCareer,
   standingsFromResults,
   startRound,
   teamRating,
@@ -121,4 +123,29 @@ test('sponsors enforce requirements and can add immediate cash',function(){
   const signed=signSponsor(career,'vertice',clubs[0],[]);
   assert.equal(signed.error,null);
   assert.ok(signed.career.cash>career.cash);
+});
+
+
+test('beta00 real-time modes define exactly 60s normal, 30s fast and immediate mode',function(){
+  assert.equal(SIMULATION_MODES.normal.realDurationSeconds,60);
+  assert.equal(SIMULATION_MODES.fast.realDurationSeconds,30);
+  assert.equal(SIMULATION_MODES.instant.realDurationSeconds,0);
+  assert.equal(SIMULATION_MODES.normal.tickMs,1000);
+  assert.equal(SIMULATION_MODES.fast.tickMs,1000);
+});
+
+test('manager identity is stored and preserved by career sanitization',function(){
+  const base=createCareer(clubs,clubs[0].id);
+  const named={...base,managerName:'Levi'};
+  const restored=sanitizeCareer(named,clubs,clubs[0].id);
+  assert.equal(restored.managerName,'Levi');
+  assert.equal(restored.version,6);
+});
+
+test('simulated matches persist the selected presentation mode for their history clock',function(){
+  const started=startRound(createCareer(clubs,clubs[0].id),clubs,'fast');
+  assert.ok(started.pendingRound.matches.every(match=>match.simulationMode==='fast'));
+  const finished=finishPendingRound(started,clubs);
+  assert.equal(finished.lastUserMatch.simulationMode,'fast');
+  assert.equal(userMatchHistory(finished)[0].simulationMode,'fast');
 });
