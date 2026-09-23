@@ -50,8 +50,8 @@ const S={
     ['3456',external('pr:andraus','Andraus','AND','BRA',57),external('pr:azuriz','Azuriz','AZU','BRA',61),external('pr:cianorte','Cianorte','CIA','BRA',62),external('pr:galo','Galo Maringá','GAL','BRA',57),external('pr:operario','Operário-PR','OPE','BRA',67)]
   ],qualifyPerGroup:4,knockoutPairing:'within-group',knockout:[{name:'Quartas de final',legs:2},{name:'Semifinal',legs:2},{name:'Final',legs:2}]},
   rs:{id:'gaucho',name:'Gauchão',region:'RS',format:'cross6',start:'01-10',end:'03-08',groups:[
-    ['6273',external('rs:caxias','Caxias','CAX','BRA',66),external('rs:guarany','Guarany de Bagé','GUA','BRA',58),external('rs:monsoon','Monsoon','MON','BRA',59),external('rs:sao-jose','São José-RS','SJO','BRA',63),external('rs:sao-luiz','São Luiz','SLU','BRA',61)],
-    ['1936',external('rs:avenida','Avenida','AVE','BRA',58),external('rs:inter-sm','Inter-SM','ISM','BRA',59),external('rs:juventude','Juventude','JUV','BRA',69),external('rs:novo-hamburgo','Novo Hamburgo','NHA','BRA',60),external('rs:ypiranga','Ypiranga-RS','YPI','BRA',65)]
+    ['6273',external('rs:caxias','Caxias','CAX','BRA',66,'Sociedade Esportiva e Recreativa Caxias do Sul'),external('rs:guarany','Guarany de Bagé','GUA','BRA',58),external('rs:monsoon','Monsoon','MON','BRA',59,'Monsoon Futebol Clube'),external('rs:sao-jose','São José-RS','SJO','BRA',63,'Esporte Clube São José'),external('rs:sao-luiz','São Luiz','SLU','BRA',61,'Esporte Clube São Luiz')],
+    ['1936',external('rs:avenida','Avenida','AVE','BRA',58,'Esporte Clube Avenida'),external('rs:inter-sm','Inter-SM','ISM','BRA',59),external('rs:juventude','Juventude','JUV','BRA',69,'Esporte Clube Juventude'),external('rs:novo-hamburgo','Novo Hamburgo','NHA','BRA',60,'Esporte Clube Novo Hamburgo'),external('rs:ypiranga','Ypiranga-RS','YPI','BRA',65,'Ypiranga Futebol Clube (Erechim)')]
   ],qualifyPerGroup:4,knockoutPairing:'within-group',knockout:[{name:'Quartas de final',legs:1},{name:'Semifinal',legs:2},{name:'Final',legs:2}]},
   sc:{id:'catarinense',name:'Campeonato Catarinense',region:'SC',format:'cross6',start:'01-07',end:'03-08',groups:[
     [external('sc:avai','Avaí','AVA','BRA',68),external('sc:camboriu','Camboriú','CAM','BRA',59),external('sc:concordia','Concórdia','CON','BRA',61),external('sc:marcilio','Marcílio Dias','MDS','BRA',61),external('sc:joinville','Joinville','JOI','BRA',64),external('sc:brusque','Brusque','BRU','BRA',66)],
@@ -125,15 +125,15 @@ export const REGIONAL_GROUPS_2026={
   sulSudeste:{
     id:'copa-sul-sudeste',name:'Copa Sul-Sudeste',userClubs:['9318'],format:'cross6',start:'03-24',end:'06-07',
     groups:{
-      A:[external('rs:caxias','Caxias','CAX','BRA',66),'9318',external('pr:cianorte','Cianorte','CIA','BRA',62),external('sp:novorizontino','Novorizontino','NOV','BRA',70),external('rj:sampaio','Sampaio Corrêa-RJ','SAM','BRA',59),external('mg:tombense','Tombense','TOM','BRA',64)],
-      B:[external('mg:america','América-MG','AME','BRA',70),external('sc:avai','Avaí','AVA','BRA',68),external('rs:juventude','Juventude','JUV','BRA',69),external('pr:operario','Operário-PR','OPE','BRA',67),external('sp:sao-bernardo','São Bernardo','SBE','BRA',69),external('rj:volta-redonda','Volta Redonda','VOL','BRA',67)]
+      A:[external('rs:caxias','Caxias','CAX','BRA',66,'Sociedade Esportiva e Recreativa Caxias do Sul'),'9318',external('pr:cianorte','Cianorte','CIA','BRA',62),external('sp:novorizontino','Novorizontino','NOV','BRA',70),external('rj:sampaio','Sampaio Corrêa-RJ','SAM','BRA',59),external('mg:tombense','Tombense','TOM','BRA',64)],
+      B:[external('mg:america','América-MG','AME','BRA',70),external('sc:avai','Avaí','AVA','BRA',68),external('rs:juventude','Juventude','JUV','BRA',69,'Esporte Clube Juventude'),external('pr:operario','Operário-PR','OPE','BRA',67),external('sp:sao-bernardo','São Bernardo','SBE','BRA',69),external('rj:volta-redonda','Volta Redonda','VOL','BRA',67)]
     },qualifyPerGroup:2,knockout:[{name:'Semifinal',legs:2},{name:'Final',legs:2}]
   }
 };
 
 export const COPA_DO_BRASIL_QUALIFIERS=[
  external('cdb:ceara','Ceará','CEA','BRA',70),external('cdb:fortaleza','Fortaleza','FOR','BRA',73),external('cdb:sport','Sport','SPO','BRA',69),external('mg:america','América-MG','AME','BRA',70),
- external('rs:juventude','Juventude','JUV','BRA',69),external('sc:criciuma','Criciúma','CRI','BRA',69),external('sc:avai','Avaí','AVA','BRA',68),external('pr:operario','Operário-PR','OPE','BRA',67),
+ external('rs:juventude','Juventude','JUV','BRA',69,'Esporte Clube Juventude'),external('sc:criciuma','Criciúma','CRI','BRA',69),external('sc:avai','Avaí','AVA','BRA',68),external('pr:operario','Operário-PR','OPE','BRA',67),
  external('sp:novorizontino','Novorizontino','NOV','BRA',70),external('pa:paysandu','Paysandu','PAY','BRA',68),external('cdb:crb','CRB','CRB','BRA',67),external('cdb:goias','Goiás','GOI','BRA',69)
 ];
 
