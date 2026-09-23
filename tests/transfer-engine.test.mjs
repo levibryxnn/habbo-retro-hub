@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { createCareer } from '../src/career-engine.js';
 import { initialCashForClub } from '../src/finance-model.js';
 import { rivalryLevel } from '../src/club-world.js';
-import { applyCareerRoster, evaluateTransferOffer, executeTransfer, negotiationPreset, playerKey, playerMarketValueEUR } from '../src/transfer-engine.js';
+import { applyCareerRoster, evaluateTransferOffer, executeTransfer, negotiationPreset, playerKey, playerMarketValueBRL, playerMarketValueEUR } from '../src/transfer-engine.js';
 
 const data=JSON.parse(fs.readFileSync(new URL('../src/data/serie-a-2026.json',import.meta.url),'utf8'));
 const clubs=data.clubs;
@@ -63,4 +63,21 @@ test('star transfers between rivals demand an exceptional package',function(){
   const market=playerMarketValueEUR(star,seller).value*6.25;
   const response=evaluateTransferOffer(career,clubs,{type:'buy',playerKey:key,fromClubId:seller.id,toClubId:buyer.id,amount:market});
   assert.notEqual(response.status,'accepted');
+});
+
+
+test('selling well below market value reduces board confidence',function(){
+  const seller=club('874');
+  const buyer=club('9318');
+  const player=seller.players[0];
+  let career=createCareer(clubs,seller.id);
+  career={...career,managerConfidence:{...career.managerConfidence,board:82}};
+  const key=playerKey(seller.id,player.id);
+  const market=playerMarketValueBRL(player,seller).valueBRL;
+  const offer={type:'sell',playerKey:key,fromClubId:seller.id,toClubId:buyer.id};
+  const done=executeTransfer(career,clubs,offer,{status:'accepted',agreedAmount:Math.round(market*.55)});
+  assert.equal(done.error,null);
+  assert.ok(done.career.managerConfidence.board<82);
+  assert.equal(done.career.transferHistory.at(-1).marketValue,market);
+  assert.ok(done.career.transferHistory.at(-1).valueRatio<.7);
 });
