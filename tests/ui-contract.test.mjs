@@ -79,7 +79,7 @@ test('club-specific colors are scoped to the club hero rather than the whole int
 test('V3 asks for a manager name when taking control of a club', function(){
   assert.ok(main.includes("Nome do técnico"));
   assert.ok(main.includes("managerName"));
-  assert.ok(main.includes("V3.1"));
+  assert.ok(main.includes("V4 RC"));
   assert.ok(!main.includes("Protótipo de gestão"));
   assert.ok(!main.includes("ETAPA 2 ·"));
 });
@@ -147,4 +147,12 @@ test('finished match UI does not keep presenting the previous round as live', fu
   assert.ok(match.includes("live={Boolean(activeRound)}"));
   assert.ok(match.includes("ENCERRADA"));
   assert.ok(match.includes("userMatchFinished?Math.floor(userDuration/60)"));
+});
+
+
+test('V4 RC exposes the full-season competition hub and retirement flow', function(){
+  assert.ok(main.includes("['competitions','Competições'"));
+  assert.ok(main.includes("<CompetitionHub"));
+  assert.ok(main.includes("<RetirementModal"));
+  assert.ok(match.includes("competition-gate"));
 });
