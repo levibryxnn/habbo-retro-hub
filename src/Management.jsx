@@ -2,17 +2,15 @@ import React, { useMemo, useState } from 'react';
 import { ArrowRight, Award, BadgeCheck, Check, CircleDollarSign, Handshake, LockKeyhole, Shield, Trophy, Wallet } from 'lucide-react';
 import { HONOUR_FILTERS, historicalTitleTotal, honoursWithCareer } from './club-honours.js';
 import { activeContracts, endSponsor, offers, projectedOfferValue, requirementStatus, signSponsor, slots, sponsorContext, sponsorshipTotals } from './finance-model';
+import Trophy3D from './Trophy3D.jsx';
 import './management.css';
 
 const money = function(value) {
   return new Intl.NumberFormat('pt-BR',{ style:'currency', currency:'BRL', maximumFractionDigits:0 }).format(value || 0);
 };
 
-function Cup({shape,won}) {
-  return <svg className={'cup-art ' + (won ? 'won' : '')} viewBox="0 0 120 140" fill="none" aria-hidden="true">
-    <ellipse cx="60" cy="131" rx="39" ry="5" fill="currentColor" opacity=".12"/>
-    {shape==='league'?<><path d="M30 22h60L77 83H43Z" fill="currentColor" opacity=".3"/><path d="M30 22h60L77 83H43Z M36 22l14 61m-3-61 8 61m18-61-8 61m19-61L70 83M60 22v61" stroke="currentColor" strokeWidth="3"/><path d="M43 18h34v8H43zM48 83h24v9H48zM55 92h10v24H55zM39 117h42v10H39z" fill="currentColor"/></>:shape==='cup'?<><path d="M36 26H18v16c0 19 17 29 31 29M84 26h18v16c0 19-17 29-31 29" stroke="currentColor" strokeWidth="5"/><path d="M31 18h58l-6 40c-2 14-12 25-23 25S39 72 37 58Z" fill="currentColor" opacity=".65"/><path d="M60 81v31M41 120h38" stroke="currentColor" strokeWidth="8"/><path d="M37 17h46" stroke="currentColor" strokeWidth="5"/></>:shape==='globe'?<><circle cx="60" cy="34" r="22" fill="currentColor" opacity=".6"/><ellipse cx="60" cy="34" rx="10" ry="22" stroke="currentColor" strokeWidth="2"/><path d="M38 34h44M60 57v43M39 105h42v20H39z" stroke="currentColor" strokeWidth="6"/><path d="M49 62h22l7 40H42z" fill="currentColor" opacity=".35"/></>:<><path d="M60 13 38 83l22 26 22-26Z" fill="currentColor" opacity=".55"/><path d="M60 13v96M38 83h44M47 59h26" stroke="currentColor" strokeWidth="3"/><path d="M55 106h10v11H55zM39 117h42v10H39z" fill="currentColor"/></>}
-  </svg>;
+function Cup({id,shape,won}) {
+  return <Trophy3D id={id} shape={shape} className={won?'won':''}/>;
 }
 
 function SponsorMark({offer,small=false}) {
@@ -72,7 +70,7 @@ export default function Management({club,tab,career,onCareerChange,canManage,onC
         const years=[...(trophy.years||[]),...careerWins.map(function(item){return item.season;})];
         return <article key={trophy.id} className={'trophy-card earned historical-trophy'}>
           <div className="trophy-card-top"><span>{trophy.kind}</span>{careerWins.length>0?<span className="won-badge"><BadgeCheck size={12}/> +{careerWins.length} na gestão</span>:<BadgeCheck size={13}/>}</div>
-          <div className="trophy-art-wrap"><span className="trophy-number-pop" aria-label={trophy.count+' títulos'}>{trophy.count}</span><Cup shape={trophy.shape} won/></div>
+          <div className="trophy-art-wrap"><span className="trophy-number-pop" aria-label={trophy.count+' títulos'}>{trophy.count}</span><Cup id={trophy.id} shape={trophy.shape} won/></div>
           <h3>{trophy.name}</h3><p>{trophy.count===1?'1 conquista oficial':trophy.count+' conquistas oficiais'}</p>
           <span className="trophy-state">{years.length&&years.length<=12?years.join(' · '):careerWins.length?'Histórico do clube · sua gestão: '+careerWins.map(function(item){return item.season;}).join(', '):'Histórico oficial do clube'}</span>
         </article>;
