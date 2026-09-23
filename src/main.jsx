@@ -70,6 +70,7 @@ function App() {
   const careersRef=useRef(careers);
   const persistHandle=useRef(null);
   const persistKind=useRef(null);
+  const persistenceReady=useRef(false);
   useEffect(()=>{
     if(!clubBrowserOpen)return;
     const previous=document.body.style.overflow;
@@ -78,6 +79,7 @@ function App() {
   },[clubBrowserOpen]);
   useEffect(()=>{
     careersRef.current=careers;
+    if(!persistenceReady.current){persistenceReady.current=true;return;}
     const write=()=>{
       persistHandle.current=null;persistKind.current=null;
       try{localStorage.setItem(CAREER_KEY,JSON.stringify(careersRef.current));setCareerStorageError(false);}
@@ -120,6 +122,12 @@ function App() {
   const selectedHasCareer=Boolean(careers[club.id]);
   const selectedDismissed=careers[club.id]?.managerStatus==='dismissed';
   const career=useMemo(()=>sanitizeCareer(rawCareer,careerClubs,club.id),[rawCareer,careerClubs,club.id]);
+  useEffect(()=>{
+    if(!rawCareer)return;
+    const detailedResults=Array.isArray(rawCareer.results)&&rawCareer.results.some(result=>Array.isArray(result.events)||result.stats||result.homeLineup||result.awayLineup);
+    const needsMigration=Number(rawCareer.version||0)<8||detailedResults||!rawCareer.seasonPerformance;
+    if(needsMigration)setCareers(current=>({...current,[club.id]:career}));
+  },[club.id,rawCareer,career]);
   const careerActive=saved===club.id;
   const managerDismissed=career.managerStatus==='dismissed';
   const managerCanManage=careerActive&&!managerDismissed;
