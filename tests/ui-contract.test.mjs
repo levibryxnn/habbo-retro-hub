@@ -115,12 +115,15 @@ test('manager dashboard surfaces the next match finances objective form and quic
 });
 
 
-test('app always boots into the club selector even when a career is saved', function(){
+test('app always boots into the canonical club selector even when a career is saved', function(){
   assert.ok(main.includes("const [tab,setTab]=useState('dashboard')"));
   assert.ok(main.includes("const [clubBrowserOpen,setClubBrowserOpen]=useState(true)"));
   assert.ok(main.includes("const [selected,setSelected]=useState(()=>data.clubs[0]?.id||'2029')"));
-  assert.ok(main.includes('{clubBrowserOpen&&<section className="club-selector-overlay"'));
+  assert.ok(main.includes("if(clubBrowserOpen){"));
+  assert.ok(main.includes('<section className="club-selector-overlay" aria-label="Seletor de clubes">'));
+  assert.ok(main.includes('Qual história você quer conhecer?'));
+  assert.ok(main.includes('single-club-workspace'));
+  assert.ok(!main.includes('<aside className="club-panel">'));
   assert.ok(!main.includes("useState(()=>!readSaved())"));
   assert.ok(!main.includes("useState(()=>readSaved()||'2029')"));
-  assert.ok(!main.includes('{saved&&clubBrowserOpen&&<section className="club-selector-overlay"'));
 });
