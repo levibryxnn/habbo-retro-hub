@@ -163,3 +163,10 @@ test('adaptive match AI records a tactical plan for both CPU sides',function(){
   assert.ok(['Vertical','Controle','Compacto','Pressão alta','Equilibrado'].includes(result.intelligence.homePlan));
   assert.ok(['Vertical','Controle','Compacto','Pressão alta','Equilibrado'].includes(result.intelligence.awayPlan));
 });
+
+
+test('dismissed managers cannot start another round',function(){
+  const career={...createCareer(clubs,clubs[0].id),managerStatus:'dismissed'};
+  assert.equal(canStartRound(career),false);
+  assert.deepEqual(startRound(career,clubs,'normal'),career);
+});
