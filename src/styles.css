@@ -215,3 +215,10 @@
   .club-selector-new small{font-size:6px}
   .club-selector-new strong{max-width:105px;font-size:9px;text-align:right;line-height:1.15}
 }
+
+
+/* beta01 · workspace único após a escolha do clube */
+.workspace.single-club-workspace{grid-template-columns:minmax(0,1fr)}
+.selector-only{min-height:100dvh;background:#f3f6f0}
+.selector-only .club-selector-overlay{position:relative;inset:auto;min-height:100dvh}
+@media(max-width:700px){.workspace.single-club-workspace .squad-panel{display:block!important}}
