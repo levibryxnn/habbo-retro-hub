@@ -57,6 +57,13 @@ export default function ClubDashboard({career,club,clubs,Crest,onNavigate,canMan
       action:'Ver legado',
       nav:'legacy',
     },
+    confidence.board<30?{
+      tag:confidence.board<15?'CARGO EM RISCO':'COBRANÇA',
+      title:confidence.board<15?'A diretoria exige reação imediata':'A segurança do cargo caiu',
+      copy:career.boardWarning?.text||'Resultados e decisões administrativas colocaram o trabalho sob pressão.',
+      action:'Ver classificação',
+      nav:'standings',
+    }:null,
     sponsors.length<3?{
       tag:'FINANÇAS',
       title:'Há espaço comercial disponível',
