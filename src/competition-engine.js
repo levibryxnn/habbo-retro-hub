@@ -73,6 +73,9 @@ function allEntryMap(serieAClubs){
   for(const club of WORLD_CLUBS)map.set(String(club.id),club);
   return map;
 }
+function registrySnapshot(serieAClubs){
+  return Object.fromEntries([...allEntryMap(serieAClubs)].map(([id,club])=>[id,{id:club.id,name:club.name,abbreviation:club.abbreviation,country:club.country,power:club.power,wikiQuery:club.wikiQuery,logo:club.logo||null,external:Boolean(club.external)}]));
+}
 function roundDatesForState(config,season,count){
   const endLeague=addDays(iso(season,...config.end.split('-').map(Number)),-Math.max(21,(config.knockout||[]).reduce((sum,item)=>sum+item.legs*5,0)));
   return spreadDates(season,config.start,endLeague.slice(5),count);
@@ -296,7 +299,7 @@ function ensureCompetitionProgress(world){
         updated=progressSudamericanaAfterPlayoff(updated);
         if(updated===comp)updated=progressStandard(comp);
       }else updated=progressStandard(comp);
-      if(JSON.stringify(updated)!==JSON.stringify(comp)){next.competitions[key]=updated;changed=true;}
+      if(updated!==comp){next.competitions[key]=updated;changed=true;}
     }
     const uclDone=Object.values(next.competitions).filter(c=>c.id==='champions-league'&&c.championId);
     for(const comp of uclDone){
@@ -336,12 +339,12 @@ export function createWorldState(career,serieAClubs,season=career.season){
   ]});competitions[lib.key]=lib;
   const sud=groupCompetition({id:'sudamericana',name:'CONMEBOL Sudamericana',season,groups:sudGroups,type:'continental',knockoutPlan:[],knockoutDates:[]});competitions[sud.key]=sud;
   const ucl=uclCompetition(season);competitions[ucl.key]=ucl;
-  const base={version:1,season,competitions,ratings:{},history:[],lastUserMatch:null,europeChampions:{2026:UCL_2025_26_CHAMPION},clubRegistry:Object.fromEntries([...allEntryMap(serieAClubs)].map(([id,club])=>[id,{id:club.id,name:club.name,abbreviation:club.abbreviation,country:club.country,power:club.power,wikiQuery:club.wikiQuery,logo:club.logo||null}]))};
+  const base={version:1,season,competitions,ratings:{},history:[],lastUserMatch:null,europeChampions:{2026:UCL_2025_26_CHAMPION},clubRegistry:registrySnapshot(serieAClubs)};
   return ensureCompetitionProgress(base);
 }
 export function sanitizeWorldState(raw,career,serieAClubs){
   if(!raw||typeof raw!=='object'||!raw.competitions)return createWorldState(career,serieAClubs,career.season);
-  return ensureCompetitionProgress({...raw,version:1,ratings:raw.ratings||{},history:Array.isArray(raw.history)?raw.history:[],europeChampions:{2026:UCL_2025_26_CHAMPION,...(raw.europeChampions||{})},clubRegistry:{...createWorldState({...career,world:null},serieAClubs,career.season).clubRegistry,...(raw.clubRegistry||{})}});
+  return ensureCompetitionProgress({...raw,version:1,ratings:raw.ratings||{},history:Array.isArray(raw.history)?raw.history:[],europeChampions:{2026:UCL_2025_26_CHAMPION,...(raw.europeChampions||{})},clubRegistry:{...registrySnapshot(serieAClubs),...(raw.clubRegistry||{})}});
 }
 function rosterPower(club){
   if(!club?.players?.length)return 65;
