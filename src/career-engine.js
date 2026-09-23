@@ -23,9 +23,9 @@ export const HALF_TIME_SECOND=45*60;
 export const MAX_SUBSTITUTIONS=5;
 export const MAX_SUB_WINDOWS=3;
 export const SIMULATION_MODES={
-  normal:{id:'normal',label:'Normal',tickMs:500,gameSecondsPerTick:30,description:'Acompanhe a rodada lance a lance.'},
-  fast:{id:'fast',label:'Rápido',tickMs:350,gameSecondsPerTick:120,description:'Acompanhe os principais acontecimentos em ritmo acelerado.'},
-  instant:{id:'instant',label:'Instantânea',tickMs:0,gameSecondsPerTick:FULL_TIME_SECOND,description:'Resolva os 10 jogos e veja os resultados imediatamente.'},
+  normal:{id:'normal',label:'Normal',tickMs:1000,realDurationSeconds:60,description:'60 segundos em tempo real.'},
+  fast:{id:'fast',label:'Rápido',tickMs:1000,realDurationSeconds:30,description:'30 segundos em tempo real.'},
+  instant:{id:'instant',label:'Instantânea',tickMs:0,realDurationSeconds:0,description:'Resultado imediato da rodada.'},
 };
 
 function hashString(value){
@@ -66,6 +66,19 @@ function weightedPlayer(club,lineupIds,rng){
   for(let i=0;i<players.length;i++){roll-=weights[i];if(roll<=0)return players[i];}
   return players[0];
 }
+function weightedAssist(club,lineupIds,scorer,rng){
+  if(rng()<.18)return null;
+  const players=lineupPlayers(club,lineupIds).filter(p=>p.name&&String(p.id)!==String(scorer?.id)&&positionGroup(p.position)!=='GOL');
+  if(!players.length)return null;
+  const weights=players.map(function(player){
+    const stats=playerGameStats(player),group=positionGroup(player.position);
+    const role=group==='MEI'?2.5:group==='ATA'?1.75:group==='DEF'?.72:.25;
+    return role+stats.passing/35+stats.composure/65;
+  });
+  const total=weights.reduce((a,b)=>a+b,0);let roll=rng()*total;
+  for(let i=0;i<players.length;i++){roll-=weights[i];if(roll<=0)return players[i];}
+  return players[0];
+}
 function bestPenaltyTaker(club,lineupIds){
   return lineupPlayers(club,lineupIds).sort(function(a,b){
     const sa=playerGameStats(a),sb=playerGameStats(b);
@@ -90,6 +103,14 @@ function makeEvent(side,type,second,club,player,index,extra){
   else if(type==='big-chance')text=player.name+' perde uma grande oportunidade';
   else text=player.name+' finaliza; a defesa responde';
   return{id:side+'-'+type+'-'+second+'-'+index,side,type,minute,second,playerId:String(player.id||player.name),player:player.name,clubId:club.id,text,...(extra||{})};
+}
+function makeGoalEvent(side,second,club,lineupIds,scorer,index,rng,extra){
+  const details={...(extra||{})};
+  if(!details.fromPenalty){
+    const assist=weightedAssist(club,lineupIds,scorer,rng);
+    if(assist){details.assistPlayerId=String(assist.id);details.assist=assist.name;}
+  }
+  return makeEvent(side,'goal',second,club,scorer,index,details);
 }
 function uniqueEventSecond(rng,used,durationSecond,minSecond=180){
   let second=minSecond+Math.floor(rng()*Math.max(1,durationSecond-minSecond-90));
@@ -232,7 +253,7 @@ function applyDismissalConsequences(result,home,away,rng){
     if(red.second<78*60&&rng()<.31){
       const future=Math.min(next.durationSecond-20,red.second+240+Math.floor(rng()*720));
       if(future>red.second+30){
-        next.events.push(makeEvent(opponentSide,'goal',future,opponentClub,weightedPlayer(opponentClub,opponentLineup,rng),'red-impact-'+red.id,{dismissalImpact:true}));
+        {const scorer=weightedPlayer(opponentClub,opponentLineup,rng);next.events.push(makeGoalEvent(opponentSide,future,opponentClub,opponentLineup,scorer,'red-impact-'+red.id,rng,{dismissalImpact:true}));}
       }
     }
   }
@@ -277,7 +298,7 @@ function applyAiManagement(result,home,away,career,interactiveClubId,rng){
       const impact=clamp(.02,.25,.04+Math.max(0,stats.shooting-67)*.004+(minute>=70?.04:0)+(gf<=ga?.035:0));
       if((['ATA','MEI'].includes(positionGroup(incoming.position)))&&rng()<impact){
         const future=Math.min(next.durationSecond-20,second+180+Math.floor(rng()*480));
-        if(future>second+20)next.events.push(makeEvent(side,'goal',future,club,incoming,'ai-impact-'+sub.id,{substitutionImpact:true}));
+        if(future>second+20)next.events.push(makeGoalEvent(side,future,club,currentLineup(next,side,second),incoming,'ai-impact-'+sub.id,rng,{substitutionImpact:true}));
       }
     }
   }
@@ -297,8 +318,8 @@ export function simulateMatch(home,away,seed,context){
   const awayLambda=clamp(.28,3.2,.98+awayAttackEdge-midfieldEdge*.2-homeMomentum*.12);
   const homeGoals=clamp(0,7,poisson(homeLambda,rng)),awayGoals=clamp(0,7,poisson(awayLambda,rng));
   const durationSecond=FULL_TIME_SECOND+(1+Math.floor(rng()*5))*60,events=[],used=new Set();let eventIndex=0;
-  for(let i=0;i<homeGoals;i++)events.push(makeEvent('home','goal',uniqueEventSecond(rng,used,durationSecond),home,weightedPlayer(home,homeLineup,rng),eventIndex++));
-  for(let i=0;i<awayGoals;i++)events.push(makeEvent('away','goal',uniqueEventSecond(rng,used,durationSecond),away,weightedPlayer(away,awayLineup,rng),eventIndex++));
+  for(let i=0;i<homeGoals;i++){const scorer=weightedPlayer(home,homeLineup,rng);events.push(makeGoalEvent('home',uniqueEventSecond(rng,used,durationSecond),home,homeLineup,scorer,eventIndex++,rng));}
+  for(let i=0;i<awayGoals;i++){const scorer=weightedPlayer(away,awayLineup,rng);events.push(makeGoalEvent('away',uniqueEventSecond(rng,used,durationSecond),away,awayLineup,scorer,eventIndex++,rng));}
   const tempoFactor=8+Math.floor(rng()*5),types=['shot','shot','big-chance','foul','corner'];
   for(let i=0;i<tempoFactor;i++){
     const homeChance=.5+clamp(-.13,.13,(hp.midfield+hp.attack-ap.midfield-ap.attack)/120),side=rng()<homeChance?'home':'away',club=side==='home'?home:away,lineup=side==='home'?homeLineup:awayLineup;
@@ -309,7 +330,7 @@ export function simulateMatch(home,away,seed,context){
   let result={
     id:String(seed),season:ctx.season||2026,roundNumber:ctx.roundNumber||1,competition:'Brasileirão Série A',
     matchday:matchdayProjection(home.id,away.id,ctx.roundNumber||1,seed),
-    homeId:home.id,awayId:away.id,homeLineup,awayLineup,homeBench,awayBench,substitutions:[],durationSecond,events:events.sort((a,b)=>a.second-b.second),
+    homeId:home.id,awayId:away.id,homeLineup,awayLineup,homeBench,awayBench,substitutions:[],durationSecond,simulationMode:ctx.mode||'normal',events:events.sort((a,b)=>a.second-b.second),
     homeGoals,awayGoals,
     stats:{possession:[clamp(38,65,Math.round(50+(hp.midfield-ap.midfield)*.55+(rng()-.5)*6)),0],shots:[Math.max(homeGoals,baseHomeShots),Math.max(awayGoals,baseAwayShots)],onTarget:[0,0],corners:[Math.floor(rng()*7),Math.floor(rng()*7)],fouls:[7+Math.floor(rng()*10),7+Math.floor(rng()*10)]},
     intelligence:{homeOverall:Math.round(hp.overall),awayOverall:Math.round(ap.overall),homeCondition:Math.round(hp.condition),awayCondition:Math.round(ap.condition),homeForm:Number(homeForm.toFixed(2)),awayForm:Number(awayForm.toFixed(2))},
@@ -345,7 +366,7 @@ export function liveRoundMatches(pendingRound,second){
 }
 function normalizeResults(results,season){
   return(Array.isArray(results)?results:[]).map(function(result,index){
-    return{...result,season:result.season||season,roundNumber:result.roundNumber||Math.floor(index/10)+1,competition:result.competition||'Brasileirão Série A',durationSecond:result.durationSecond||FULL_TIME_SECOND,substitutions:Array.isArray(result.substitutions)?result.substitutions:[]};
+    return{...result,season:result.season||season,roundNumber:result.roundNumber||Math.floor(index/10)+1,competition:result.competition||'Brasileirão Série A',durationSecond:result.durationSecond||FULL_TIME_SECOND,simulationMode:result.simulationMode||'normal',substitutions:Array.isArray(result.substitutions)?result.substitutions:[]};
   });
 }
 export function standingsFromResults(results,clubs){
@@ -367,7 +388,7 @@ function addScorers(map,result){
 export function topScorers(map,limit){const size=limit??20;return Object.values(map||{}).sort((a,b)=>b.goals-a.goals||a.name.localeCompare(b.name,'pt-BR')).slice(0,size);}
 function historyEntry(result,userClubId){
   const isHome=result.homeId===userClubId,goalsFor=isHome?result.homeGoals:result.awayGoals,goalsAgainst=isHome?result.awayGoals:result.homeGoals,points=goalsFor>goalsAgainst?3:goalsFor===goalsAgainst?1:0;
-  return{id:'history-'+result.season+'-'+result.roundNumber+'-'+result.id,season:result.season,roundNumber:result.roundNumber,competition:result.competition||'Brasileirão Série A',homeId:result.homeId,awayId:result.awayId,homeGoals:result.homeGoals,awayGoals:result.awayGoals,points,result:points===3?'Vitória':points===1?'Empate':'Derrota'};
+  return{id:'history-'+result.season+'-'+result.roundNumber+'-'+result.id,season:result.season,roundNumber:result.roundNumber,competition:result.competition||'Brasileirão Série A',homeId:result.homeId,awayId:result.awayId,homeGoals:result.homeGoals,awayGoals:result.awayGoals,simulationMode:result.simulationMode||'normal',points,result:points===3?'Vitória':points===1?'Empate':'Derrota'};
 }
 function deriveHistory(results,userClubId){return(results||[]).filter(r=>r.homeId===userClubId||r.awayId===userClubId).map(r=>historyEntry(r,userClubId));}
 export function userMatchHistory(career){return(career.history||[]).slice().sort((a,b)=>b.season-a.season||b.roundNumber-a.roundNumber);}
@@ -376,7 +397,7 @@ function defaultConditions(clubs){
 }
 export function createCareer(clubs,userClubId,season){
   const userClub=clubs.find(c=>c.id===userClubId);
-  const base={version:5,userClubId,season:season||2026,round:0,schedule:buildSchedule(clubs),results:[],scorers:{},allTimeScorers:{},cash:initialCashForClub(userClubId),transactions:[],sponsors:[],trophies:[],messages:[],seasons:[],history:[],pendingRound:null,lastRoundResults:[],lastUserMatch:null,preferredSimulationMode:'normal',playerStatus:{},conditions:defaultConditions(clubs),lineup:[],ownership:{},loans:[],transferHistory:[],transferContracts:[]};
+  const base={version:6,userClubId,managerName:'',season:season||2026,round:0,schedule:buildSchedule(clubs),results:[],scorers:{},allTimeScorers:{},cash:initialCashForClub(userClubId),transactions:[],sponsors:[],trophies:[],messages:[],seasons:[],history:[],pendingRound:null,lastRoundResults:[],lastUserMatch:null,preferredSimulationMode:'normal',playerStatus:{},conditions:defaultConditions(clubs),lineup:[],ownership:{},loans:[],transferHistory:[],transferContracts:[]};
   base.lineup=userClub?autoLineup(userClub,base,1):[];
   return base;
 }
@@ -386,7 +407,7 @@ export function sanitizeCareer(raw,clubs,userClubId){
   const pending=raw.pendingRound&&Array.isArray(raw.pendingRound.matches)?{...raw.pendingRound,matches:normalizeResults(raw.pendingRound.matches,season)}:null;
   const club=clubs.find(c=>c.id===userClubId),roundNumber=(raw.round||0)+1;
   const migratedCash=Number(raw.version||0)<5&&(raw.round||0)===0&&!(raw.transactions||[]).length&&Number(raw.cash||0)===20000000?base.cash:raw.cash;
-  const merged={...base,...raw,cash:Number.isFinite(migratedCash)?migratedCash:base.cash,version:5,schedule:Array.isArray(raw.schedule)&&raw.schedule.length===38?raw.schedule:buildSchedule(clubs),results,scorers:raw.scorers&&typeof raw.scorers==='object'?raw.scorers:{},allTimeScorers:raw.allTimeScorers&&typeof raw.allTimeScorers==='object'?raw.allTimeScorers:{},sponsors:Array.isArray(raw.sponsors)?raw.sponsors:[],trophies:Array.isArray(raw.trophies)?raw.trophies:[],transactions:Array.isArray(raw.transactions)?raw.transactions:[],messages:Array.isArray(raw.messages)?raw.messages:[],seasons:Array.isArray(raw.seasons)?raw.seasons:[],history,pendingRound:pending,lastRoundResults:Array.isArray(raw.lastRoundResults)?normalizeResults(raw.lastRoundResults,season):[],preferredSimulationMode:SIMULATION_MODES[raw.preferredSimulationMode]?raw.preferredSimulationMode:'normal',playerStatus:raw.playerStatus&&typeof raw.playerStatus==='object'?raw.playerStatus:{},conditions:{...base.conditions,...(raw.conditions||{})},ownership:raw.ownership&&typeof raw.ownership==='object'?raw.ownership:{},loans:Array.isArray(raw.loans)?raw.loans:[],transferHistory:Array.isArray(raw.transferHistory)?raw.transferHistory:[],transferContracts:Array.isArray(raw.transferContracts)?raw.transferContracts:[]};
+  const merged={...base,...raw,cash:Number.isFinite(migratedCash)?migratedCash:base.cash,version:6,managerName:String(raw.managerName||''),schedule:Array.isArray(raw.schedule)&&raw.schedule.length===38?raw.schedule:buildSchedule(clubs),results,scorers:raw.scorers&&typeof raw.scorers==='object'?raw.scorers:{},allTimeScorers:raw.allTimeScorers&&typeof raw.allTimeScorers==='object'?raw.allTimeScorers:{},sponsors:Array.isArray(raw.sponsors)?raw.sponsors:[],trophies:Array.isArray(raw.trophies)?raw.trophies:[],transactions:Array.isArray(raw.transactions)?raw.transactions:[],messages:Array.isArray(raw.messages)?raw.messages:[],seasons:Array.isArray(raw.seasons)?raw.seasons:[],history,pendingRound:pending,lastRoundResults:Array.isArray(raw.lastRoundResults)?normalizeResults(raw.lastRoundResults,season):[],preferredSimulationMode:SIMULATION_MODES[raw.preferredSimulationMode]?raw.preferredSimulationMode:'normal',playerStatus:raw.playerStatus&&typeof raw.playerStatus==='object'?raw.playerStatus:{},conditions:{...base.conditions,...(raw.conditions||{})},ownership:raw.ownership&&typeof raw.ownership==='object'?raw.ownership:{},loans:Array.isArray(raw.loans)?raw.loans:[],transferHistory:Array.isArray(raw.transferHistory)?raw.transferHistory:[],transferContracts:Array.isArray(raw.transferContracts)?raw.transferContracts:[]};
   merged.lineup=club?sanitizeLineup(club,merged,roundNumber,raw.lineup):[];
   return merged;
 }
@@ -546,7 +567,7 @@ export function makeUserSubstitution(career,clubs,outPlayerId,inPlayerId,second,
   const roll=deterministicRoll(match.id+'|sub-impact|'+sub.id);
   if(attacking&&minute>=55&&roll<impactChance){
     const futureSecond=Math.min(match.durationSecond-20,second+180+Math.floor(deterministicRoll(sub.id+'|time')*540));
-    if(futureSecond>second+20)events.push(makeEvent(side,'goal',futureSecond,club,incoming,'impact-'+sub.id,{substitutionImpact:true,assistNarrative:'O jogador descansado mudou o ritmo da partida.'}));
+    if(futureSecond>second+20)events.push(makeGoalEvent(side,futureSecond,club,currentLineup({...match,events},side,second),incoming,'impact-'+sub.id,()=>deterministicRoll(sub.id+'|assist'),{substitutionImpact:true,assistNarrative:'O jogador descansado mudou o ritmo da partida.'}));
   }
   match=recalcScore({...match,events,substitutions:[...substitutions,sub]});
   matches[index]=match;
