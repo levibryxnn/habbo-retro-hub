@@ -43,3 +43,21 @@
 .career-strip-meta{display:flex;align-items:center;gap:13px}.career-strip-meta>span{font-size:8px;color:#8d9786}.career-strip-meta>span strong{font-size:10px;color:#4a6048}.career-strip-meta button{display:flex;align-items:center;gap:6px;border:1px solid #d7e0d1;background:#eef4e9;color:#4d694d;border-radius:6px;padding:8px 10px;font-size:8px;font-weight:700}
 .career-strip-meta button:hover{background:#e6efdf}
 @media(max-width:620px){.career-strip{margin-bottom:12px;padding:10px 11px}.career-strip-club .crest{width:31px;height:31px}.career-strip-club small{font-size:6px}.career-strip-club strong{font-size:9px}.career-strip-meta>span{display:none}.career-strip-meta button{font-size:8px;padding:8px}.workspace.career-focus .squad-panel{display:block!important}}
+
+
+/* beta01 · loop principal da carreira */
+.career-strip-meta{gap:8px}
+.career-strip-meta .career-continue{background:#315f43;color:#fff;border-color:#315f43;box-shadow:0 7px 18px #315f431f;font-size:9px}
+.career-strip-meta .career-continue:hover{background:#274e36;color:#fff}
+.career-strip-meta .career-explore{background:#eef4e9;color:#4d694d;border-color:#d7e0d1}
+.career-strip-meta .career-explore:hover{background:#e6efdf}
+@media(max-width:620px){
+  .career-strip{gap:8px}
+  .career-strip-club{flex:1}
+  .career-strip-club strong{font-size:10px}
+  .career-strip-meta{gap:5px}
+  .career-strip-meta .career-continue,.career-strip-meta .career-explore{min-height:36px;padding:8px 9px;font-size:8px;white-space:nowrap}
+  .career-strip-meta .career-continue svg{display:none}
+  .career-strip-meta .career-explore{font-size:0}
+  .career-strip-meta .career-explore svg{width:15px;height:15px}
+}
