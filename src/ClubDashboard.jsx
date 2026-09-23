@@ -22,8 +22,9 @@ function objectiveFor(club){
   return{label:'Permanecer na Série A',target:'Fora do Z4',maxPosition:16};
 }
 
-export default function ClubDashboard({career,club,clubs,Crest,onNavigate}){
+export default function ClubDashboard({career,club,clubs,Crest,onNavigate,canManage,onChoose}){
   const table=useMemo(()=>standingsFromResults(career.results,clubs),[career.results,clubs]);
+  if(!canManage)return <div className="dashboard-content"><section className="dashboard-takeover"><Crest club={club}/><span className="eyebrow">MODO CARREIRA</span><h2>Assuma o {club.name} para abrir o centro de comando.</h2><p>Defina o nome do técnico e passe a acompanhar objetivos, finanças, forma, próximo jogo e decisões da temporada em um único painel.</p><button onClick={onChoose}>Assumir este clube <ArrowRight size={15}/></button></section></div>;
   const row=table.find(item=>item.clubId===club.id)||table.find(item=>item.clubId===career.userClubId);
   const next=career.round<38?fixtureForUser(career,career.round+1):null;
   const home=next?clubs.find(item=>item.id===next.homeId):null;
