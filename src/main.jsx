@@ -70,8 +70,11 @@ function App() {
   const savedRound=saved?Number(careers[saved]?.round||0):0;
   const savedSeason=saved?Number(careers[saved]?.season||data.season):data.season;
   const selectedHasCareer=Boolean(careers[club.id]);
+  const selectedDismissed=careers[club.id]?.managerStatus==='dismissed';
   const career=useMemo(()=>sanitizeCareer(rawCareer,careerClubs,club.id),[rawCareer,careerClubs,club.id]);
   const careerActive=saved===club.id;
+  const managerDismissed=career.managerStatus==='dismissed';
+  const managerCanManage=careerActive&&!managerDismissed;
   const careerStandings=useMemo(()=>standingsFromResults(career.results,careerClubs),[career.results,careerClubs]);
   const clubs=careerClubs.filter(c=>normalize(c.name+' '+c.abbreviation).includes(normalize(clubSearch)));
   const counts=Object.fromEntries(['GOL','DEF','MEI','ATA','NI'].map(k=>[k,club.players.filter(p=>position(p)===k).length]));
@@ -114,8 +117,10 @@ function App() {
     const managerName=managerNameInput.trim();
     if(!managerName)return;
     setSaved(club.id);
-    const current=sanitizeCareer(careers[club.id]||createCareer(careerClubs,club.id),careerClubs,club.id);
-    const configured={...current,managerName};
+    const existing=careers[club.id];
+    const source=existing?.managerStatus==='dismissed'?createCareer(careerClubs,club.id,data.season):(existing||createCareer(careerClubs,club.id));
+    const current=sanitizeCareer(source,careerClubs,club.id);
+    const configured={...current,managerName,managerStatus:'active',dismissal:null,boardPressureStreak:0,boardWarning:null};
     const next={...careers,[club.id]:configured};
     setCareers(next);
     try {
@@ -127,6 +132,13 @@ function App() {
     setClubBrowserOpen(false);
     setTab('dashboard');
     setDialog('confirmed');
+  }
+  function leaveDismissedClub(){
+    try{localStorage.removeItem('ldf.club');}catch{}
+    setSaved(null);
+    setClubBrowserOpen(true);
+    setMobileSquad(false);
+    setDialog(null);
   }
   if(clubBrowserOpen){
     return <div className="app-shell selector-only" style={clubThemeStyle(club.id)}>
@@ -142,7 +154,7 @@ function App() {
           </div>
           <div className="club-selector-body">
             <div className="club-selector-grid">{clubs.map(c=>{const meta=getClubWorld(c.id);return <button key={'overlay-'+c.id} className={`club-selector-card ${c.id===club.id?'selected':''} ${c.id===saved?'career':''}`} onClick={()=>{setSelected(c.id);setPlayerSearch('');setFilter('Todos');}}>
-              <div className="selector-card-head"><Crest club={c}/>{c.id===saved?<em>MINHA CARREIRA</em>:careers[c.id]?<em className="other-save">SAVE</em>:null}</div>
+              <div className="selector-card-head"><Crest club={c}/>{c.id===saved?<em>MINHA CARREIRA</em>:careers[c.id]?.managerStatus==='dismissed'?<em className="other-save">ENCERRADA</em>:careers[c.id]?<em className="other-save">SAVE</em>:null}</div>
               <strong>{c.name}</strong><small>{locations[c.id]||meta.city+', '+meta.state}</small>
               <div className="selector-card-meta"><span>{clubChallenge(c)}</span><b>R$ {meta.gameBudgetM} mi</b></div>
             </button>;})}</div>
@@ -167,7 +179,7 @@ function App() {
       <div className={`workspace single-club-workspace ${mobileSquad?'show-squad':''}`}>
         <section className="squad-panel" aria-label={`Painel do ${club.name}`}>
           <button className="mobile-back" onClick={()=>{setMobileSquad(false);setClubBrowserOpen(true);}}><ArrowLeft size={16}/> Voltar aos clubes</button>
-          <div className="club-hero"><div className="hero-line"/><div className="hero-main"><Crest club={club} large/><div className="hero-title"><div className="eyebrow">{locations[club.id]}</div><h2>{club.name}</h2><span className="division"><span/> Brasileirão Série A · {career.season}</span>{career.managerName&&saved===club.id?<span className="manager-chip">Técnico {career.managerName}</span>:null}<div className="club-project-chips"><span>{clubChallenge(club)}</span><span>Orçamento R$ {getClubWorld(club.id).gameBudgetM} mi</span><span>{club.players.length} jogadores</span></div></div></div><div className="hero-action"><span>{saved===club.id&&career.managerName?'Você está no comando deste projeto.':selectedHasCareer?'Uma carreira já existe neste clube.':'Comece uma nova história com este clube.'}</span><button className="primary" onClick={openClubSetup}>{saved===club.id?'Editar técnico':selectedHasCareer?'Retomar esta carreira':'Começar carreira'}{saved===club.id?<Check size={18}/>:<ArrowRight size={18}/>}</button></div><div className="pitch-art" aria-hidden="true"><i/><b/><em/></div></div>
+          <div className="club-hero"><div className="hero-line"/><div className="hero-main"><Crest club={club} large/><div className="hero-title"><div className="eyebrow">{locations[club.id]}</div><h2>{club.name}</h2><span className="division"><span/> Brasileirão Série A · {career.season}</span>{career.managerName&&saved===club.id?<span className="manager-chip">Técnico {career.managerName}</span>:null}<div className="club-project-chips"><span>{clubChallenge(club)}</span><span>Orçamento R$ {getClubWorld(club.id).gameBudgetM} mi</span><span>{club.players.length} jogadores</span></div></div></div><div className="hero-action"><span>{saved===club.id&&career.managerName?'Você está no comando deste projeto.':selectedHasCareer?'Uma carreira já existe neste clube.':'Comece uma nova história com este clube.'}</span><button className="primary" onClick={openClubSetup}>{saved===club.id?'Editar técnico':selectedDismissed?'Recomeçar projeto':selectedHasCareer?'Retomar esta carreira':'Começar carreira'}{saved===club.id?<Check size={18}/>:<ArrowRight size={18}/>}</button></div><div className="pitch-art" aria-hidden="true"><i/><b/><em/></div></div>
           <nav className="club-navigation" aria-label="Áreas do clube">{[['dashboard','Painel',LayoutDashboard],['match','Partida',CirclePlay],['roster','Elenco',Users],['standings','Classificação',Table2],['transfers','Transferências',ArrowLeftRight],['trophies','Troféus',Trophy],['sponsors','Patrocínios',Handshake],['legacy','História',Medal]].map(([id,label,Icon])=><button key={id} aria-pressed={tab===id} className={tab===id?'selected':''} onClick={()=>setTab(id)}><Icon size={17}/>{label}</button>)}</nav>
           <div hidden={tab!=='roster'}>
           <div className="stats"><div><Users size={19}/><span><strong>{club.players.length}</strong><small>Jogadores na base</small></span></div><div><span className="stat-glyph">Ø</span><span><strong>{meanAge}<em> anos</em></strong><small>Idade média</small></span></div><div><Flag size={19}/><span><strong>{new Set(club.players.map(p=>p.nationality).filter(Boolean)).size}</strong><small>Nacionalidades</small></span></div><div className="snapshot-stat"><span className="status-dot"/><span><strong>Temporada 2026</strong><small>Base consultada em {displayDate}</small></span></div></div>
@@ -176,11 +188,12 @@ function App() {
           <div className="table-scroll"><table><thead><tr><th className="number-col">Nº</th><th>JOGADOR <ArrowDown size={11}/></th><th>POSIÇÃO</th><th>IDADE</th><th className="nationality-col">NACIONALIDADE</th><th><span className="sr-only">Detalhes</span></th></tr></thead><tbody>{players.map(p=><tr key={p.id}><td className="number-col">{p.number || '—'}</td><td><button className="player-button" onClick={()=>setDialog(p)}><span className={`player-monogram ${position(p)}`}>{p.name.split(' ').filter(Boolean).map(w=>w[0]).filter((_,i,a)=>i===0||i===a.length-1).join('')}</span><span>{p.name}</span></button></td><td><span className={`position ${position(p)}`}>{position(p)}</span></td><td>{age(p)??'—'}<span className="age-unit">{age(p)!==null?' anos':''}</span></td><td className="nationality-col"><span className="country-code">{p.countryCode||'—'}</span>{country(p)}</td><td><button className="row-detail" aria-label={`Ver ficha de ${p.name}`} onClick={()=>setDialog(p)}><ChevronRight size={17}/></button></td></tr>)}</tbody></table>{!players.length&&<div className="empty"><Search size={28}/><h3>Nenhum jogador encontrado</h3><p>Tente outro nome ou uma posição diferente.</p><button onClick={()=>{setPlayerSearch('');setFilter('Todos');}}>Limpar filtros</button></div>}</div><div className="table-footer"><span>Exibindo {players.length} de {club.players.length} jogadores</span><span>Clique no nome para ver a ficha <ChevronRight size={13}/></span></div>
           </div><div className="data-note"><Shield size={15}/><p>Elenco da temporada · Fonte: ESPN. A base pode incluir atletas transferidos.</p><button onClick={()=>setDialog('data')}>Sobre os dados <ArrowRight size={13}/></button></div>
           </div>
-          {tab==='dashboard'&&<ClubDashboard career={career} club={club} clubs={careerClubs} Crest={Crest} onNavigate={setTab} canManage={saved===club.id} onChoose={openClubSetup}/>}
-          <div hidden={tab!=='match'}><MatchSimulation key={club.id} isVisible={tab==='match'} club={club} clubs={careerClubs} Crest={Crest} career={career} onCareerChange={saveCareer} canManage={saved===club.id} onChoose={openClubSetup}/></div> {tab==='standings'&&<LeagueTable clubs={careerClubs} focusClubId={club.id} Crest={Crest} career={career}/>} {tab==='transfers'&&<TransferMarket career={career} onCareerChange={saveCareer} club={club} clubs={careerClubs} baseClubs={data.clubs} Crest={Crest} canManage={saved===club.id}/>} {(tab==='trophies'||tab==='sponsors')&&<Management key={club.id+'-'+tab} club={club} tab={tab} career={career} onCareerChange={saveCareer} canManage={saved===club.id} onChoose={openClubSetup} Modal={Modal} storageError={careerStorageError} standings={careerStandings}/>} {tab==='legacy'&&<Legacy club={club} clubs={careerClubs} career={career}/>}
+          {tab==='dashboard'&&<ClubDashboard career={career} club={club} clubs={careerClubs} Crest={Crest} onNavigate={setTab} canManage={managerCanManage} onChoose={openClubSetup}/>}
+          <div hidden={tab!=='match'}><MatchSimulation key={club.id} isVisible={tab==='match'} club={club} clubs={careerClubs} Crest={Crest} career={career} onCareerChange={saveCareer} canManage={managerCanManage} onChoose={openClubSetup}/></div> {tab==='standings'&&<LeagueTable clubs={careerClubs} focusClubId={club.id} Crest={Crest} career={career}/>} {tab==='transfers'&&<TransferMarket career={career} onCareerChange={saveCareer} club={club} clubs={careerClubs} baseClubs={data.clubs} Crest={Crest} canManage={managerCanManage}/>} {(tab==='trophies'||tab==='sponsors')&&<Management key={club.id+'-'+tab} club={club} tab={tab} career={career} onCareerChange={saveCareer} canManage={managerCanManage} onChoose={openClubSetup} Modal={Modal} storageError={careerStorageError} standings={careerStandings}/>} {tab==='legacy'&&<Legacy club={club} clubs={careerClubs} career={career}/>}
         </section>
       </div><footer className="page-footer"><span>LINHA DE FRENTE <b>/</b> O futebol começa nas suas decisões.</span><span>V3 beta <span className="footer-dot">·</span> 2026</span></footer>
     </main>
+    {careerActive&&managerDismissed&&<Modal title="Decisão da diretoria" onClose={()=>{}}><span className="modal-icon"><Shield/></span><div className="eyebrow">FIM DE CICLO</div><h2>A diretoria encerrou o seu trabalho.</h2><p>{career.dismissal?.reason||'A confiança da diretoria caiu a um nível crítico por várias rodadas consecutivas.'}</p><div className="next-step"><strong>Confiança final da diretoria: {Math.round(career.managerConfidence?.board||0)}%</strong><p>O save permanece registrado no clube, mas esta passagem chegou ao fim. Você pode escolher outro projeto ou recomeçar neste clube com uma nova carreira.</p></div><button className="primary manager-confirm" onClick={leaveDismissedClub}>Voltar ao seletor de clubes <ArrowRight size={18}/></button></Modal>}
     {careerActive&&career.pendingCelebration&&<SeasonReviewModal career={career} club={club} mode="trophy" onClose={()=>saveCareer({...career,pendingCelebration:null})}/>}
     {careerActive&&!career.pendingCelebration&&career.seasonReview?.pending&&<SeasonReviewModal career={career} club={club} mode="season" onClose={()=>saveCareer({...career,seasonReview:{...career.seasonReview,pending:false}})} onContinue={()=>{saveCareer({...career,seasonReview:{...career.seasonReview,pending:false}});setTab('legacy');}}/>}
     {dialog==='data'&&<Modal title="Sobre os dados" onClose={()=>setDialog(null)}><span className="modal-icon"><Shield/></span><div className="eyebrow">TRANSPARÊNCIA</div><h2>Futebol real. Base consultável.</h2><p>Os 20 clubes e seus elencos vêm dos cadastros de temporada da ESPN, consultados em <strong>{displayDate}</strong>. A tela usa uma cópia local dessa consulta.</p><p>{data.note} Idades se referem à data da consulta. Dados ausentes aparecem como “—”.</p><p>Partidas, classificação, artilharia, caixa, patrocínios e transferências compartilham o mesmo save local. Receitas e valores de mercado usam referências públicas; orçamento disponível e negociações são modelagens de gameplay, não saldos contábeis oficiais.</p><a className="primary" href={club.sourcePage} target="_blank" rel="noreferrer">Consultar elenco na ESPN <ArrowRight size={17}/></a></Modal>}
