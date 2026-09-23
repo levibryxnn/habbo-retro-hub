@@ -10,6 +10,7 @@ function seeded(id,salt,min,max){
   return min+(h%(max-min+1));
 }
 const clamp=(min,max,n)=>Math.max(min,Math.min(max,n));
+const playerStatsCache=new Map();
 function ageModifier(age){
   const value=age??27;
   if(value>=24&&value<=29)return 4;
@@ -21,6 +22,8 @@ function ageModifier(age){
 export function playerGameStats(player){
   const pos=positionGroup(player?.position);
   const id=player?.id||player?.name||'player';
+  const cacheKey=String(id)+'|'+String(player?.position||'')+'|'+String(player?.age??'');
+  const cached=playerStatsCache.get(cacheKey);if(cached)return cached;
   const ageMod=ageModifier(player?.age);
   let shooting=seeded(id,'shot',55,72);
   let passing=seeded(id,'pass',58,74);
@@ -61,7 +64,9 @@ export function playerGameStats(player){
       : pos==='MEI'
         ? fields.passing*.36+fields.composure*.19+fields.stamina*.16+fields.pace*.11+fields.shooting*.11+fields.defending*.07
         : fields.shooting*.38+fields.composure*.2+fields.pace*.17+fields.passing*.1+fields.stamina*.1+fields.penalties*.05;
-  return {...fields,overall:clamp(45,90,Math.round(overall))};
+  const computed=Object.freeze({...fields,overall:clamp(45,90,Math.round(overall))});
+  playerStatsCache.set(cacheKey,computed);
+  return computed;
 }
 export function statusKey(clubId,playerId){return String(clubId)+':'+String(playerId);}
 export function playerStatus(career,clubId,playerId){
