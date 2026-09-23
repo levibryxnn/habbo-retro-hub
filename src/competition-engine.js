@@ -389,7 +389,7 @@ export function nextCareerEvent(career,serieAClubs){
   if(brDate){const game=career.schedule?.[brRound-1]?.find(item=>item.homeId===career.userClubId||item.awayId===career.userClubId)||null;return{type:'brasileirao',date:brDate,competitionName:'Brasileirão Série A',stage:'Rodada '+brRound,roundNumber:brRound,fixture:game};}
   return worldEvent?{type:'world',date:worldEvent.game.date,competitionKey:worldEvent.key,competitionId:worldEvent.comp.id,competitionName:worldEvent.comp.name,stage:worldEvent.game.stage,fixture:worldEvent.game}:null;
 }
-function competitionImportance(id){return id==='mundial'?1.5:id==='libertadores'?1.35:id==='copa-do-brasil'?1.15:id==='supercopa'?1.05:id==='sudamericana'?1.05:id==='champions-league'?1.2:id==='copa-nordeste'||id==='copa-verde'||id==='copa-sul-sudeste'?.9:.75;}
+function competitionImportance(id){return id==='mundial'?1.5:id==='libertadores'?1.35:id==='copa-do-brasil'?1.15:id==='supercopa'?1.05:id==='sudamericana'?1.05:id==='champions-league'?1.2:(id==='copa-nordeste'||id==='copa-verde'||id==='copa-sul-sudeste')?.9:.75;}
 function trophyFor(comp){return{id:comp.id==='copa-do-brasil'?'copa':comp.id,name:comp.name,kind:comp.type==='state'?'Estadual':comp.type==='continental'?'Continental':comp.type==='world'?'Mundial':'Nacional',shape:comp.id==='libertadores'?'libertadores':comp.id==='sudamericana'?'sulamericana':comp.id==='mundial'?'world':comp.id==='copa-do-brasil'?'cup':'league',season:comp.edition,earnedAtRound:null};}
 export function playNextWorldFixture(career,serieAClubs){
   const initialWorld=sanitizeWorldState(career.world,career,serieAClubs),initialEvent=activeUserFixture(initialWorld,career.userClubId);
