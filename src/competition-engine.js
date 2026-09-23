@@ -435,6 +435,8 @@ export function previewNextWorldFixture(career,serieAClubs){
 }
 export function startWorldFixture(career,serieAClubs,mode='normal'){
   if(career.pendingWorldMatch)return career;
+  const calendarEvent=nextCareerEvent(career,serieAClubs);
+  if(!calendarEvent||calendarEvent.type!=='world')return career;
   const preview=previewNextWorldFixture(career,serieAClubs);
   if(!preview)return career;
   const selected=['normal','fast','instant'].includes(mode)?mode:'normal';
