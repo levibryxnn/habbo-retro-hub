@@ -45,6 +45,7 @@ function App() {
   const [dialog,setDialog]=useState(null);
   const [storageError,setStorageError]=useState(false);
   const [mobileSquad,setMobileSquad]=useState(false);
+  const [clubBrowserOpen,setClubBrowserOpen]=useState(()=>!readSaved());
   const [managerNameInput,setManagerNameInput]=useState('');
   const baseClub=data.clubs.find(c=>c.id===selected)||data.clubs[0];
   const rawCareer=careers[baseClub.id];
@@ -53,6 +54,7 @@ function App() {
   const savedClub=careerClubs.find(c=>c.id===saved);
   const savedManager=saved?String(careers[saved]?.managerName||''):'';
   const career=useMemo(()=>sanitizeCareer(rawCareer,careerClubs,club.id),[rawCareer,careerClubs,club.id]);
+  const careerActive=saved===club.id;
   const careerStandings=useMemo(()=>standingsFromResults(career.results,careerClubs),[career.results,careerClubs]);
   const clubs=careerClubs.filter(c=>normalize(c.name+' '+c.abbreviation).includes(normalize(clubSearch)));
   const counts=Object.fromEntries(['GOL','DEF','MEI','ATA','NI'].map(k=>[k,club.players.filter(p=>position(p)===k).length]));
@@ -63,7 +65,7 @@ function App() {
     if(sort==='name') return a.name.localeCompare(b.name,'pt-BR');
     const order={GOL:0,DEF:1,MEI:2,ATA:3,NI:4}; return order[position(a)]-order[position(b)] || a.name.localeCompare(b.name,'pt-BR');
   }),[club,filter,playerSearch,sort]);
-  function selectClub(id) {setSelected(id);setPlayerSearch('');setFilter('Todos');setDialog(null);setMobileSquad(true);}
+  function selectClub(id) {setSelected(id);setPlayerSearch('');setFilter('Todos');setDialog(null);setMobileSquad(true);if(id===saved)setClubBrowserOpen(false);}
   function saveCareer(nextCareer) {
     setCareers(current=>{
       const next={...current,[club.id]:nextCareer};
@@ -89,15 +91,16 @@ function App() {
       setStorageError(false);
       setCareerStorageError(false);
     } catch {setStorageError(true);setCareerStorageError(true);}
+    setClubBrowserOpen(false);
     setTab('dashboard');
     setDialog('confirmed');
   }
   return <div className="app-shell" style={clubThemeStyle(club.id)}>
     <header className="topbar"><a href="#" className="brand" aria-label="Linha de Frente, início"><span className="brand-symbol">L<span>F</span></span><span>LINHA DE<br/>FRENTE<span className="brand-small">FOOTBALL MANAGER</span></span></a><div className="top-context"><span className="top-divider"/><span>Uma nova história começa aqui.</span></div><div className="top-right"><span className="version"><i/> beta00</span><button className="help" onClick={()=>setDialog('data')} aria-label="Sobre os dados"><CircleHelp size={20}/></button></div></header>
     <main>
-      <section className="intro"><div><div className="eyebrow"><span>01 /</span> O PRIMEIRO PASSO</div><h1>Seu clube. Sua história.</h1><p>Escolha as cores que você vai defender. Conheça quem entra em campo.</p></div><div className="competition"><span className="trophy-icon"><Trophy size={25}/></span><div><strong>BRASILEIRÃO</strong><span>Série A <b>·</b> Temporada {career.season}</span></div><span className="brazil-tag">BR</span></div></section>
-      {savedClub && <div className="saved-banner" role="status"><Check size={16}/><span><strong>{savedClub.name}</strong>{savedManager?' · Técnico '+savedManager:''}. {storageError?'Carreira ativa nesta sessão.':'Carreira salva neste navegador.'}</span><button onClick={()=>{selectClub(savedClub.id);setTab('dashboard');}}>Continuar carreira <ArrowRight size={15}/></button></div>}
-      <div className={`workspace ${mobileSquad?'show-squad':''}`}>
+      {careerActive?<section className="career-strip"><div className="career-strip-club"><Crest club={club}/><span><small>MODO CARREIRA · TEMPORADA {career.season}</small><strong>{club.name}{career.managerName?' · '+career.managerName:''}</strong></span></div><div className="career-strip-meta"><span>Rodada <strong>{career.round}/38</strong></span><button onClick={()=>setClubBrowserOpen(value=>!value)}>{clubBrowserOpen?'Fechar clubes':'Explorar clubes'} <ArrowRight size={14}/></button></div></section>:<section className="intro"><div><div className="eyebrow"><span>01 /</span> O PRIMEIRO PASSO</div><h1>Seu clube. Sua história.</h1><p>Escolha as cores que você vai defender. Conheça quem entra em campo.</p></div><div className="competition"><span className="trophy-icon"><Trophy size={25}/></span><div><strong>BRASILEIRÃO</strong><span>Série A <b>·</b> Temporada {career.season}</span></div><span className="brazil-tag">BR</span></div></section>}
+      {savedClub&&!careerActive&&<div className="saved-banner" role="status"><Check size={16}/><span><strong>{savedClub.name}</strong>{savedManager?' · Técnico '+savedManager:''}. {storageError?'Carreira ativa nesta sessão.':'Carreira salva neste navegador.'}</span><button onClick={()=>{selectClub(savedClub.id);setClubBrowserOpen(false);setTab('dashboard');}}>Continuar carreira <ArrowRight size={15}/></button></div>}
+      <div className={`workspace ${mobileSquad?'show-squad':''} ${careerActive&&!clubBrowserOpen?'career-focus':''}`}>
         <aside className="club-panel"><div className="section-heading"><h2>Escolha seu clube</h2><span className="count">20</span></div><label className="search-box club-search"><Search size={17}/><input placeholder="Buscar clube..." aria-label="Buscar clube" value={clubSearch} onChange={e=>setClubSearch(e.target.value)}/>{clubSearch&&<button onClick={()=>setClubSearch('')} aria-label="Limpar busca de clubes"><X size={15}/></button>}</label><div className="club-grid">{clubs.map(c=><button key={c.id} className={`club-card ${c.id===club.id?'active':''}`} onClick={()=>selectClub(c.id)} aria-pressed={c.id===club.id}><Crest club={c}/><span>{c.name}</span>{c.id===club.id&&<span className="selected-dot"><Check size={10}/></span>}</button>)}</div>{!clubs.length&&<div className="club-empty">Nenhum clube encontrado.<button onClick={()=>setClubSearch('')}>Limpar busca</button></div>}<div className="league-footer"><Flag size={14}/><span>20 clubes. Infinitas possibilidades.</span></div></aside>
         <section className="squad-panel" aria-label={`Painel do ${club.name}`}>
           <button className="mobile-back" onClick={()=>setMobileSquad(false)}><ArrowLeft size={16}/> Trocar clube</button>
