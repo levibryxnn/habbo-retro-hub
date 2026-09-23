@@ -76,3 +76,27 @@ test('pending world match keeps the exact fixture and deterministic result acros
   assert.equal(snapshot.fixtureId,started.pendingWorldMatch.fixtureId);
   assert.deepEqual(snapshot.result,started.pendingWorldMatch.result);
 });
+
+
+test('pending world result remains authoritative even if career state changes while the match is open',function(){
+  const career=createCareer(clubs,'874',2026);
+  const started=startWorldFixture(career,clubs,'fast');
+  const expected=started.pendingWorldMatch.result;
+  const modified={...started,managerConfidence:{...started.managerConfidence,fans:25,board:33}};
+  const finished=finishPendingWorldFixture(modified,clubs);
+  assert.equal(finished.world.lastUserMatch.homeGoals,expected.homeGoals);
+  assert.equal(finished.world.lastUserMatch.awayGoals,expected.awayGoals);
+  assert.equal(finished.world.lastUserMatch.fixtureId,expected.fixtureId);
+});
+
+test('world-match start cannot skip an earlier Brasileirao commitment',function(){
+  let career=createCareer(clubs,'874',2026);
+  for(let guard=0;guard<50;guard++){
+    const next=nextCareerEvent(career,clubs);
+    if(next?.type==='brasileirao')break;
+    career=finishPendingWorldFixture(startWorldFixture(career,clubs,'instant'),clubs);
+  }
+  const next=nextCareerEvent(career,clubs);
+  assert.equal(next?.type,'brasileirao');
+  assert.deepEqual(startWorldFixture(career,clubs,'normal'),career);
+});
