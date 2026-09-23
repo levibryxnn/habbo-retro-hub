@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { ArrowRight, Award, BadgeCheck, Check, CircleDollarSign, Handshake, LockKeyhole, Shield, Trophy, Wallet } from 'lucide-react';
-import { trophies } from './management-model';
+import { HONOUR_FILTERS, historicalTitleTotal, honoursWithCareer } from './club-honours.js';
 import { activeContracts, endSponsor, offers, projectedOfferValue, requirementStatus, signSponsor, slots, sponsorContext, sponsorshipTotals } from './finance-model';
 import './management.css';
 
@@ -59,21 +59,25 @@ export default function Management({club,tab,career,onCareerChange,canManage,onC
 
   if(tab==='trophies'){
     const earned=career.trophies||[];
+    const honours=honoursWithCareer(club.id,career);
+    const historicalTotal=historicalTitleTotal(club.id);
+    const careerTotal=earned.length;
+    const visibleHonours=honours.filter(function(trophy){return filter==='Todos'||filter===trophy.kind;});
     return <div className="management-content">
-      <div className="management-heading"><div><div className="eyebrow">O PESO DA SUA CAMISA</div><h2>Galeria de troféus</h2><p>Conquistas oficiais do seu save com o {club.name}.</p></div><span className="stage-two-badge"><Trophy size={13}/> Automática</span></div>
-      <div className="trophy-overview"><div className="laurel"><Trophy size={32}/></div><div><span className="eyebrow">SUA SALA DE CONQUISTAS</span><h3>{earned.length ? 'A história já começou.' : 'O próximo troféu pode ser seu.'}</h3><p>{earned.length ? 'Os títulos são registrados pela engine ao fim das competições.' : 'Ganhe uma competição para preencher esta galeria.'}</p></div><div className="trophy-count"><strong>{String(earned.length).padStart(2,'0')}</strong><span>títulos na gestão</span></div></div>
-      <div className="gallery-toolbar"><div className="position-tabs" aria-label="Filtrar troféus">{['Todos','Nacional','Continental','Mundial'].map(function(item){return <button key={item} aria-pressed={filter===item} className={filter===item?'current':''} onClick={function(){setFilter(item);}}>{item==='Todos'?'Todas as taças':item}</button>;})}</div><span>Carreira iniciada em 2026</span></div>
-      <div className="trophy-grid">{trophies.filter(function(trophy){return filter==='Todos'||filter===trophy.kind;}).map(function(trophy){
-        const wins=earned.filter(function(item){return item.id===trophy.id;});
-        const won=wins.length>0;
-        return <article key={trophy.id} className={'trophy-card ' + (won?'earned':'')}>
-          <div className="trophy-card-top"><span>{trophy.kind}</span>{won?<span className="won-badge"><BadgeCheck size={12}/> {wins.length} conquista{wins.length>1?'s':''}</span>:<LockKeyhole size={13}/>}</div>
-          <Cup shape={trophy.shape} won={won}/>
-          <h3>{trophy.name}</h3><p>{trophy.label}</p>
-          <span className="trophy-state">{won?wins.map(function(item){return item.season;}).join(' · '):trophy.id==='brasileirao'?'Conquiste a Série A para liberar':'Competição preparada para fases futuras'}</span>
+      <div className="management-heading"><div><div className="eyebrow">O PESO DA SUA CAMISA</div><h2>Galeria de troféus</h2><p>A história oficial do {club.name} e as novas conquistas da sua carreira.</p></div><span className="stage-two-badge"><Trophy size={13}/> Sala de troféus</span></div>
+      <div className="trophy-overview"><div className="laurel"><Trophy size={32}/></div><div><span className="eyebrow">PATRIMÔNIO ESPORTIVO</span><h3>{historicalTotal+careerTotal} títulos registrados</h3><p>{careerTotal?careerTotal+' conquistado'+(careerTotal>1?'s':'')+' durante a sua gestão.':'A partir daqui, cada nova conquista também entra para a história do clube.'}</p></div><div className="trophy-count"><strong>{String(careerTotal).padStart(2,'0')}</strong><span>na sua gestão</span></div></div>
+      <div className="gallery-toolbar"><div className="position-tabs" aria-label="Filtrar troféus">{HONOUR_FILTERS.map(function(item){return <button key={item} aria-pressed={filter===item} className={filter===item?'current':''} onClick={function(){setFilter(item);}}>{item==='Todos'?'Todas as taças':item}</button>;})}</div><span>Histórico até 2026 + carreira atual</span></div>
+      <div className="trophy-grid">{visibleHonours.map(function(trophy){
+        const careerWins=earned.filter(function(item){return item.id===trophy.id;});
+        const years=[...(trophy.years||[]),...careerWins.map(function(item){return item.season;})];
+        return <article key={trophy.id} className={'trophy-card earned historical-trophy'}>
+          <div className="trophy-card-top"><span>{trophy.kind}</span>{careerWins.length>0?<span className="won-badge"><BadgeCheck size={12}/> +{careerWins.length} na gestão</span>:<BadgeCheck size={13}/>}</div>
+          <div className="trophy-art-wrap"><span className="trophy-number-pop" aria-label={trophy.count+' títulos'}>{trophy.count}</span><Cup shape={trophy.shape} won/></div>
+          <h3>{trophy.name}</h3><p>{trophy.count===1?'1 conquista oficial':trophy.count+' conquistas oficiais'}</p>
+          <span className="trophy-state">{years.length&&years.length<=12?years.join(' · '):careerWins.length?'Histórico do clube · sua gestão: '+careerWins.map(function(item){return item.season;}).join(', '):'Histórico oficial do clube'}</span>
         </article>;
       })}</div>
-      <div className="module-footnote"><Trophy size={15}/><p>Na Etapa 2 não existe mais botão para inventar taças. O Brasileirão é adicionado automaticamente ao campeão após a 38ª rodada. Libertadores, Sul-Americana, Copa do Brasil e Mundial já têm espaço reservado para as próximas engines.</p></div>
+      <div className="module-footnote"><Trophy size={15}/><p>A galeria parte do histórico oficial do futebol masculino principal de cada clube e soma automaticamente os títulos conquistados no seu save.</p></div>
     </div>;
   }
 
@@ -125,7 +129,7 @@ export default function Management({club,tab,career,onCareerChange,canManage,onC
 
     {pending&&<Modal title={pending.type==='sign'?'Assinar patrocínio':'Encerrar contrato'} onClose={function(){setPending(null);}}>
       <span className="modal-icon"><Handshake/></span>
-      <div className="eyebrow">{club.name} · ETAPA 2</div>
+      <div className="eyebrow">{club.name} · CONTRATO COMERCIAL</div>
       <h2>{pending.type==='sign'?'Contrato com '+pending.item.name:'Encerrar com '+pending.item.name+'?'}</h2>
       {pending.type==='sign'?<><p>{paymentText(pending.item)}. O dinheiro será lançado no caixa conforme as regras do contrato e a passagem das rodadas.</p><dl className="proposal-details"><div><dt>Espaço</dt><dd>{slots[pending.item.slot]}</dd></div><div><dt>Forma de pagamento</dt><dd>{pending.item.payment.label}</dd></div><div><dt>Pagamento imediato</dt><dd>{money((pending.item.payment.signingBonus||0)+(pending.item.payment.type==='upfront'?pending.item.payment.amount:0))}</dd></div><div><dt>Requisitos</dt><dd>{requirementText(pending.item)}</dd></div></dl></>:<p>O patrocinador deixará de fazer novos pagamentos a partir da rodada atual. O que já entrou no caixa permanece registrado.</p>}
       <div className="modal-actions"><button className="secondary" onClick={function(){setPending(null);}}>Cancelar</button><button className="primary" onClick={function(){pending.type==='sign'?sign(pending.item):finish(pending.item);}}>{pending.type==='sign'?'Assinar contrato':'Confirmar encerramento'}</button></div>
