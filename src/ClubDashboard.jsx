@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import { ArrowRight, BadgeDollarSign, CalendarDays, CircleDot, Flag, Handshake, ShieldCheck, ShoppingBag, Target, TrendingUp, Trophy, Users } from 'lucide-react';
-import { fixtureForUser, standingsFromResults, topScorers, userMatchHistory } from './career-engine.js';
+import { standingsFromResults, topScorers, userMatchHistory } from './career-engine.js';
+import { nextCareerEvent, worldClub } from './competition-engine.js';
+import WorldCrest from './WorldCrest.jsx';
 import { activeContracts } from './finance-model.js';
 import { getClubWorld } from './club-world.js';
 import { confidenceSnapshot } from './manager-confidence.js';
@@ -27,11 +29,12 @@ export default function ClubDashboard({career,club,clubs,Crest,onNavigate,canMan
   const table=useMemo(()=>standingsFromResults(career.results,clubs),[career.results,clubs]);
   if(!canManage)return <div className="dashboard-content"><section className="dashboard-takeover"><Crest club={club}/><span className="eyebrow">MODO CARREIRA</span><h2>Assuma o {club.name} para abrir o centro de comando.</h2><p>Defina o nome do técnico e passe a acompanhar objetivos, finanças, forma, próximo jogo e decisões da temporada em um único painel.</p><button onClick={onChoose}>Assumir este clube <ArrowRight size={15}/></button></section></div>;
   const row=table.find(item=>item.clubId===club.id)||table.find(item=>item.clubId===career.userClubId);
-  const next=career.round<38?fixtureForUser(career,career.round+1):null;
-  const home=next?clubs.find(item=>item.id===next.homeId):null;
-  const away=next?clubs.find(item=>item.id===next.awayId):null;
+  const nextEvent=nextCareerEvent(career,clubs),next=nextEvent?.fixture||null;
+  const home=next?worldClub(career,clubs,next.homeId):null;
+  const away=next?worldClub(career,clubs,next.awayId):null;
   const opponent=next?(next.homeId===club.id?away:home):null;
-  const world=getClubWorld(next?.homeId||club.id);
+  const venueMeta=nextEvent?.type==='brasileirao'&&next?getClubWorld(next.homeId):null;
+  const crestFor=item=>item?.external?<WorldCrest club={item}/>:<Crest club={item}/>;
   const history=userMatchHistory(career).slice(0,5);
   const objective=objectiveFor(club);
   const objectiveOk=row?row.position<=objective.maxPosition:false;
@@ -44,12 +47,12 @@ export default function ClubDashboard({career,club,clubs,Crest,onNavigate,canMan
   const confidenceEvents=(confidence.events||[]).slice(0,2);
   const deltaText=value=>value>0?'+'+Number(value).toFixed(1):Number(value).toFixed(1);
   const attentionItems=[
-    next?{
+    nextEvent?{
       tag:'PARTIDA',
       title:(opponent?.name||'Próximo adversário')+' é o próximo teste',
-      copy:(next.homeId===club.id?'Em casa':'Fora')+' · rodada '+(career.round+1)+' · '+world.stadium,
-      action:'Abrir partida',
-      nav:'match',
+      copy:(next?.homeId===club.id?'Em casa':'Fora')+' · '+nextEvent.competitionName+' · '+nextEvent.stage,
+      action:nextEvent.type==='world'?'Abrir calendário':'Abrir partida',
+      nav:nextEvent.type==='world'?'competitions':'match',
     }:{
       tag:'TEMPORADA',
       title:'A campanha terminou',
@@ -91,7 +94,7 @@ export default function ClubDashboard({career,club,clubs,Crest,onNavigate,canMan
       <div>
         <span className="eyebrow">CENTRO DE COMANDO</span>
         <h2>Bom trabalho, {manager}.</h2>
-        <p>{career.round>=38?'Temporada encerrada. Revise o legado e prepare a próxima campanha.':`Rodada ${career.round+1} de 38 · cada decisão daqui altera o rumo da temporada.`}</p>
+        <p>{!nextEvent?'Temporada encerrada. Revise o legado e prepare a próxima campanha.':nextEvent.competitionName+' · '+nextEvent.stage+' é o próximo compromisso.'}</p>
       </div>
       <div className="season-progress">
         <span><strong>{seasonProgress}%</strong> da temporada</span>
@@ -114,13 +117,13 @@ export default function ClubDashboard({career,club,clubs,Crest,onNavigate,canMan
 
     <div className="dashboard-main-grid">
       <section className="next-match-card">
-        <div className="dash-section-title"><div><CalendarDays size={17}/><span><small>PRÓXIMO COMPROMISSO</small><strong>{next?'Rodada '+(career.round+1):'Temporada encerrada'}</strong></span></div><span className="home-away-badge">{next?(next.homeId===club.id?'CASA':'FORA'):'FIM'}</span></div>
+        <div className="dash-section-title"><div><CalendarDays size={17}/><span><small>PRÓXIMO COMPROMISSO</small><strong>{nextEvent?nextEvent.stage:'Temporada encerrada'}</strong></span></div><span className="home-away-badge">{next?(next.homeId===club.id?'CASA':'FORA'):'FIM'}</span></div>
         {next&&home&&away?<div className="next-match-body">
-          <div className="next-club"><Crest club={home}/><strong>{home.name}</strong></div>
-          <div className="next-match-center"><b>×</b><span>{world.stadium}</span><small>Brasileirão Série A</small></div>
-          <div className="next-club"><Crest club={away}/><strong>{away.name}</strong></div>
-        </div>:<div className="season-finished-card"><Trophy size={29}/><strong>38 rodadas concluídas</strong><span>Confira sua posição final, troféus e recordes.</span></div>}
-        <button onClick={()=>onNavigate(next?'match':'legacy')}>{next?'Preparar partida':'Ver história da temporada'} <ArrowRight size={15}/></button>
+          <div className="next-club">{crestFor(home)}<strong>{home.name}</strong></div>
+          <div className="next-match-center"><b>×</b><span>{venueMeta?.stadium||nextEvent?.competitionName}</span><small>{nextEvent?.competitionName}</small></div>
+          <div className="next-club">{crestFor(away)}<strong>{away.name}</strong></div>
+        </div>:nextEvent?.type==='brasileirao'?<div className="season-finished-card"><CalendarDays size={29}/><strong>Rodada {nextEvent.roundNumber}</strong><span>Abra a partida para conhecer o adversário e preparar a escalação.</span></div>:<div className="season-finished-card"><Trophy size={29}/><strong>Calendário concluído</strong><span>Confira sua posição final, troféus e recordes.</span></div>}
+        <button onClick={()=>onNavigate(nextEvent?nextEvent.type==='world'?'competitions':'match':'legacy')}>{nextEvent?nextEvent.type==='world'?'Abrir competição':'Preparar partida':'Ver história da temporada'} <ArrowRight size={15}/></button>
       </section>
 
       <section className="board-objective-card">
@@ -159,6 +162,7 @@ export default function ClubDashboard({career,club,clubs,Crest,onNavigate,canMan
     <section className="quick-actions">
       <div className="dash-section-title"><div><Flag size={17}/><span><small>ATALHOS</small><strong>Decisões do técnico</strong></span></div></div>
       <div>
+        <button onClick={()=>onNavigate('competitions')}><span><CalendarDays size={18}/></span><div><strong>Competições</strong><small>Agenda e chaveamentos</small></div><ArrowRight size={14}/></button>
         <button onClick={()=>onNavigate('roster')}><span><Users size={18}/></span><div><strong>Elenco</strong><small>Escalação e jogadores</small></div><ArrowRight size={14}/></button>
         <button onClick={()=>onNavigate('transfers')}><span><ShoppingBag size={18}/></span><div><strong>Mercado</strong><small>Comprar e negociar</small></div><ArrowRight size={14}/></button>
         <button onClick={()=>onNavigate('sponsors')}><span><Handshake size={18}/></span><div><strong>Patrocínios</strong><small>Receitas e contratos</small></div><ArrowRight size={14}/></button>
