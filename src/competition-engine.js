@@ -393,11 +393,43 @@ export function nextCareerEvent(career,serieAClubs){
   return worldEvent?{type:'world',date:worldEvent.game.date,competitionKey:worldEvent.key,competitionId:worldEvent.comp.id,competitionName:worldEvent.comp.name,stage:worldEvent.game.stage,fixture:worldEvent.game}:null;
 }
 function competitionImportance(id){return id==='mundial'?1.5:id==='libertadores'?1.35:id==='copa-do-brasil'?1.15:id==='supercopa'?1.05:id==='sudamericana'?1.05:id==='champions-league'?1.2:(id==='copa-nordeste'||id==='copa-verde'||id==='copa-sul-sudeste')?0.9:0.75;}
-function trophyFor(comp){return{id:comp.id==='copa-do-brasil'?'copa':comp.id,name:comp.name,kind:comp.type==='state'?'Estadual':comp.type==='continental'?'Continental':comp.type==='world'?'Mundial':'Nacional',shape:comp.id==='libertadores'?'libertadores':comp.id==='sudamericana'?'sulamericana':comp.id==='mundial'?'world':comp.id==='copa-do-brasil'?'cup':'league',season:comp.edition,earnedAtRound:null};}
-export function playNextWorldFixture(career,serieAClubs){
+function trophyFor(comp){
+  const id=comp.id==='copa-do-brasil'?'copa':comp.id;
+  const kind=comp.type==='state'?'Estadual':comp.type==='continental'?'Continental':comp.type==='world'?'Mundial':comp.type==='regional'?'Regional':'Nacional';
+  const shape=comp.id==='libertadores'?'libertadores':comp.id==='sudamericana'?'sulamericana':comp.id==='mundial'?'world':comp.id==='copa-do-brasil'?'cup':comp.id==='champions-league'?'champions':comp.id==='supercopa'?'supercup':comp.type==='state'?'state':comp.type==='regional'?'regional':'league';
+  return{id,name:comp.name,kind,shape,season:comp.edition,earnedAtRound:null};
+}
+export function previewNextWorldFixture(career,serieAClubs){
   const initialWorld=sanitizeWorldState(career.world,career,serieAClubs),initialEvent=activeUserFixture(initialWorld,career.userClubId);
-  if(!initialEvent)return{...career,world:initialWorld};
-  let next=syncWorldToDate({...career,world:initialWorld},serieAClubs,initialEvent.game.date),world=next.world,event=activeUserFixture(world,next.userClubId);
+  if(!initialEvent)return null;
+  const synced=syncWorldToDate({...career,world:initialWorld},serieAClubs,initialEvent.game.date),world=synced.world,event=activeUserFixture(world,career.userClubId);
+  if(!event)return null;
+  const score=simulateScore(world,career,serieAClubs,event.game);
+  return{
+    event:{type:'world',date:event.game.date,competitionKey:event.key,competitionId:event.comp.id,competitionName:event.comp.name,stage:event.game.stage,fixture:event.game},
+    result:{id:'preview-'+event.game.id,fixtureId:event.game.id,competitionId:event.comp.id,competitionName:event.comp.name,stage:event.game.stage,date:event.game.date,homeId:event.game.homeId,awayId:event.game.awayId,homeGoals:score.homeGoals,awayGoals:score.awayGoals,homePower:score.homePower,awayPower:score.awayPower,durationSecond:90*60},
+  };
+}
+export function startWorldFixture(career,serieAClubs,mode='normal'){
+  if(career.pendingWorldMatch)return career;
+  const preview=previewNextWorldFixture(career,serieAClubs);
+  if(!preview)return career;
+  const selected=['normal','fast','instant'].includes(mode)?mode:'normal';
+  return{...career,preferredSimulationMode:selected,pendingWorldMatch:{id:'world-'+preview.result.fixtureId,fixtureId:preview.result.fixtureId,competitionKey:preview.event.competitionKey,competitionId:preview.event.competitionId,competitionName:preview.event.competitionName,stage:preview.event.stage,date:preview.event.date,mode:selected,result:preview.result}};
+}
+export function finishPendingWorldFixture(career,serieAClubs){
+  if(!career.pendingWorldMatch)return career;
+  const pending=career.pendingWorldMatch,base={...career,pendingWorldMatch:null};
+  const event=nextCareerEvent(base,serieAClubs);
+  if(!event||event.type!=='world'||String(event.fixture?.id)!==String(pending.fixtureId))return base;
+  return playNextWorldFixture(base,serieAClubs);
+}
+
+export function playNextWorldFixture(career,serieAClubs){
+  const cleanCareer=career.pendingWorldMatch?{...career,pendingWorldMatch:null}:career;
+  const initialWorld=sanitizeWorldState(cleanCareer.world,cleanCareer,serieAClubs),initialEvent=activeUserFixture(initialWorld,cleanCareer.userClubId);
+  if(!initialEvent)return{...cleanCareer,world:initialWorld};
+  let next=syncWorldToDate({...cleanCareer,world:initialWorld},serieAClubs,initialEvent.game.date),world=next.world,event=activeUserFixture(world,next.userClubId);
   if(!event)return next;
   const before=event.comp,game=event.game;
   world=playFixture(world,next,serieAClubs,event.key,game.id);
