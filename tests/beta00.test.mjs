@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { matchPlayerPerformances } from '../src/player-engine.js';
 import { historicalHonours, honoursWithCareer } from '../src/club-honours.js';
-import data from '../src/data/serie-a-2026.json' with { type:'json' };
+import fs from 'node:fs';
+const data=JSON.parse(fs.readFileSync(new URL('../src/data/serie-a-2026.json',import.meta.url),'utf8'));
 
 test('every Serie A club has a historical trophy gallery',function(){
   assert.equal(data.clubs.length,20);
