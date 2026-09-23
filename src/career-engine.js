@@ -453,12 +453,28 @@ function applyRoundConfidence(career,clubs,userResult,roundNumber){
   else if(cashRatio<.35)board-=2.4;
   else if(cashRatio<.65)board-=1.15;
   const resultText=outcome.winner==='user'?'vitória':outcome.winner==='draw'?'empate':'derrota';
-  return applyConfidenceEvent(career,{
+  let next=applyConfidenceEvent(career,{
     fans,
     board,
     kind:'round',
     reason:'Rodada '+roundNumber+': '+resultText+' e '+position+'º lugar na tabela.',
   });
+  const confidence=sanitizeManagerConfidence(next.managerConfidence);
+  let pressure=Number(next.boardPressureStreak)||0;
+  if(confidence.board<20)pressure+=1;
+  else if(confidence.board>=30)pressure=0;
+  const warning=confidence.board<30?{
+    level:confidence.board<15?'critical':'warning',
+    round:roundNumber,
+    text:confidence.board<15?'A diretoria exige reação imediata. O cargo está em risco.':'A diretoria aumentou a cobrança sobre o trabalho.',
+  }:null;
+  let managerStatus=next.managerStatus||'active',dismissal=next.dismissal||null;
+  if(managerStatus==='active'&&roundNumber>=10&&confidence.board<=12&&pressure>=3){
+    managerStatus='dismissed';
+    dismissal={season:next.season,round:roundNumber,boardConfidence:confidence.board,reason:'A diretoria decidiu encerrar o trabalho após uma sequência prolongada de baixa confiança.'};
+    next={...next,messages:[{id:'dismissal-'+next.season+'-'+roundNumber,type:'board',title:'Decisão da diretoria',text:dismissal.reason},...(next.messages||[])]};
+  }
+  return{...next,boardPressureStreak:pressure,boardWarning:warning,managerStatus,dismissal};
 }
 function clubTopScorer(career){
   return topScorers(career.scorers,100).find(item=>String(item.clubId)===String(career.userClubId))||null;
@@ -480,7 +496,7 @@ function seasonBestPerformer(career,clubs){
 export function createCareer(clubs,userClubId,season){
   const userClub=clubs.find(c=>c.id===userClubId);
   const initialCash=initialCashForClub(userClubId);
-  const base={version:7,userClubId,managerName:'',season:season||2026,round:0,schedule:buildSchedule(clubs),results:[],scorers:{},allTimeScorers:{},cash:initialCash,openingCash:initialCash,transactions:[],sponsors:[],trophies:[],messages:[],seasons:[],history:[],pendingRound:null,lastRoundResults:[],lastUserMatch:null,preferredSimulationMode:'normal',playerStatus:{},conditions:defaultConditions(clubs),lineup:[],ownership:{},loans:[],transferHistory:[],transferContracts:[],managerConfidence:createManagerConfidence(),seasonReview:null,pendingCelebration:null};
+  const base={version:7,userClubId,managerName:'',season:season||2026,round:0,schedule:buildSchedule(clubs),results:[],scorers:{},allTimeScorers:{},cash:initialCash,openingCash:initialCash,transactions:[],sponsors:[],trophies:[],messages:[],seasons:[],history:[],pendingRound:null,lastRoundResults:[],lastUserMatch:null,preferredSimulationMode:'normal',playerStatus:{},conditions:defaultConditions(clubs),lineup:[],ownership:{},loans:[],transferHistory:[],transferContracts:[],managerConfidence:createManagerConfidence(),seasonReview:null,pendingCelebration:null,boardPressureStreak:0,boardWarning:null,managerStatus:'active',dismissal:null};
   base.lineup=userClub?autoLineup(userClub,base,1):[];
   return base;
 }
@@ -490,7 +506,7 @@ export function sanitizeCareer(raw,clubs,userClubId){
   const pending=raw.pendingRound&&Array.isArray(raw.pendingRound.matches)?{...raw.pendingRound,matches:normalizeResults(raw.pendingRound.matches,season)}:null;
   const club=clubs.find(c=>c.id===userClubId),roundNumber=(raw.round||0)+1;
   const migratedCash=Number(raw.version||0)<5&&(raw.round||0)===0&&!(raw.transactions||[]).length&&Number(raw.cash||0)===20000000?base.cash:raw.cash;
-  const merged={...base,...raw,cash:Number.isFinite(migratedCash)?migratedCash:base.cash,openingCash:Number.isFinite(Number(raw.openingCash))?Number(raw.openingCash):base.cash,version:7,managerName:String(raw.managerName||''),schedule:Array.isArray(raw.schedule)&&raw.schedule.length===38?raw.schedule:buildSchedule(clubs),results,scorers:raw.scorers&&typeof raw.scorers==='object'?raw.scorers:{},allTimeScorers:raw.allTimeScorers&&typeof raw.allTimeScorers==='object'?raw.allTimeScorers:{},sponsors:Array.isArray(raw.sponsors)?raw.sponsors:[],trophies:Array.isArray(raw.trophies)?raw.trophies:[],transactions:Array.isArray(raw.transactions)?raw.transactions:[],messages:Array.isArray(raw.messages)?raw.messages:[],seasons:Array.isArray(raw.seasons)?raw.seasons:[],history,pendingRound:pending,lastRoundResults:Array.isArray(raw.lastRoundResults)?normalizeResults(raw.lastRoundResults,season):[],preferredSimulationMode:SIMULATION_MODES[raw.preferredSimulationMode]?raw.preferredSimulationMode:'normal',playerStatus:raw.playerStatus&&typeof raw.playerStatus==='object'?raw.playerStatus:{},conditions:{...base.conditions,...(raw.conditions||{})},ownership:raw.ownership&&typeof raw.ownership==='object'?raw.ownership:{},loans:Array.isArray(raw.loans)?raw.loans:[],transferHistory:Array.isArray(raw.transferHistory)?raw.transferHistory:[],transferContracts:Array.isArray(raw.transferContracts)?raw.transferContracts:[],managerConfidence:sanitizeManagerConfidence(raw.managerConfidence),seasonReview:raw.seasonReview&&typeof raw.seasonReview==='object'?raw.seasonReview:null,pendingCelebration:raw.pendingCelebration&&typeof raw.pendingCelebration==='object'?raw.pendingCelebration:null};
+  const merged={...base,...raw,cash:Number.isFinite(migratedCash)?migratedCash:base.cash,openingCash:Number.isFinite(Number(raw.openingCash))?Number(raw.openingCash):base.cash,version:7,managerName:String(raw.managerName||''),schedule:Array.isArray(raw.schedule)&&raw.schedule.length===38?raw.schedule:buildSchedule(clubs),results,scorers:raw.scorers&&typeof raw.scorers==='object'?raw.scorers:{},allTimeScorers:raw.allTimeScorers&&typeof raw.allTimeScorers==='object'?raw.allTimeScorers:{},sponsors:Array.isArray(raw.sponsors)?raw.sponsors:[],trophies:Array.isArray(raw.trophies)?raw.trophies:[],transactions:Array.isArray(raw.transactions)?raw.transactions:[],messages:Array.isArray(raw.messages)?raw.messages:[],seasons:Array.isArray(raw.seasons)?raw.seasons:[],history,pendingRound:pending,lastRoundResults:Array.isArray(raw.lastRoundResults)?normalizeResults(raw.lastRoundResults,season):[],preferredSimulationMode:SIMULATION_MODES[raw.preferredSimulationMode]?raw.preferredSimulationMode:'normal',playerStatus:raw.playerStatus&&typeof raw.playerStatus==='object'?raw.playerStatus:{},conditions:{...base.conditions,...(raw.conditions||{})},ownership:raw.ownership&&typeof raw.ownership==='object'?raw.ownership:{},loans:Array.isArray(raw.loans)?raw.loans:[],transferHistory:Array.isArray(raw.transferHistory)?raw.transferHistory:[],transferContracts:Array.isArray(raw.transferContracts)?raw.transferContracts:[],managerConfidence:sanitizeManagerConfidence(raw.managerConfidence),seasonReview:raw.seasonReview&&typeof raw.seasonReview==='object'?raw.seasonReview:null,pendingCelebration:raw.pendingCelebration&&typeof raw.pendingCelebration==='object'?raw.pendingCelebration:null,boardPressureStreak:Number(raw.boardPressureStreak)||0,boardWarning:raw.boardWarning&&typeof raw.boardWarning==='object'?raw.boardWarning:null,managerStatus:raw.managerStatus==='dismissed'?'dismissed':'active',dismissal:raw.dismissal&&typeof raw.dismissal==='object'?raw.dismissal:null};
   merged.lineup=club?sanitizeLineup(club,merged,roundNumber,raw.lineup):[];
   return merged;
 }
@@ -594,7 +610,7 @@ function finalizeSeason(career,clubs){
   },pendingCelebration:newTitle?{id:'celebration-'+next.season+'-'+newTitle.id,type:'trophy',trophy:newTitle}:next.pendingCelebration};
   return expireSeasonSponsors(next);
 }
-export function canStartRound(career){return!career.pendingRound&&career.round<career.schedule.length;}
+export function canStartRound(career){return career.managerStatus!=='dismissed'&&!career.pendingRound&&career.round<career.schedule.length;}
 export function startRound(career,clubs,mode){
   if(!canStartRound(career))return career;
   const selectedMode=SIMULATION_MODES[mode]?mode:'normal',roundNumber=career.round+1,fixtures=career.schedule[career.round];
@@ -686,7 +702,7 @@ export function simulateRound(career,clubs){const started=startRound(career,club
 export function startNextSeason(career,clubs){
   if(career.pendingRound||career.round<career.schedule.length)return career;
   const cleanStatus={};for(const[key,value]of Object.entries(career.playerStatus||{}))cleanStatus[key]={...value,yellowCount:0,suspensionThroughRound:0,injuryThroughRound:0,injuryLabel:null};
-  const next={...career,season:career.season+1,round:0,schedule:buildSchedule(clubs),results:[],scorers:{},lastRoundResults:[],lastUserMatch:null,pendingRound:null,playerStatus:cleanStatus,conditions:defaultConditions(clubs),sponsors:(career.sponsors||[]).map(contract=>({...contract,active:false})),openingCash:career.cash,seasonReview:null,pendingCelebration:null};
+  const next={...career,season:career.season+1,round:0,schedule:buildSchedule(clubs),results:[],scorers:{},lastRoundResults:[],lastUserMatch:null,pendingRound:null,playerStatus:cleanStatus,conditions:defaultConditions(clubs),sponsors:(career.sponsors||[]).map(contract=>({...contract,active:false})),openingCash:career.cash,seasonReview:null,pendingCelebration:null,boardPressureStreak:0,boardWarning:null,managerStatus:'active',dismissal:null};
   const userClub=clubs.find(c=>c.id===next.userClubId);return userClub?{...next,lineup:autoLineup(userClub,next,1)}:next;
 }
 export function addWorldTitle(career,clubName){
