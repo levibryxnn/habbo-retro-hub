@@ -2,6 +2,7 @@ import { addTransaction } from './finance-model.js';
 import { getClubWorld, marketSquadReference, rivalryLevel } from './club-world.js';
 import { playerGameStats } from './player-engine.js';
 import { applyConfidenceEvent } from './manager-confidence.js';
+import { applyDevelopmentProfile } from './development-engine.js';
 
 export const EUR_BRL_REFERENCE=6.25;
 const clamp=(min,max,n)=>Math.max(min,Math.min(max,n));
@@ -61,15 +62,26 @@ export function applyCareerRoster(baseClubs,career){
   const byId=Object.fromEntries(clones.map(club=>[club.id,club]));
   for(const origin of baseClubs){
     for(const raw of origin.players||[]){
-      const key=playerKey(origin.id,raw.id),owner=currentOwnerId(career,key,origin.id),target=byId[owner]||byId[origin.id];
-      target.players.push(playerRef(raw,origin.id));
+      const key=playerKey(origin.id,raw.id);if(career?.retiredPlayers?.[key])continue;
+      const owner=currentOwnerId(career,key,origin.id),target=byId[owner]||byId[origin.id];
+      target.players.push(applyDevelopmentProfile(playerRef(raw,origin.id),key,career));
     }
+  }
+  for(const raw of career?.regens||[]){
+    const originId=String(raw._originClubId||raw.clubId||career.userClubId),key=String(raw._playerKey||playerKey(originId,raw.id));
+    if(career?.retiredPlayers?.[key])continue;
+    const owner=currentOwnerId(career,key,originId),target=byId[owner]||byId[originId];
+    if(target)target.players.push(applyDevelopmentProfile(playerRef(raw,originId),key,career));
   }
   return clones;
 }
-export function findCareerPlayer(baseClubs,key){
+export function findCareerPlayer(baseClubs,key,career){
   const item=basePlayerIndex(baseClubs).get(key);
-  return item?{...item,player:playerRef(item.player,item.originClub.id)}:null;
+  if(item)return{...item,player:applyDevelopmentProfile(playerRef(item.player,item.originClub.id),key,career)};
+  const regen=(career?.regens||[]).find(player=>String(player._playerKey||playerKey(player._originClubId,player.id))===String(key));
+  if(!regen)return null;
+  const originClub=baseClubs.find(club=>String(club.id)===String(regen._originClubId));
+  return originClub?{player:applyDevelopmentProfile(playerRef(regen,originClub.id),key,career),originClub}:null;
 }
 export function estimatedMonthlySalary(player,originClub){
   const mv=playerMarketValueBRL(player,originClub).valueBRL,s=playerGameStats(player),age=player.age??27;
@@ -99,7 +111,7 @@ function squadNeed(club,player){
 }
 function negotiationSeed(career,offer){return[career.season,career.round,offer.type,offer.playerKey,offer.fromClubId,offer.toClubId,offer.amount||0,offer.loanFee||0,offer.salaryShare||0,offer.swapPlayerKey||''].join('|');}
 export function evaluateTransferOffer(career,baseClubs,offer){
-  const item=findCareerPlayer(baseClubs,offer.playerKey);if(!item)return{status:'rejected',reason:'Jogador não encontrado.'};
+  const item=findCareerPlayer(baseClubs,offer.playerKey,career);if(!item)return{status:'rejected',reason:'Jogador não encontrado.'};
   const {player,originClub}=item;
   const dynamic=applyCareerRoster(baseClubs,career),seller=dynamic.find(c=>c.id===String(offer.fromClubId)),buyer=dynamic.find(c=>c.id===String(offer.toClubId));
   if(!seller||!buyer)return{status:'rejected',reason:'Clube inválido.'};
@@ -125,7 +137,7 @@ export function evaluateTransferOffer(career,baseClubs,offer){
     return{status:'counter',reason:'O clube aceita o empréstimo com ajustes.',counterLoanFee:feeTarget,counterSalaryShare:Math.max(60,offer.salaryShare||0),buyOption:Math.round(diff.market*1.22/100000)*100000};
   }
   if(offer.type==='swap'){
-    const swap=findCareerPlayer(baseClubs,offer.swapPlayerKey);if(!swap)return{status:'rejected',reason:'Jogador oferecido na troca não encontrado.'};
+    const swap=findCareerPlayer(baseClubs,offer.swapPlayerKey,career);if(!swap)return{status:'rejected',reason:'Jogador oferecido na troca não encontrado.'};
     const swapValue=playerMarketValueBRL(swap.player,swap.originClub).valueBRL;
     const packageValue=swapValue+Number(offer.amount||0);
     const target=diff.minimum*(rivalry===2?1.18:1);
@@ -173,7 +185,7 @@ function applyTransferConfidence(career,offer,item,evaluation){
 }
 export function executeTransfer(career,baseClubs,offer,evaluation){
   if(!evaluation||evaluation.status!=='accepted')return{career,error:'A negociação ainda não foi aceita.'};
-  const item=findCareerPlayer(baseClubs,offer.playerKey);if(!item)return{career,error:'Jogador não encontrado.'};
+  const item=findCareerPlayer(baseClubs,offer.playerKey,career);if(!item)return{career,error:'Jogador não encontrado.'};
   let next={...career,ownership:{...(career.ownership||{})},loans:[...(career.loans||[])],transferHistory:[...(career.transferHistory||[])],transferContracts:[...(career.transferContracts||[])]};
   const user=String(career.userClubId),from=String(offer.fromClubId),to=String(offer.toClubId);
   if(['buy','sell'].includes(offer.type)){
@@ -184,7 +196,7 @@ export function executeTransfer(career,baseClubs,offer,evaluation){
     if(from===user){next=addTransaction(next,amount,'Venda · '+item.player.name,career.round,'transfer',{playerKey:offer.playerKey});next.transferContracts=next.transferContracts.map(contract=>contract.playerKey===offer.playerKey&&contract.clubId===user?{...contract,active:false,endedRound:career.round}:contract);}
   }
   if(offer.type==='swap'){
-    const swap=findCareerPlayer(baseClubs,evaluation.swapPlayerKey||offer.swapPlayerKey);if(!swap)return{career,error:'Jogador de troca não encontrado.'};
+    const swap=findCareerPlayer(baseClubs,evaluation.swapPlayerKey||offer.swapPlayerKey,career);if(!swap)return{career,error:'Jogador de troca não encontrado.'};
     const cash=Number(evaluation.cashAmount||offer.amount||0);
     if(to===user&&next.cash<cash)return{career,error:'Caixa insuficiente para a compensação da troca.'};
     next.ownership[offer.playerKey]=to;
