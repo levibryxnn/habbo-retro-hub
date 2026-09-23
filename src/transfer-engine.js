@@ -5,6 +5,7 @@ import { applyConfidenceEvent } from './manager-confidence.js';
 
 export const EUR_BRL_REFERENCE=6.25;
 const clamp=(min,max,n)=>Math.max(min,Math.min(max,n));
+const marketAllocationCache=new Map();
 function hashString(value){let h=2166136261;for(const ch of String(value)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return h>>>0;}
 function roll(value){return(hashString(value)%10000)/10000;}
 export const playerKey=(originClubId,playerId)=>String(originClubId)+':'+String(playerId);
@@ -27,11 +28,15 @@ function playerWeight(player){
 export function playerMarketValueEUR(player,originClub){
   const exact=exactMarketEur[String(originClub.id)+':'+normalizeName(player.name)];
   if(exact)return{value:exact,source:'Transfermarkt 2026 · valor individual'};
-  const total=marketSquadReference(originClub.id);
-  const weights=(originClub.players||[]).map(playerWeight),sum=weights.reduce((a,b)=>a+b,0)||1;
-  const index=(originClub.players||[]).findIndex(p=>String(p.id)===String(player.id));
-  const weight=index>=0?weights[index]:playerWeight(player);
-  const allocated=Math.max(100000,Math.round(total*weight/sum/50000)*50000);
+  const roster=originClub.players||[],cacheKey=String(originClub.id)+'|'+roster.length+'|'+roster.map(p=>p.id).join(',');
+  let allocation=marketAllocationCache.get(cacheKey);
+  if(!allocation){
+    const total=marketSquadReference(originClub.id),weights=roster.map(playerWeight),sum=weights.reduce((a,b)=>a+b,0)||1;
+    allocation=new Map();
+    roster.forEach((item,index)=>allocation.set(String(item.id),Math.max(100000,Math.round(total*weights[index]/sum/50000)*50000)));
+    marketAllocationCache.set(cacheKey,allocation);
+  }
+  const allocated=allocation.get(String(player.id))??Math.max(100000,Math.round(marketSquadReference(originClub.id)*playerWeight(player)/Math.max(1,roster.reduce((sum,item)=>sum+playerWeight(item),0))/50000)*50000);
   return{value:allocated,source:'Referência Transfermarkt 2026 · rateio estimado do valor do elenco'};
 }
 export function playerMarketValueBRL(player,originClub){const eur=playerMarketValueEUR(player,originClub);return{...eur,valueBRL:Math.round(eur.value*EUR_BRL_REFERENCE)};}
