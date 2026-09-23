@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, BarChart3, BrainCircuit, Clock3, FastForward, Flag, Gauge, History, Monitor, Pause, Play, RotateCcw, ShieldAlert, Target, Timer, Trophy, UserRoundCog, X, Zap } from 'lucide-react';
+import { Activity, Clock3, FastForward, Flag, Gauge, History, Pause, Play, RotateCcw, ShieldAlert, Target, Timer, Trophy, UserRoundCog, X, Zap } from 'lucide-react';
 import {
   HALF_TIME_SECOND,
   MAX_SUBSTITUTIONS,
@@ -25,6 +25,7 @@ import {
   playerAvailability,
   playerCondition,
   playerGameStats,
+  bestMatchPlayer,
 } from './player-engine';
 import { getClubWorld } from './club-world.js';
 import { positionGroup, translatePosition } from './position-labels.js';
@@ -40,14 +41,14 @@ function SidelineField() {
     <img className="sideline-field" src={base+'/stadium-sideline-desktop.webp'} alt="" draggable="false" decoding="async" fetchPriority="high"/>
   </picture>;
 }
-const clockAt=(second,duration)=>{const value=Math.max(0,Math.min(duration||FULL_TIME,second)),m=Math.floor(value/60),s=value%60;return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');};
+const clockAt=second=>{const value=Math.max(0,Math.floor(second||0)),m=Math.floor(value/60),s=value%60;return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');};
 function EventLine({event,compact=false}) {
   if(!event)return <div className="match-event-line muted">Aguardando o próximo lance...</div>;
   return <div className={'match-event-line '+(compact?'compact ':'')+'type-'+event.type}><span className="event-symbol">{eventSymbol[event.type]||'•'}</span><strong>{event.minute}'</strong><span>{compact?event.text.replace(/^GOL! /,''):event.text}</span></div>;
 }
-function Comparison({label,values,percent=false}) {
+function Comparison({label,values,percent=false,Icon=Activity}) {
   const total=Math.max(values[0]+values[1],1),left=percent?values[0]:Math.round(values[0]/total*100);
-  return <div className="match-stat-row"><div><strong>{values[0]}{percent?'%':''}</strong><span>{label}</span><strong>{values[1]}{percent?'%':''}</strong></div><div className="match-stat-track"><i style={{width:left+'%'}}/><b style={{width:(100-left)+'%'}}/></div></div>;
+  return <div className="match-stat-row"><div><strong>{values[0]}{percent?'%':''}</strong><span className="match-stat-label"><i><Icon size={13}/></i>{label}</span><strong>{values[1]}{percent?'%':''}</strong></div><div className="match-stat-track"><i style={{width:left+'%'}}/><b style={{width:(100-left)+'%'}}/></div></div>;
 }
 function visibleStats(stats,second,duration) {
   if(!stats)return{possession:[50,50],shots:[0,0],onTarget:[0,0],corners:[0,0],fouls:[0,0]};
@@ -56,9 +57,11 @@ function visibleStats(stats,second,duration) {
 }
 const latestFor=(events,side,second)=>[...(events||[])].reverse().find(e=>e.side===side&&e.second<=second)||null;
 function PlayerHighlight({club,result,side,second}) {
-  const visible=(result?.events||[]).filter(e=>e.second<=second),goals=visible.filter(e=>e.type==='goal'&&e.side===side),player=goals[0]?.player||(club.players||[]).find(p=>positionGroup(p.position)==='ATA')?.name||club.name;
-  const initials=player.split(' ').filter(Boolean).map((part,index,array)=>index===0||index===array.length-1?part[0]:'').join('').slice(0,2),rating=(6.6+goals.length*.7).toFixed(1),stats=visibleStats(result?.stats,second,result?.durationSecond);
-  return <article className="player-highlight"><span className="highlight-avatar">{initials}</span><div className="highlight-name"><strong>{player}</strong><small>{club.abbreviation}</small></div><span className="highlight-rating">{rating}</span><div className="highlight-numbers"><span><strong>{goals.length}</strong><small>Gols</small></span><span><strong>{side==='home'?stats.shots[0]:stats.shots[1]}</strong><small>Finalizações</small></span></div></article>;
+  const performance=result?bestMatchPlayer(club,result,side,second):null;
+  const fallback=(club.players||[]).find(p=>positionGroup(p.position)==='ATA')||(club.players||[])[0];
+  const playerName=performance?.name||fallback?.name||club.name;
+  const initials=playerName.split(' ').filter(Boolean).map((part,index,array)=>index===0||index===array.length-1?part[0]:'').join('').slice(0,2);
+  return <article className="player-highlight"><span className="highlight-avatar">{initials}</span><div className="highlight-name"><strong>{playerName}</strong><small>{performance?.countryCode||fallback?.countryCode||club.abbreviation}</small></div><span className="highlight-rating">{performance?performance.rating.toFixed(1):'—'}</span><div className="highlight-numbers"><span><strong>{performance?.goals||0}</strong><small>Gols</small></span><span><strong>{performance?.assists||0}</strong><small>Assist.</small></span><span><strong>{performance?.shots||0}</strong><small>Finalizações</small></span></div></article>;
 }
 function LiveRoundBoard({matches,clubs,userClubId,roundNumber,Crest}) {
   return <section className="live-round-board"><div className="live-round-title"><div><Activity size={15}/><span><strong>Rodada {roundNumber} ao vivo</strong><small>Os 10 jogos avançam no mesmo relógio.</small></span></div><span className="live-dot">AO VIVO</span></div><div className="live-fixtures">{matches.map(match=>{
@@ -94,7 +97,7 @@ function LineupEditor({career,club,onSave,onClose}) {
     if(aa.available!==bb.available)return aa.available?-1:1;
     return playerGameStats(b).overall-playerGameStats(a).overall;
   });
-  return <Overlay onClose={onClose} className="wide-decision"><div className="decision-kicker">PRÉ-JOGO · ESCALAÇÃO</div><h2>Escolha os 11 titulares</h2><p className="decision-intro">Condição física, posição e atributos entram no cálculo da IA. Jogadores suspensos ou lesionados ficam indisponíveis.</p><div className="lineup-count"><strong>{draft.length}/11</strong><span>{validation.valid?'Escalação pronta':validation.reason||'Escolha os titulares'}</span></div><div className="squad-selector">{sorted.map(player=>{
+  return <Overlay onClose={onClose} className="wide-decision"><div className="decision-kicker">PRÉ-JOGO · ESCALAÇÃO</div><h2>Escolha os 11 titulares</h2><p className="decision-intro">Condição física, posição e atributos entram no cálculo da partida. Jogadores suspensos ou lesionados ficam indisponíveis.</p><div className="lineup-count"><strong>{draft.length}/11</strong><span>{validation.valid?'Escalação pronta':validation.reason||'Escolha os titulares'}</span></div><div className="squad-selector">{sorted.map(player=>{
     const availability=playerAvailability(career,club.id,player,round),selected=draft.includes(String(player.id)),stats=playerGameStats(player),condition=playerCondition(career,club.id,player.id);
     return <button key={player.id} disabled={!availability.available&&!selected} className={'squad-choice '+(selected?'selected ':'')+(!availability.available?'unavailable':'')} onClick={()=>toggle(player)}>
       <span className="squad-state">{selected?'TIT':'BAN'}</span><span className="squad-player"><strong>{player.name}</strong><small>{translatePosition(player.position)} · Condição {condition}%</small></span><span className="squad-overall">{stats.overall}</span>{!availability.available&&<span className="unavailable-reason">{availability.reasons.join(' · ')}</span>}
@@ -132,21 +135,28 @@ function PenaltyDecision({career,club,clubs,match,event,onCareerChange,onClose})
 
 export default function MatchSimulation({club,clubs,Crest,career,onCareerChange,canManage,onChoose,isVisible=true}) {
   const activeRound=career.pendingRound,fixture=fixtureForUser(career),pendingUserMatch=activeRound?.matches?.find(match=>match.id===activeRound.userMatchId),displayMatch=pendingUserMatch||career.lastUserMatch||fixture;
-  const [second,setSecond]=useState(0),[paused,setPaused]=useState(false),[selectedMode,setSelectedMode]=useState(career.preferredSimulationMode||'normal'),[view,setView]=useState('tactical');
+  const [second,setSecond]=useState(0),[realElapsed,setRealElapsed]=useState(0),[paused,setPaused]=useState(false),[selectedMode,setSelectedMode]=useState(career.preferredSimulationMode||'normal');
   const [lineupOpen,setLineupOpen]=useState(false),[subOpen,setSubOpen]=useState(false),[subContext,setSubContext]=useState(null),[halftimeOpen,setHalftimeOpen]=useState(false),[penaltyEvent,setPenaltyEvent]=useState(null);
   const finalizeLock=useRef(false),halftimeDone=useRef(false),acknowledgedInjuries=useRef(new Set());
 
-  useEffect(()=>{if(activeRound){setSecond(0);setPaused(false);finalizeLock.current=false;halftimeDone.current=false;acknowledgedInjuries.current=new Set();}else if(career.lastUserMatch){setSecond(career.lastUserMatch.durationSecond||FULL_TIME);setPaused(true);finalizeLock.current=false;}else{setSecond(0);setPaused(true);finalizeLock.current=false;}},[activeRound?.id]);
+  useEffect(()=>{if(activeRound){setSecond(0);setRealElapsed(0);setPaused(false);finalizeLock.current=false;halftimeDone.current=false;acknowledgedInjuries.current=new Set();}else if(career.lastUserMatch){const mode=SIMULATION_MODES[career.lastUserMatch.simulationMode]||SIMULATION_MODES.normal;setSecond(career.lastUserMatch.durationSecond||FULL_TIME);setRealElapsed(mode.realDurationSeconds||0);setPaused(true);finalizeLock.current=false;}else{setSecond(0);setRealElapsed(0);setPaused(true);finalizeLock.current=false;}},[activeRound?.id]);
 
   const activeMode=activeRound?SIMULATION_MODES[activeRound.mode]:null,totalRoundDuration=roundDuration(activeRound);
   useEffect(()=>{
     if(!activeRound||paused||activeRound.mode==='instant'||penaltyEvent||subOpen||halftimeOpen)return;
-    const config=activeMode||SIMULATION_MODES.normal;
-    const timer=setInterval(()=>setSecond(value=>{
-      const next=Math.min(totalRoundDuration,value+config.gameSecondsPerTick);
-      if(!halftimeDone.current&&value<HALF_TIME_SECOND&&next>=HALF_TIME_SECOND)return HALF_TIME_SECOND;
-      return next;
-    }),config.tickMs);
+    const config=activeMode||SIMULATION_MODES.normal,target=Math.max(1,config.realDurationSeconds||60);
+    const timer=setInterval(()=>{
+      setRealElapsed(value=>{
+        const nextReal=Math.min(target,value+1);
+        const targetVirtual=Math.min(totalRoundDuration,Math.round(totalRoundDuration*(nextReal/target)));
+        setSecond(current=>{
+          const next=Math.max(current,targetVirtual);
+          if(!halftimeDone.current&&current<HALF_TIME_SECOND&&next>=HALF_TIME_SECOND)return HALF_TIME_SECOND;
+          return next;
+        });
+        return nextReal;
+      });
+    },1000);
     return()=>clearInterval(timer);
   },[activeRound?.id,activeRound?.mode,paused,totalRoundDuration,penaltyEvent,subOpen,halftimeOpen]);
 
@@ -172,7 +182,7 @@ export default function MatchSimulation({club,clubs,Crest,career,onCareerChange,
     finalizeLock.current=true;setPaused(true);onCareerChange(finishPendingRound(career,clubs));
   },[second,totalRoundDuration,activeRound?.id,penaltyEvent,subOpen,halftimeOpen]);
 
-  useEffect(()=>{if(!activeRound&&career.lastUserMatch)setSecond(career.lastUserMatch.durationSecond||FULL_TIME);},[career.lastUserMatch?.id,activeRound]);
+  useEffect(()=>{if(!activeRound&&career.lastUserMatch){const mode=SIMULATION_MODES[career.lastUserMatch.simulationMode]||SIMULATION_MODES.normal;setSecond(career.lastUserMatch.durationSecond||FULL_TIME);setRealElapsed(mode.realDurationSeconds||0);}},[career.lastUserMatch?.id,activeRound]);
 
   const officialTable=useMemo(()=>standingsFromResults(career.results,clubs),[career.results,clubs]);
   if(!isVisible)return null;
@@ -184,34 +194,34 @@ export default function MatchSimulation({club,clubs,Crest,career,onCareerChange,
 
   function runRound(){
     if(!canManage||activeRound||completed)return;
-    if(selectedMode==='instant'){const started=startRound(career,clubs,'instant'),finished=finishPendingRound(started,clubs);onCareerChange(finished);setSecond(finished.lastUserMatch?.durationSecond||FULL_TIME);setPaused(true);return;}
-    const started=startRound(career,clubs,selectedMode);onCareerChange(started);setSecond(0);setPaused(false);
+    if(selectedMode==='instant'){const started=startRound(career,clubs,'instant'),finished=finishPendingRound(started,clubs);onCareerChange(finished);setSecond(finished.lastUserMatch?.durationSecond||FULL_TIME);setRealElapsed(0);setPaused(true);return;}
+    const started=startRound(career,clubs,selectedMode);onCareerChange(started);setSecond(0);setRealElapsed(0);setPaused(false);
   }
-  function nextSeason(){if(!canManage||activeRound)return;onCareerChange(startNextSeason(career,clubs));setSecond(0);setPaused(true);}
-  function skipToNextEvent(){if(!activeRound||!nextEvent)return;setSecond(Math.min(totalRoundDuration,nextEvent.second+2));}
+  function nextSeason(){if(!canManage||activeRound)return;onCareerChange(startNextSeason(career,clubs));setSecond(0);setRealElapsed(0);setPaused(true);}
+  function skipToNextEvent(){if(!activeRound||!nextEvent)return;const config=activeMode||SIMULATION_MODES.normal,target=Math.max(1,config.realDurationSeconds||60),virtual=Math.min(totalRoundDuration,nextEvent.second+2);setSecond(virtual);setRealElapsed(Math.min(target,Math.floor(virtual/Math.max(1,totalRoundDuration)*target)));}
   function saveLineup(lineup){onCareerChange(updateUserLineup(career,club,lineup));setLineupOpen(false);}
   function resumeFromHalf(){halftimeDone.current=true;setHalftimeOpen(false);setPaused(false);}
   function openSubstitution(halftime=false){setPaused(true);setSubContext({halftime});setSubOpen(true);}
   function closeSubstitution(){setSubOpen(false);setSubContext(null);if(!halftimeOpen)setPaused(false);}
 
   return <div className="match-content">
-    <div className="match-heading"><div><div className="eyebrow">DA BEIRA DO CAMPO</div><h2>Simulação de partida</h2><p>Escalação, condição, cartões, lesões e suas decisões agora alteram a partida.</p></div><span className="stage-two-badge"><BrainCircuit size={13}/> Engine v3</span></div>
+    <div className="match-heading"><div><div className="eyebrow">DA BEIRA DO CAMPO</div><h2>Simulação de partida</h2><p>Escalação, condição, cartões, lesões e suas decisões alteram cada partida.</p></div><span className="stage-two-badge"><Trophy size={13}/> Brasileirão 2026</span></div>
     {!canManage&&<div className="choose-notice"><Target size={18}/><p>Escolha o {club.name} para iniciar uma carreira e simular as rodadas.</p><button onClick={onChoose}>Escolher clube</button></div>}
     <div className="match-meta"><span><Timer size={15}/> Brasileirão Série A · {completed?'Temporada encerrada':activeRound?'Rodada '+activeRound.roundNumber+' em andamento':'Próxima: rodada '+(career.round+1)}</span><span><Trophy size={15}/> {userRow?.points||0} pts oficiais · {userRow?.position||20}º lugar</span><span><ShieldAlert size={15}/> {matchYellows} amarelo(s) · {matchReds} vermelho(s)</span></div>
 
     {!activeRound&&!completed&&<section className="prematch-lineup-bar"><div><UserRoundCog size={18}/><span><strong>Escalação para a rodada {career.round+1}</strong><small>11 titulares · condição e atributos afetam a IA</small></span></div><div className="prematch-lineup-actions"><span>{userLineupForNextMatch(career,club).length}/11 definidos</span><button onClick={()=>setLineupOpen(true)}>Alterar escalação</button></div></section>}
 
-    <section className={'match-stage view-'+view} aria-label={home.name+' contra '+away.name}><SidelineField/><div className="match-score-layer"><div className="match-team home"><Crest club={home} large/><h3>{home.name}</h3><EventLine event={latestHome} compact/></div><div className="score-center"><span className="match-period">{!displayMatch?.events?'PRÉ-JOGO':second===HALF_TIME_SECOND&&!halftimeDone.current?'INTERVALO':userMatchFinished?'FIM DE JOGO':displaySecond<45*60?'1º TEMPO':'2º TEMPO'}</span><span className="match-clock">{clockAt(displaySecond,userDuration)}</span><strong>{score.home}<i>–</i>{score.away}</strong><small>{activeRound?(userMatchFinished&&second<totalRoundDuration?'Aguardando os demais jogos':paused?'Jogo pausado':'Rodada em andamento'):career.lastUserMatch?'Resultado oficial':'Aguardando simulação'}</small><div className="match-venue"><strong>{displayMatch?.matchday?.stadium||getClubWorld(home.id).stadium}</strong>{displayMatch?.matchday&&<span>{displayMatch.matchday.attendance.toLocaleString('pt-BR')} torcedores · receita bruta {new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(displayMatch.matchday.grossRevenue)}</span>}</div></div><div className="match-team away"><Crest club={away} large/><h3>{away.name}</h3><EventLine event={latestAway} compact/></div></div></section>
+    <section className="match-stage" aria-label={home.name+' contra '+away.name}><SidelineField/><div className="match-score-layer"><div className="match-team home"><Crest club={home} large/><h3>{home.name}</h3><EventLine event={latestHome} compact/></div><div className="score-center"><span className="match-period">{!displayMatch?.events?'PRÉ-JOGO':second===HALF_TIME_SECOND&&!halftimeDone.current?'INTERVALO':userMatchFinished?'FIM DE JOGO':displaySecond<45*60?'1º TEMPO':'2º TEMPO'}</span><span className="match-clock">{clockAt(activeRound?realElapsed:career.lastUserMatch?(SIMULATION_MODES[career.lastUserMatch.simulationMode]?.realDurationSeconds||60):0)}</span><strong>{score.home}<i>–</i>{score.away}</strong><small>{activeRound?(userMatchFinished&&second<totalRoundDuration?'Aguardando os demais jogos':paused?'Jogo pausado':'Rodada em andamento'):career.lastUserMatch?'Resultado oficial':'Aguardando simulação'}</small><div className="match-venue"><strong>{displayMatch?.matchday?.stadium||getClubWorld(home.id).stadium}</strong>{displayMatch?.matchday&&<span>{displayMatch.matchday.attendance.toLocaleString('pt-BR')} torcedores · receita bruta {new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(displayMatch.matchday.grossRevenue)}</span>}</div></div><div className="match-team away"><Crest club={away} large/><h3>{away.name}</h3><EventLine event={latestAway} compact/></div></div></section>
 
     <div className="simulation-mode-panel"><div className="mode-copy"><Gauge size={18}/><div><strong>Velocidade da próxima partida</strong><span>{activeRound?'Finalize a rodada atual antes de iniciar outra.':SIMULATION_MODES[selectedMode].description}</span></div></div><div className="mode-selector"><button disabled={Boolean(activeRound)} className={selectedMode==='normal'?'active':''} onClick={()=>setSelectedMode('normal')}><Clock3 size={14}/> Normal</button><button disabled={Boolean(activeRound)} className={selectedMode==='fast'?'active':''} onClick={()=>setSelectedMode('fast')}><FastForward size={14}/> Rápido</button><button disabled={Boolean(activeRound)} className={selectedMode==='instant'?'active':''} onClick={()=>setSelectedMode('instant')}><Zap size={14}/> Instantânea</button></div></div>
 
     <div className="match-action-strip"><div><strong>{completed?'Temporada '+career.season+' concluída':activeRound?'Rodada '+activeRound.roundNumber+' em andamento':'Rodada '+(career.round+1)+' de 38'}</strong><span>{activeRound?'Não é possível iniciar outra rodada antes do encerramento dos 10 jogos.':fixture&&!completed?(clubs.find(item=>item.id===fixture.homeId)?.name||'')+' × '+(clubs.find(item=>item.id===fixture.awayId)?.name||''):'O save está pronto para avançar.'}</span></div>{activeRound&&<button className="secondary-match-action" onClick={()=>openSubstitution(false)}><UserRoundCog size={16}/> Substituições</button>}{completed?<button className="season-action" disabled={!canManage||Boolean(activeRound)} onClick={nextSeason}><RotateCcw size={16}/> Iniciar temporada {career.season+1}</button>:<button className="season-action" disabled={!canManage||Boolean(activeRound)} onClick={runRound}><Play size={16}/> {activeRound?'Rodada em andamento':selectedMode==='instant'?'Simular instantaneamente':'Iniciar rodada '+(career.round+1)}</button>}</div>
 
     {liveMatches.length>0&&<LiveRoundBoard matches={liveMatches} clubs={clubs} userClubId={career.userClubId} roundNumber={boardRound} Crest={Crest}/>}
-    <div className="match-lower-grid"><section className="match-card event-card"><div className="match-card-title"><h3>Últimos eventos</h3><span>{visible.length} lances</span></div><div className="event-feed">{visible.length?visible.map(event=><EventLine key={event.id} event={event}/>):<p className="match-empty">Inicie a próxima rodada para gerar os lances.</p>}</div></section><section className="match-card stats-card"><div className="match-card-title"><h3>Estatísticas da partida</h3><span>{home.abbreviation} × {away.abbreviation}</span></div><Comparison label="Posse de bola" values={stats.possession} percent/><Comparison label="Finalizações" values={stats.shots}/><Comparison label="Finalizações no gol" values={stats.onTarget}/><Comparison label="Escanteios" values={stats.corners}/><Comparison label="Faltas" values={stats.fouls}/></section><section className="match-card match-control-card"><div className="match-card-title"><h3>Destaques individuais</h3><span>Sem revelar eventos futuros</span></div><div className="player-highlights"><PlayerHighlight club={home} result={displayMatch?.events?displayMatch:null} side="home" second={displaySecond}/><PlayerHighlight club={away} result={displayMatch?.events?displayMatch:null} side="away" second={displaySecond}/></div><div className="simulation-controls"><h3>Controles da partida</h3><div className="control-row"><button onClick={()=>setPaused(value=>!value)} disabled={!activeRound||penaltyEvent||subOpen||halftimeOpen} className="pause-control">{paused?<Play size={15}/>:<Pause size={15}/>} {paused?'Continuar':'Pausar'}</button><button onClick={skipToNextEvent} disabled={!activeRound||!nextEvent||penaltyEvent||subOpen||halftimeOpen}><FastForward size={15}/> Próximo lance</button></div><div className="view-row"><button className={view==='tactical'?'active':''} onClick={()=>setView('tactical')}><Flag size={14}/> Visão tática</button><button className={view==='tv'?'active':''} onClick={()=>setView('tv')}><Monitor size={14}/> Visão TV</button><button className={view==='data'?'active':''} onClick={()=>setView('data')}><BarChart3 size={14}/> Dados</button></div><div className="live-note"><Activity size={15}/><span><strong>{activeRound?paused?'Decisão do técnico / partida pausada':'Rodada sincronizada em andamento':career.lastUserMatch?'Última rodada encerrada':'Nenhuma rodada simulada'}</strong><small>{activeRound?'Suas trocas e decisões podem alterar os eventos futuros.':'Classificação, artilharia e caixa refletem os resultados encerrados.'}</small></span></div></div></section></div>
+    <div className="match-lower-grid"><section className="match-card event-card"><div className="match-card-title"><h3>Últimos eventos</h3><span>{visible.length} lances</span></div><div className="event-feed">{visible.length?visible.map(event=><EventLine key={event.id} event={event}/>):<p className="match-empty">Inicie a próxima rodada para gerar os lances.</p>}</div></section><section className="match-card stats-card"><div className="match-card-title stats-title"><div><Activity size={17}/><h3>Estatísticas da partida</h3></div><span>{home.abbreviation} × {away.abbreviation}</span></div><Comparison Icon={Gauge} label="Posse de bola" values={stats.possession} percent/><Comparison Icon={Target} label="Finalizações" values={stats.shots}/><Comparison Icon={Target} label="Finalizações no gol" values={stats.onTarget}/><Comparison Icon={Flag} label="Escanteios" values={stats.corners}/><Comparison Icon={ShieldAlert} label="Faltas" values={stats.fouls}/></section><section className="match-card match-control-card"><div className="match-card-title"><h3>Destaques individuais</h3><span>Sem revelar eventos futuros</span></div><div className="player-highlights"><PlayerHighlight club={home} result={displayMatch?.events?displayMatch:null} side="home" second={displaySecond}/><PlayerHighlight club={away} result={displayMatch?.events?displayMatch:null} side="away" second={displaySecond}/></div><div className="simulation-controls"><h3>Controles da partida</h3><div className="control-row"><button onClick={()=>setPaused(value=>!value)} disabled={!activeRound||penaltyEvent||subOpen||halftimeOpen} className="pause-control">{paused?<Play size={15}/>:<Pause size={15}/>} {paused?'Continuar':'Pausar'}</button><button onClick={skipToNextEvent} disabled={!activeRound||!nextEvent||penaltyEvent||subOpen||halftimeOpen}><FastForward size={15}/> Próximo lance</button></div><div className="live-note"><Activity size={15}/><span><strong>{activeRound?paused?'Partida pausada':'Rodada sincronizada em andamento':career.lastUserMatch?'Última rodada encerrada':'Nenhuma rodada simulada'}</strong><small>{activeRound?'Suas decisões podem alterar os acontecimentos da partida.':'Classificação, artilharia e caixa refletem os resultados encerrados.'}</small></span></div></div></section></div>
 
     <MatchHistory career={career} clubs={clubs} Crest={Crest}/>
-    <div className="match-footnote"><BrainCircuit size={15}/><p><strong>IA v3:</strong> os 11 escolhidos definem a força de cada setor. Condição física cai com minutos jogados; reservas chegam mais descansados; lesões e cartões geram indisponibilidade; expulsos deixam a equipe com um jogador a menos; e uma substituição tardia pode criar ou apagar acontecimentos futuros dependendo dos atributos e do contexto do placar.</p></div>
+
     {completed&&(career.trophies||[]).some(trophy=>trophy.id==='brasileirao'&&trophy.season===career.season)&&<div className="champion-banner"><Trophy size={19}/><div><strong>Campeão brasileiro {career.season}</strong><span>A taça desta temporada já foi enviada automaticamente para a sua galeria.</span></div></div>}
 
     {lineupOpen&&<LineupEditor career={career} club={club} onSave={saveLineup} onClose={()=>setLineupOpen(false)}/>}
