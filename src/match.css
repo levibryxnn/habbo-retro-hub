@@ -106,3 +106,15 @@
 .ai-plan-row{grid-column:1/-1;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin-top:4px;padding-top:9px;border-top:1px solid #e5eae1}
 .ai-plan-row span{display:flex;align-items:center;gap:6px;font-size:8px;color:#71806e}.ai-plan-row span:last-child{justify-content:flex-end;text-align:right}.ai-plan-row span b{font-size:8px;color:#415641}.ai-plan-row em{font-style:normal;font-size:7px;letter-spacing:.7px;text-transform:uppercase;color:#8d9889;background:#f1f4ee;border-radius:999px;padding:5px 7px}
 @media(max-width:760px){.ai-plan-row{grid-template-columns:1fr 1fr}.ai-plan-row em{display:none}.ai-plan-row span{font-size:9px}.ai-plan-row span b{font-size:9px}}
+
+
+/* V3.1 · estabilidade e pintura incremental */
+.live-dot.finished{background:#edf1e9;color:#6f7d6b;box-shadow:none}
+.live-round-board,.match-lower-grid,.match-history-panel,.champion-banner{
+  content-visibility:auto;
+  contain-intrinsic-size:1px 520px;
+}
+.match-history-panel{contain-intrinsic-size:1px 680px}
+@media(max-width:760px){
+  .live-round-board,.match-lower-grid,.match-history-panel,.champion-banner{contain-intrinsic-size:1px 760px}
+}
