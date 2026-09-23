@@ -100,3 +100,9 @@
 .momentum-track i,.momentum-track b{display:block;height:100%;transition:width .35s ease}.momentum-track i{background:linear-gradient(90deg,#315f43,#6f9364)}.momentum-track b{background:linear-gradient(90deg,#b9c8ae,#81917b)}
 .momentum-note{font-size:8px;line-height:1.4;color:#8a9685;max-width:210px}
 @media(max-width:760px){.match-momentum-panel{grid-template-columns:1fr;padding:11px 12px;gap:9px}.momentum-copy span small{font-size:8px}.momentum-copy span strong{font-size:11px}.momentum-note{max-width:none;font-size:9px}.momentum-teams>span{font-size:11px}}
+
+
+/* V3 · leitura tática da CPU */
+.ai-plan-row{grid-column:1/-1;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin-top:4px;padding-top:9px;border-top:1px solid #e5eae1}
+.ai-plan-row span{display:flex;align-items:center;gap:6px;font-size:8px;color:#71806e}.ai-plan-row span:last-child{justify-content:flex-end;text-align:right}.ai-plan-row span b{font-size:8px;color:#415641}.ai-plan-row em{font-style:normal;font-size:7px;letter-spacing:.7px;text-transform:uppercase;color:#8d9889;background:#f1f4ee;border-radius:999px;padding:5px 7px}
+@media(max-width:760px){.ai-plan-row{grid-template-columns:1fr 1fr}.ai-plan-row em{display:none}.ai-plan-row span{font-size:9px}.ai-plan-row span b{font-size:9px}}
