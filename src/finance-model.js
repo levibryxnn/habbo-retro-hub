@@ -1,4 +1,5 @@
 import { getClubWorld, initialClubBudget } from './club-world.js';
+import { applyConfidenceEvent } from './manager-confidence.js';
 
 export const INITIAL_CASH=20000000;
 export const slots={master:'Patrocínio máster',sleeve:'Mangas',training:'Uniforme de treino'};
@@ -63,9 +64,15 @@ export function signSponsor(career,offerId,club,standing=[]){
   const contract={offerId,signedRound:career.round||0,active:true,totalReceived:0,paidRounds:[]};let next={...career,sponsors:[...(career.sponsors||[]),contract]};
   const immediate=(offer.payment.signingBonus||0)+(offer.payment.type==='upfront'?offer.payment.amount:0);
   if(immediate>0){next=addTransaction(next,immediate,offer.name+' · assinatura',career.round||0,'sponsor');next={...next,sponsors:next.sponsors.map(item=>item.offerId===offerId&&item.signedRound===contract.signedRound?{...item,totalReceived:immediate}:item)};}
+  next=applyConfidenceEvent(next,{board:Math.min(4,1+(offer.tier||1)*.8),kind:'finance',reason:'A diretoria aprovou o acordo comercial com '+offer.name+'.'});
   return{career:next,error:null};
 }
-export const endSponsor=(career,offerId)=>({...career,sponsors:(career.sponsors||[]).map(contract=>contract.offerId===offerId&&contract.active!==false?{...contract,active:false,endedRound:career.round}:contract)});
+export function endSponsor(career,offerId){
+  const active=activeContracts(career).find(item=>item.offerId===offerId),early=(career.round||0)<30;
+  let next={...career,sponsors:(career.sponsors||[]).map(contract=>contract.offerId===offerId&&contract.active!==false?{...contract,active:false,endedRound:career.round}:contract)};
+  if(active)next=applyConfidenceEvent(next,{board:early?-3:-1,kind:'finance',reason:'O encerramento do contrato com '+active.offer.name+' reduziu a confiança comercial da diretoria.'});
+  return next;
+}
 export function applySponsorPayments(career,round,userResult){
   let next=career;
   for(const view of activeContracts(next)){
