@@ -625,8 +625,9 @@ function finalizeSeason(career,clubs){
   }
   const titles=(next.trophies||[]).filter(item=>Number(item.season)===Number(next.season));
   const confidence=sanitizeManagerConfidence(next.managerConfidence);
+  const seasonStillActive=pendingSeasonFixtures(next,clubs).length>0;
   next={...next,seasonReview:{
-    pending:true,season:next.season,position:userRow?.position||20,points:userRow?.points||0,wins:userRow?.wins||0,draws:userRow?.draws||0,losses:userRow?.losses||0,
+    pending:!seasonStillActive,waiting:seasonStillActive,season:next.season,position:userRow?.position||20,points:userRow?.points||0,wins:userRow?.wins||0,draws:userRow?.draws||0,losses:userRow?.losses||0,
     goalsFor:userRow?.goalsFor||0,goalsAgainst:userRow?.goalsAgainst||0,goalDifference:userRow?.goalDifference||0,
     topScorer:clubTopScorer(next),bestPlayer:seasonBestPerformer(next),titles,
     fanConfidence:confidence.fans,boardConfidence:confidence.board,cash:next.cash,openingCash:next.openingCash,finalTable:table.map(row=>({...row})),
