@@ -163,3 +163,58 @@ export function effectivePlayerRating(player,career,clubId,minute,isSubstitute){
   const fatigue=isSubstitute?Math.max(0,(minute-1)*.08):Math.max(0,(minute-55)*.22);
   return stats.overall*(.7+condition/100*.3)-fatigue;
 }
+
+
+function playerParticipation(result,side,playerId,second){
+  const id=String(playerId),start=(side==='home'?result?.homeLineup:result?.awayLineup)||[];
+  const started=start.map(String).includes(id);
+  const subs=(result?.substitutions||[]).filter(s=>s.side===side&&s.second<=second);
+  const entered=subs.find(s=>String(s.inPlayerId)===id);
+  const left=subs.find(s=>String(s.outPlayerId)===id);
+  const red=(result?.events||[]).find(e=>e.side===side&&e.type==='red'&&String(e.playerId)===id&&e.second<=second);
+  if(!started&&!entered)return 0;
+  const from=started?0:entered.second;
+  const to=Math.min(second,left?.second??red?.second??second);
+  return Math.max(0,to-from);
+}
+
+export function matchPlayerPerformances(club,result,side,second){
+  if(!club||!result)return[];
+  const end=Math.min(Number(second)||0,result.durationSecond||90*60);
+  const events=(result.events||[]).filter(e=>e.side===side&&e.second<=end);
+  const ids=new Set((side==='home'?(result.homeLineup||[]):(result.awayLineup||[])).map(String));
+  for(const sub of result.substitutions||[])if(sub.side===side&&sub.second<=end)ids.add(String(sub.inPlayerId));
+  for(const event of events){if(event.playerId)ids.add(String(event.playerId));if(event.assistPlayerId)ids.add(String(event.assistPlayerId));}
+  const homeSide=side==='home',gf=homeSide?result.homeGoals:result.awayGoals,ga=homeSide?result.awayGoals:result.homeGoals;
+  const finished=end>=(result.durationSecond||90*60),outcome=gf>ga?'win':gf<ga?'loss':'draw';
+  const rows=[];
+  for(const id of ids){
+    const player=club.players.find(p=>String(p.id)===id);if(!player)continue;
+    const participation=playerParticipation(result,side,id,end);
+    if(participation<=0)continue;
+    const group=positionGroup(player.position),stats=playerGameStats(player);
+    const own=events.filter(e=>String(e.playerId)===id),assists=events.filter(e=>e.type==='goal'&&String(e.assistPlayerId)===id).length;
+    const goals=own.filter(e=>e.type==='goal').length,shots=own.filter(e=>e.type==='shot').length,bigMisses=own.filter(e=>e.type==='big-chance').length;
+    const yellows=own.filter(e=>e.type==='yellow').length,reds=own.filter(e=>e.type==='red').length,fouls=own.filter(e=>e.type==='foul').length,penaltyMisses=own.filter(e=>e.type==='penalty-miss').length;
+    const impactGoals=own.filter(e=>e.type==='goal'&&e.substitutionImpact).length;
+    const goalWeight=group==='GOL'?2.1:group==='DEF'?1.75:group==='MEI'?1.5:1.32;
+    const assistWeight=group==='DEF'?.95:group==='MEI'?.88:.72;
+    let rating=6.15+(stats.overall-70)*.012;
+    rating+=goals*goalWeight+assists*assistWeight+shots*.10-bigMisses*.24-fouls*.07-yellows*.28-reds*1.45-penaltyMisses*.8+impactGoals*.18;
+    if(finished)rating+=outcome==='win'?.22:outcome==='draw'?.05:-.14;
+    if(finished&&ga===0&&(group==='GOL'||group==='DEF'))rating+=group==='GOL'?.65:.45;
+    if(finished&&ga>0&&(group==='GOL'||group==='DEF'))rating-=Math.min(.7,ga*(group==='GOL'?.12:.08));
+    const minuteShare=Math.min(1,participation/Math.max(1,end));
+    if(minuteShare<.22&&!goals&&!assists)rating-=.18;
+    rows.push({
+      playerId:id,name:player.name,position:player.position,countryCode:player.countryCode,
+      rating:Number(clamp(0,10,rating).toFixed(1)),goals,assists,shots,bigMisses,yellows,reds,fouls,
+      minutes:Math.round(participation/60),impactGoals,
+    });
+  }
+  return rows.sort((a,b)=>b.rating-a.rating||b.goals-a.goals||b.assists-a.assists||a.name.localeCompare(b.name,'pt-BR'));
+}
+
+export function bestMatchPlayer(club,result,side,second){
+  return matchPlayerPerformances(club,result,side,second)[0]||null;
+}
