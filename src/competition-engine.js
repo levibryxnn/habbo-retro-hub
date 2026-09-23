@@ -465,6 +465,36 @@ export function playNextWorldFixture(career,serieAClubs){
   next={...next,world};
   return result?applyUserWorldOutcome(next,before,game,comp,result,serieAClubs):next;
 }
+export function unifiedUserMatchHistory(career){
+  const userId=String(career.userClubId),league=(career.history||[]).map(item=>({
+    ...item,
+    id:'br-'+item.id,
+    competitionId:'brasileirao',
+    competition:item.competition||'Brasileirão Série A',
+    stage:'Rodada '+item.roundNumber,
+    date:item.date||brasileiraoDateForRound(item.roundNumber,item.season),
+    season:item.season||career.season,
+    source:'league',
+  }));
+  const world=(career.world?.history||[]).filter(item=>String(item.homeId)===userId||String(item.awayId)===userId).map(item=>{
+    const home=String(item.homeId)===userId,gf=home?item.homeGoals:item.awayGoals,ga=home?item.awayGoals:item.homeGoals,points=gf>ga?3:gf===ga?1:0;
+    return{
+      id:'world-'+item.id,
+      season:Number(String(item.date||career.season).slice(0,4))||career.season,
+      roundNumber:null,
+      competitionId:item.competitionId,
+      competition:item.competitionName||item.competitionId||'Competição',
+      stage:item.stage||'Partida',
+      date:item.date||'',
+      homeId:item.homeId,awayId:item.awayId,homeGoals:item.homeGoals,awayGoals:item.awayGoals,
+      simulationMode:item.simulationMode||null,points,result:points===3?'Vitória':points===1?'Empate':'Derrota',source:'world',
+    };
+  });
+  return[...league,...world].sort((a,b)=>{
+    const ad=a.date||'',bd=b.date||'';if(ad!==bd)return bd.localeCompare(ad);
+    return Number(b.season||0)-Number(a.season||0)||Number(b.roundNumber||0)-Number(a.roundNumber||0);
+  });
+}
 export function worldCompetitionList(career,serieAClubs){
   const world=sanitizeWorldState(career.world,career,serieAClubs);
   return Object.values(world.competitions).sort((a,b)=>a.type.localeCompare(b.type)||a.name.localeCompare(b.name));
