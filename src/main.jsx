@@ -212,7 +212,7 @@ function App() {
     setCareers(next);setSaved(clubId);setSelected(clubId);setLandingOpen(false);setClubBrowserOpen(false);setMobileSquad(true);setTab('central');
     try{localStorage.setItem('ldf.club',clubId);localStorage.setItem(CAREER_KEY,JSON.stringify(next));setCareerStorageError(false);}catch{setCareerStorageError(true);}
   }
-  if(landingOpen)return <LandingScreen onPlay={()=>setLandingOpen(false)}/>;
+  if(landingOpen)return <LandingScreen onPlay={()=>setLandingOpen(false)} onImport={importCareerPayload}/>;
   if(clubBrowserOpen){
     return <div className="app-shell selector-only" style={clubThemeStyle(club.id)}>
     <section className="club-selector-overlay" aria-label="Seletor de clubes">
@@ -266,7 +266,7 @@ function App() {
           {tab==='competitions'&&<CompetitionHub career={career} clubs={careerClubs} onCareerChange={saveCareer} onNavigate={setTab}/>}
           <div hidden={tab!=='match'}><MatchSimulation key={club.id} isVisible={tab==='match'} club={club} clubs={careerClubs} Crest={Crest} career={career} onCareerChange={saveCareer} canManage={managerCanManage} onChoose={openClubSetup} onNavigate={setTab}/></div> {tab==='standings'&&<LeagueTable clubs={careerClubs} focusClubId={club.id} Crest={Crest} career={career}/>} {tab==='transfers'&&<TransferMarket career={career} onCareerChange={saveCareer} club={club} clubs={careerClubs} baseClubs={data.clubs} Crest={Crest} canManage={managerCanManage}/>} {(tab==='trophies'||tab==='sponsors')&&<Management key={club.id+'-'+tab} club={club} tab={tab} career={career} onCareerChange={saveCareer} canManage={managerCanManage} onChoose={openClubSetup} Modal={Modal} storageError={careerStorageError} standings={careerStandings}/>} {tab==='legacy'&&<Legacy club={club} clubs={careerClubs} career={career}/>}
         </section>
-      </div><footer className="page-footer"><span>LINHA DE FRENTE <b>/</b> O futebol começa nas suas decisões.</span><span>V4 RC <span className="footer-dot">·</span> 2026</span></footer>
+      </div><footer className="page-footer"><span>LINHA DE FRENTE <b>/</b> O futebol começa nas suas decisões.</span><span>1.0 RC <span className="footer-dot">·</span> 2026</span></footer>
     </main>
     {careerActive&&managerDismissed&&<Modal title="Decisão da diretoria" onClose={()=>{}}><span className="modal-icon"><Shield/></span><div className="eyebrow">FIM DE CICLO</div><h2>A diretoria encerrou o seu trabalho.</h2><p>{career.dismissal?.reason||'A confiança da diretoria caiu a um nível crítico por várias rodadas consecutivas.'}</p><div className="next-step"><strong>Confiança final da diretoria: {Math.round(career.managerConfidence?.board||0)}%</strong><p>O save permanece registrado no clube, mas esta passagem chegou ao fim. Você pode escolher outro projeto ou recomeçar neste clube com uma nova carreira.</p></div><button className="primary manager-confirm" onClick={leaveDismissedClub}>Voltar ao seletor de clubes <ArrowRight size={18}/></button></Modal>}
     {careerActive&&pendingRetirement&&<RetirementModal retirement={pendingRetirement} onClose={()=>saveCareer({...career,pendingRetirements:(career.pendingRetirements||[]).slice(1)})}/>}
