@@ -25,3 +25,32 @@ export function saveFileName(career,club){
   const safe=String(club?.name||'clube').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'').toLowerCase();
   return 'linha-de-frente-'+safe+'-'+String(career?.season||'save')+'.ldf';
 }
+
+export const MANUAL_SAVE_SLOT_COUNT=2;
+const manualSlotKey=slot=>'ldf.manualSave.v1.'+Number(slot);
+function saveStorage(storage){
+  const target=storage??globalThis?.localStorage;
+  if(!target)throw new Error('Armazenamento local indisponível neste navegador.');
+  return target;
+}
+export function listManualSaveSlots(storage){
+  const target=saveStorage(storage),slots=[];
+  for(let slot=1;slot<=MANUAL_SAVE_SLOT_COUNT;slot++){
+    const raw=target.getItem(manualSlotKey(slot));if(!raw){slots.push({slot,empty:true});continue;}
+    try{
+      const payload=parseCareerSave(raw);
+      slots.push({slot,empty:false,savedAt:payload.exportedAt||null,club:payload.club,season:payload.career?.season||null,managerName:payload.career?.managerName||'',payload});
+    }catch{slots.push({slot,empty:true,corrupt:true});}
+  }
+  return slots;
+}
+export function writeManualSaveSlot(slot,career,club,storage){
+  if(slot<1||slot>MANUAL_SAVE_SLOT_COUNT)throw new Error('Slot de save inválido.');
+  const target=saveStorage(storage),payload=buildSavePayload(career,club),raw=JSON.stringify(payload);
+  try{target.setItem(manualSlotKey(slot),raw);}catch{throw new Error('Não há espaço suficiente para este save local. Exporte um arquivo .ldf para manter um backup seguro.');}
+  return{slot,empty:false,savedAt:payload.exportedAt,club:payload.club,season:payload.career?.season||null,managerName:payload.career?.managerName||'',payload};
+}
+export function deleteManualSaveSlot(slot,storage){
+  if(slot<1||slot>MANUAL_SAVE_SLOT_COUNT)return;
+  saveStorage(storage).removeItem(manualSlotKey(slot));
+}
