@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { createCareer, simulateRound, standingsFromResults, topScorers } from '../src/career-engine.js';
+import { createCareer, simulateRound, standingsFromResults, startNextSeason, topScorers } from '../src/career-engine.js';
 
 const data=JSON.parse(fs.readFileSync(new URL('../src/data/serie-a-2026.json',import.meta.url),'utf8'));
 const clubs=data.clubs;
@@ -47,4 +47,13 @@ test('serialized save stays compact after a full season', function(){
   assert.ok(bytes<900000,'expected compact save below 900 KB, got '+bytes+' bytes');
   assert.ok(career.results.every(result=>!('events' in result)&&!('stats' in result)&&!('homeLineup' in result)));
   assert.ok(career.seasonReview.bestPlayer===null||career.seasonReview.bestPlayer.averageRating>0);
+  const next=startNextSeason(career,clubs);
+  assert.equal(next.season,2027);
+  assert.equal(next.round,0);
+  assert.equal(next.seasonReview,null);
+  assert.ok(next.youthAcademy?.prospects?.length>=4);
+  assert.equal(next.youthAcademy.lastIntakeSeason,2027);
+  assert.ok(next.transferBudget>0);
+  assert.ok(next.careerRecord.matches>=38);
+  assert.ok(next.newsFeed.some(item=>item.id==='news-preseason-2027'));
 });
