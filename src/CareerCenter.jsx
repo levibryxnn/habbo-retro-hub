@@ -50,7 +50,7 @@ export default function CareerCenter({career,club,clubs,Crest,onCareerChange,onI
   function promote(id){onCareerChange(promoteAcademyProspect(career,club,id));}
   function press(choice){onCareerChange(resolvePressConference(career,choice));}
   return <div className="career-center">
-    <header className="center-heading"><div><span className="eyebrow">BASTIDORES DA CARREIRA</span><h2>Central do clube</h2><p>O que acontece no campo, no mercado e no vestiário deixa consequências no seu universo.</p></div><span className="center-reputation">Reputação <strong>{summary.reputation}</strong></span></header>
+    <header className="center-heading"><div><span className="eyebrow">BASTIDORES DA CARREIRA</span><h2>Bastidores</h2><p>O que acontece no campo, no mercado e no vestiário deixa consequências no seu universo.</p></div><span className="center-reputation">Reputação <strong>{summary.reputation}</strong></span></header>
     <nav className="center-tabs">{tabs.map(([id,label,Icon])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}><Icon size={15}/>{label}</button>)}</nav>
 
     {career.pressConference&&<section className="press-card"><div><span className="eyebrow">IMPRENSA</span><h3>Uma resposta pode mudar o ambiente.</h3><p>{career.pressConference.reason==='clássico'?'A rivalidade elevou o tom antes do próximo capítulo.':career.pressConference.reason==='decisão'?'A decisão aumentou a pressão externa.':'A sequência recente colocou o trabalho em debate.'}</p></div><div className="press-choices">{career.pressConference.choices.map(choice=><button key={choice.id} onClick={()=>press(choice.id)}><strong>{choice.label}</strong><span>{choice.copy}</span></button>)}</div></section>}
