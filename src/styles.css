@@ -226,3 +226,8 @@
 /* V4 RC · progression feedback */
 .roster-overall{display:inline-grid;place-items:center;min-width:31px;height:25px;padding:0 6px;border-radius:6px;background:#eef4e9;color:#36583d;font-family:'Barlow Condensed',sans-serif;font-size:15px}
 .career-next-label{display:block;font-size:7px!important;letter-spacing:.5px;text-transform:uppercase;color:#85917e;font-weight:700}
+
+
+/* Release candidate · identidade do treinador */
+.manager-profile-picker{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:12px 0 14px}.manager-profile-picker button{border:1px solid #e0e6dc;border-radius:8px;background:#f9faf7;color:#536351;text-align:left;padding:9px 10px;min-height:58px}.manager-profile-picker button strong,.manager-profile-picker button span{display:block}.manager-profile-picker button strong{font-size:9px;color:#3d553f}.manager-profile-picker button span{font-size:7px;line-height:1.45;color:#899484;margin-top:3px}.manager-profile-picker button.selected{border-color:#79996a;background:#edf5e9;box-shadow:inset 0 0 0 1px #79996a26}.manager-profile-picker button.selected strong{color:#315f43}
+@media(max-width:560px){.manager-profile-picker{grid-template-columns:1fr}.manager-profile-picker button span{font-size:8px}}
