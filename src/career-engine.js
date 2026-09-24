@@ -751,12 +751,11 @@ export function simulateRound(career,clubs){
 export function startNextSeason(career,clubs){
   if(career.pendingRound||career.pendingWorldMatch||career.round<career.schedule.length)return career;
   if(pendingSeasonFixtures(career,clubs).length)return career;
-  const newSeason=career.season+1,developed=advancePlayerLifecycle(career,clubs,newSeason);
-  const cleanStatus={};for(const[key,value]of Object.entries(developed.playerStatus||{}))cleanStatus[key]={...value,yellowCount:0,suspensionThroughRound:0,injuryThroughRound:0,injuryLabel:null};
-  let next={...developed,season:newSeason,round:0,schedule:buildSchedule(clubs),results:[],scorers:{},seasonPerformance:{},lastRoundResults:[],lastUserMatch:null,pendingRound:null,pendingWorldMatch:null,playerStatus:cleanStatus,conditions:defaultConditions(clubs),sponsors:(developed.sponsors||[]).map(contract=>({...contract,active:false})),openingCash:developed.cash,seasonReview:null,pendingCelebration:null,boardPressureStreak:0,boardWarning:null,managerStatus:'active',dismissal:null};
-  next.world=rollWorldToNextSeason(developed,clubs,newSeason);
-  const userClub=clubs.find(c=>c.id===next.userClubId);
-  if(userClub)next=applySeasonDynamics(next,userClub);
+  const newSeason=career.season+1,developed=advancePlayerLifecycle(career,clubs,newSeason),userClub=clubs.find(c=>c.id===career.userClubId);
+  const transitioned=userClub?applySeasonDynamics({...developed,season:newSeason},userClub,career.seasonReview):{...developed,season:newSeason};
+  const cleanStatus={};for(const[key,value]of Object.entries(transitioned.playerStatus||{}))cleanStatus[key]={...value,yellowCount:0,suspensionThroughRound:0,injuryThroughRound:0,injuryLabel:null};
+  let next={...transitioned,round:0,schedule:buildSchedule(clubs),results:[],scorers:{},seasonPerformance:{},lastRoundResults:[],lastUserMatch:null,pendingRound:null,pendingWorldMatch:null,playerStatus:cleanStatus,conditions:defaultConditions(clubs),sponsors:(transitioned.sponsors||[]).map(contract=>({...contract,active:false})),openingCash:transitioned.cash,seasonReview:null,pendingCelebration:null,boardPressureStreak:0,boardWarning:null,managerStatus:'active',dismissal:null};
+  next.world=rollWorldToNextSeason(transitioned,clubs,newSeason);
   return userClub?{...next,lineup:autoLineup(userClub,next,1)}:next;
 }
 export function addWorldTitle(career,clubName){
