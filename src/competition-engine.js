@@ -382,12 +382,19 @@ function playFixture(world,career,serieAClubs,compKey,fixtureId){
   return commitFixtureResult(world,compKey,fixtureId,result);
 }
 export function syncWorldToDate(career,serieAClubs,date){
-  let world=sanitizeWorldState(career.world,career,serieAClubs),guard=0;
+  let world=sanitizeWorldState(career.world,career,serieAClubs),guard=0,notes=[...(career.universeNotes||[])];
   while(guard++<1500){
     const due=Object.entries(world.competitions).flatMap(([key,comp])=>comp.fixtures.filter(game=>!game.played&&dateValue(game.date)<=dateValue(date)&&game.homeId!==String(career.userClubId)&&game.awayId!==String(career.userClubId)).map(game=>({key,game}))).sort((a,b)=>dateValue(a.game.date)-dateValue(b.game.date))[0];
-    if(!due)break;world=playFixture(world,career,serieAClubs,due.key,due.game.id);
+    if(!due)break;
+    const before=world.competitions[due.key],previousChampion=before?.championId||null;
+    world=playFixture(world,career,serieAClubs,due.key,due.game.id);
+    const after=world.competitions[due.key],championId=after?.championId||null;
+    if(championId&&!previousChampion){
+      const champion=world.clubRegistry?.[championId]||worldClubById(championId),id='universe-title-'+after.key;
+      if(!notes.some(item=>item.id===id))notes=[{id,season:after.edition,type:'world',title:(champion?.name||'Um clube')+' conquista '+after.name,text:'A competição foi encerrada no universo do save.',competition:after.name,clubId:championId,date:due.game.date},...notes].slice(0,70);
+    }
   }
-  return{...career,world};
+  return{...career,world,universeNotes:notes};
 }
 function activeUserFixture(world,userClubId){
   return Object.entries(world.competitions).flatMap(([key,comp])=>comp.fixtures.filter(game=>!game.played&&(game.homeId===String(userClubId)||game.awayId===String(userClubId))).map(game=>({key,comp,game}))).sort((a,b)=>dateValue(a.game.date)-dateValue(b.game.date))[0]||null;
