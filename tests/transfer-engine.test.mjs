@@ -33,22 +33,23 @@ test('market values use the configured real-world squad reference scale',functio
   assert.ok(playerMarketValueEUR(any,corinthians).value>0);
 });
 
-test('accepted purchase changes player ownership and subtracts transfer fee from user cash',function(){
-  const buyer=club('2026');
+test('accepted purchase changes ownership and spends both cash and transfer budget',function(){
+  const buyer=club('819');
   const seller=club('9318');
-  const player=seller.players[0];
+  const player=seller.players.slice().sort((a,b)=>playerMarketValueEUR(a,seller).value-playerMarketValueEUR(b,seller).value)[0];
   let career=createCareer(clubs,buyer.id);
-  career={...career,cash:500000000};
+  career={...career,cash:500000000,transferBudget:300000000,managerReputation:100};
   const key=playerKey(seller.id,player.id);
   const preset=negotiationPreset(player,seller,buyer);
-  const offer={type:'buy',playerKey:key,fromClubId:seller.id,toClubId:buyer.id,amount:Math.max(preset.market*3,150000000)};
+  const offer={type:'buy',playerKey:key,fromClubId:seller.id,toClubId:buyer.id,amount:Math.round(preset.market*1.6/100000)*100000};
   const evaluation=evaluateTransferOffer(career,clubs,offer);
   assert.equal(evaluation.status,'accepted');
-  const before=career.cash;
+  const beforeCash=career.cash,beforeBudget=career.transferBudget;
   const done=executeTransfer(career,clubs,offer,evaluation);
   assert.equal(done.error,null);
   assert.equal(done.career.ownership[key],buyer.id);
-  assert.ok(done.career.cash<before);
+  assert.ok(done.career.cash<beforeCash);
+  assert.ok(done.career.transferBudget<beforeBudget);
   const dynamic=applyCareerRoster(clubs,done.career);
   assert.ok(dynamic.find(c=>c.id===buyer.id).players.some(p=>p._playerKey===key));
   assert.ok(!dynamic.find(c=>c.id===seller.id).players.some(p=>p._playerKey===key));
