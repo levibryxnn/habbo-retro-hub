@@ -15,7 +15,7 @@ const trophy=fs.readFileSync(new URL('../src/Trophy3D.jsx',import.meta.url),'utf
 const worldCrest=fs.readFileSync(new URL('../src/WorldCrest.jsx',import.meta.url),'utf8');
 
 test('every career area is present in navigation and has a renderer', function(){
-  const tabs=['dashboard','competitions','match','roster','standings','transfers','trophies','sponsors','legacy'];
+  const tabs=['dashboard','central','competitions','match','roster','standings','transfers','trophies','sponsors','legacy'];
   for(const tab of tabs){
     assert.ok(main.includes("['"+tab+"'"),tab+' is missing from navigation');
     if(tab==='roster'||tab==='match') assert.ok(main.includes("hidden={tab!=='"+tab+"'}"),tab+' persistent renderer is missing');
@@ -83,7 +83,7 @@ test('club-specific colors are scoped to the club hero rather than the whole int
 test('V3 asks for a manager name when taking control of a club', function(){
   assert.ok(main.includes("Nome do técnico"));
   assert.ok(main.includes("managerName"));
-  assert.ok(main.includes("V4 RC"));
+  assert.ok(main.includes("1.0 RC"));
   assert.ok(!main.includes("Protótipo de gestão"));
   assert.ok(!main.includes("ETAPA 2 ·"));
 });
@@ -112,17 +112,18 @@ test('manager dashboard surfaces the next match finances objective form and quic
   assert.ok(dashboard.includes("CENTRO DE COMANDO"));
   assert.ok(dashboard.includes("PRÓXIMO COMPROMISSO"));
   assert.ok(dashboard.includes("Objetivo da temporada"));
-  assert.ok(dashboard.includes("Caixa"));
+  assert.ok(dashboard.includes("Mercado"));
   assert.ok(dashboard.includes("Últimos jogos"));
   assert.ok(dashboard.includes("Artilheiro do clube"));
   assert.ok(dashboard.includes("Decisões do técnico"));
 });
 
 
-test('app always boots into the canonical club selector even when a career is saved', function(){
+test('app boots into the launch screen and then the canonical club selector', function(){
   assert.ok(main.includes("const [tab,setTab]=useState('dashboard')"));
   assert.ok(main.includes("const [clubBrowserOpen,setClubBrowserOpen]=useState(true)"));
   assert.ok(main.includes("const [selected,setSelected]=useState(()=>data.clubs[0]?.id||'2029')"));
+  assert.ok(main.includes("if(landingOpen)return <LandingScreen"));
   assert.ok(main.includes("if(clubBrowserOpen){"));
   assert.ok(main.includes('<section className="club-selector-overlay" aria-label="Seletor de clubes">'));
   assert.ok(main.includes('Qual história você quer conhecer?'));
@@ -133,10 +134,11 @@ test('app always boots into the canonical club selector even when a career is sa
 });
 
 
-test('V3 exposes confidence, adaptive AI and season review in the primary UI', function(){
+test('release UI exposes confidence tactical reading and season review', function(){
   assert.ok(dashboard.includes('CONFIANÇA DA TORCIDA'));
   assert.ok(dashboard.includes('CONFIANÇA DA DIRETORIA'));
-  assert.ok(match.includes('IA adaptativa'));
+  assert.ok(match.includes('Leitura tática'));
+  assert.ok(!match.includes('IA adaptativa'));
   assert.ok(main.includes('<SeasonReviewModal'));
   assert.ok(management.includes('<Trophy3D'));
 });
@@ -206,4 +208,23 @@ test('world pre-match screen exposes decision context before kickoff', function(
   assert.ok(match.includes("TORCIDA"));
   assert.ok(match.includes("DIRETORIA"));
   assert.ok(match.includes("FORÇA PROJETADA"));
+});
+
+
+test('release candidate exposes landing central portable saves and manager identity', function(){
+  assert.ok(main.includes("<LandingScreen"));
+  assert.ok(main.includes("['central','Central'"));
+  assert.ok(main.includes("<CareerCenter"));
+  assert.ok(main.includes("MANAGER_PROFILES"));
+  assert.ok(main.includes("managerProfileInput"));
+  assert.ok(main.includes("onImport={importCareerPayload}"));
+});
+
+test('transfer UI separates market budget wage room and operating cash', function(){
+  assert.ok(transfer.includes("Orçamento de transferências"));
+  assert.ok(transfer.includes("Espaço salarial para reforços"));
+  assert.ok(transfer.includes("Caixa operacional"));
+  assert.ok(transfer.includes("scoutRange"));
+  assert.ok(transfer.includes("Observar"));
+  assert.ok(!transfer.includes("ai-response"));
 });
