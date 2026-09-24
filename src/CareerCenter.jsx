@@ -1,16 +1,17 @@
 import React,{useMemo,useRef,useState}from'react';
-import { Archive, ArrowRight, BookOpen, Download, FileUp, Landmark, Newspaper, ShieldCheck, Sparkles, Trophy, Users } from 'lucide-react';
+import { Archive, ArrowRight, BookOpen, Download, FileUp, Landmark, Newspaper, Save, ShieldCheck, Sparkles, Trash2, Trophy, Users } from 'lucide-react';
 import { careerNews, difficultyProfile, dynamicRivalries, managerCareerSummary, managerProfile, promoteAcademyProspect, resolvePressConference } from './career-dynamics.js';
 import { financeHealth } from './economy-engine.js';
 import { worldClub, worldCompetitionList } from './competition-engine.js';
-import { parseCareerSave, saveFileName, serializeCareerSave } from './save-format.js';
+import { deleteManualSaveSlot, listManualSaveSlots, parseCareerSave, saveFileName, serializeCareerSave, writeManualSaveSlot } from './save-format.js';
 import WorldCrest from './WorldCrest.jsx';
 import './career-center.css';
 
 const money=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
 
 function SavePanel({career,club,onImportCareer}){
-  const input=useRef(null),[notice,setNotice]=useState('');
+  const input=useRef(null),[notice,setNotice]=useState(''),[slots,setSlots]=useState(()=>{try{return listManualSaveSlots();}catch{return[];}});
+  const refresh=()=>{try{setSlots(listManualSaveSlots());}catch{setSlots([]);}};
   function download(){
     try{
       const blob=new Blob([serializeCareerSave(career,club)],{type:'application/json;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');
@@ -23,10 +24,21 @@ function SavePanel({career,club,onImportCareer}){
     catch(error){setNotice(error?.message||'Não foi possível carregar este save.');}
     if(input.current)input.current.value='';
   }
+  function saveSlot(slot){
+    try{writeManualSaveSlot(slot,career,club);refresh();setNotice('Slot '+slot+' atualizado. O autosave continua funcionando normalmente.');}
+    catch(error){setNotice(error?.message||'Não foi possível salvar neste slot.');}
+  }
+  async function loadSlot(item){
+    if(item.empty||!item.payload)return;
+    try{await onImportCareer?.(item.payload);setNotice('Slot '+item.slot+' carregado.');}
+    catch(error){setNotice(error?.message||'Não foi possível carregar este slot.');}
+  }
+  function removeSlot(slot){try{deleteManualSaveSlot(slot);refresh();setNotice('Slot '+slot+' apagado.');}catch{setNotice('Não foi possível apagar este slot.');}}
   return <section className="center-save">
-    <div className="center-section-head"><div><Archive size={18}/><span><small>BACKUP PORTÁTIL</small><strong>Seu save pertence a você</strong></span></div></div>
-    <p>O autosave continua no navegador. O arquivo <b>.ldf</b> é uma cópia pequena da carreira: você pode guardar, transferir para outro navegador e restaurar mesmo depois de limpar o histórico.</p>
-    <div className="save-actions"><button onClick={download}><Download size={16}/> Baixar save .ldf</button><button className="secondary-save" onClick={()=>input.current?.click()}><FileUp size={16}/> Carregar save</button><input ref={input} type="file" accept=".ldf,application/json" hidden onChange={e=>load(e.target.files?.[0])}/></div>
+    <div className="center-section-head"><div><Archive size={18}/><span><small>SAVES & BACKUP</small><strong>Seu save pertence a você</strong></span></div></div>
+    <p>O autosave continua no navegador. Use os slots para checkpoints rápidos e o arquivo <b>.ldf</b> como backup portátil para outro navegador ou aparelho.</p>
+    <div className="manual-save-slots">{slots.map(item=><article key={item.slot} className={item.empty?'empty':''}><div><small>SLOT {item.slot}</small><strong>{item.empty?'Vazio':item.club?.name||'Carreira salva'}</strong><span>{item.empty?'Disponível para um checkpoint':('Temporada '+item.season+(item.managerName?' · '+item.managerName:''))}</span></div><div className="manual-slot-actions"><button onClick={()=>saveSlot(item.slot)}><Save size={14}/>{item.empty?'Salvar':'Sobrescrever'}</button>{!item.empty&&<button className="slot-load" onClick={()=>loadSlot(item)}><FileUp size={14}/>Carregar</button>}{!item.empty&&<button className="slot-delete" aria-label={'Apagar slot '+item.slot} onClick={()=>removeSlot(item.slot)}><Trash2 size={14}/></button>}</div></article>)}</div>
+    <div className="save-actions"><button onClick={download}><Download size={16}/> Baixar save .ldf</button><button className="secondary-save" onClick={()=>input.current?.click()}><FileUp size={16}/> Importar .ldf</button><input ref={input} type="file" accept=".ldf,application/json" hidden onChange={e=>load(e.target.files?.[0])}/></div>
     {notice&&<span className="save-notice">{notice}</span>}
   </section>;
 }
