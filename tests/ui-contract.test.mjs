@@ -213,7 +213,7 @@ test('world pre-match screen exposes decision context before kickoff', function(
 
 test('release candidate exposes landing central portable saves and manager identity', function(){
   assert.ok(main.includes("<LandingScreen"));
-  assert.ok(main.includes("['central','Central'"));
+  assert.ok(main.includes("['central','Bastidores'"));
   assert.ok(main.includes("<CareerCenter"));
   assert.ok(main.includes("MANAGER_PROFILES"));
   assert.ok(main.includes("managerProfileInput"));
