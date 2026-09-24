@@ -136,7 +136,8 @@ function maybeFinancialEvent(career){
   else if(r>.76){amount=Math.round((900000+roll(seed+'b')*2400000)/100000)*100000;title='Receita comercial extraordinária';text='Uma ativação comercial e o bom momento geraram receita adicional.';kind='income';}
   else return career;
   const event={id:'finance-'+career.season+'-'+career.round,season:career.season,round:career.round,title,text,amount,kind};
-  return{...career,cash:Number(career.cash||0)+amount,transactions:[{id:event.id,round:career.round,amount,label:title,kind:'club-event'},...(career.transactions||[])].slice(0,140),financialEvents:[event,...(career.financialEvents||[])].slice(0,30)};
+  const next={...career,cash:Number(career.cash||0)+amount,transactions:[{id:event.id,round:career.round,amount,label:title,kind:'club-event'},...(career.transactions||[])].slice(0,140),financialEvents:[event,...(career.financialEvents||[])].slice(0,30)};
+  return addNews(next,{id:'news-'+event.id,season:career.season,round:career.round,type:'finance',importance:2,title,text:text+' Impacto no caixa: '+(amount>0?'+':'')+Math.round(amount/1000000*10)/10+' mi.',timestamp:String(career.season)+'-r'+String(career.round)});
 }
 export function applyMatchDynamics(career,club,clubs,result,{competition='Brasileirão Série A',stage=''}={}){
   if(!result||!club)return career;
@@ -230,6 +231,7 @@ export function applySeasonDynamics(career,club,previousReview=career.seasonRevi
   const academy={...(career.youthAcademy||{}),prospects:generateProspects(career,club,4+Math.floor(roll(club.id+'|'+newSeason+'intake')*3)),lastIntakeSeason:newSeason};
   const budgetCareer={...career,seasonReview:review};
   next={...next,hallOfFame:hof,presidentProfile:president,youthAcademy:academy,transferBudget:resetSeasonTransferBudget(budgetCareer),fanCredit:clamp(0,30,(career.fanCredit||0)*.88+(review.position<=4?3:review.position<=8?1:0)),managerReputation:clamp(1,100,(career.managerReputation??50)+(review.position<=4?2:review.position>=17?-2:.5))};
+  for(const retirement of next.pendingRetirements||[])next=addNews(next,{id:'news-retirement-'+retirement.id,season:newSeason,round:0,type:'retirement',importance:3,title:retirement.name+' encerra a carreira',text:'Aos '+retirement.age+' anos, o jogador deixa os gramados. '+retirement.successorName+' aparece na base como parte da nova geração.',timestamp:newSeason+'-01-01'});
   return addNews(next,{id:'news-preseason-'+newSeason,season:newSeason,round:0,type:'club',importance:2,title:'Novo ciclo começa no '+club.name,text:'Diretoria, base e elenco foram reavaliados para a temporada '+newSeason+'. O mercado e as metas refletem o que aconteceu no ano anterior.',timestamp:newSeason+'-01-01'});
 }
 export function managerCareerSummary(career){
