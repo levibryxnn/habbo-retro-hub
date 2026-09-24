@@ -1,5 +1,6 @@
 import { playerGameStats } from './player-engine.js';
 import { applyConfidenceEvent } from './manager-confidence.js';
+import { applyMatchDynamics, applyTitleDynamics, managerMatchModifier } from './career-dynamics.js';
 import {
   COPA_DO_BRASIL_QUALIFIERS,
   LIBERTADORES_GROUPS_2026,
@@ -360,8 +361,8 @@ function poisson(lambda,seed){
   const L=Math.exp(-lambda);let p=1,k=0;while(p>L&&k<8){k++;p*=Math.max(.001,roll(seed+'|'+k));}return Math.max(0,k-1);
 }
 function simulateScore(world,career,serieAClubs,game){
-  const hp=powerFor(world,serieAClubs,game.homeId,career),ap=powerFor(world,serieAClubs,game.awayId,career),edge=(hp-ap)/16,homeAdv=game.neutral?0:.18;
-  const hg=poisson(clamp(.2,3.7,1.28+edge+homeAdv),game.id+'|h'),ag=poisson(clamp(.2,3.4,1.08-edge),game.id+'|a');
+  const hp=powerFor(world,serieAClubs,game.homeId,career),ap=powerFor(world,serieAClubs,game.awayId,career),edge=(hp-ap)/16,homeAdv=game.neutral?0:.18,managerEdge=managerMatchModifier(career),homeManager=String(game.homeId)===String(career.userClubId)?managerEdge:0,awayManager=String(game.awayId)===String(career.userClubId)?managerEdge:0;
+  const hg=poisson(clamp(.2,3.7,1.28+edge+homeAdv+homeManager-awayManager*.35),game.id+'|h'),ag=poisson(clamp(.2,3.4,1.08-edge+awayManager-homeManager*.35),game.id+'|a');
   return{homeGoals:hg,awayGoals:ag,homePower:Number(hp.toFixed(1)),awayPower:Number(ap.toFixed(1))};
 }
 function updateRatings(world,result){
@@ -408,10 +409,12 @@ function applyUserWorldOutcome(next,before,game,comp,result,serieAClubs){
   const home=result.homeId===String(next.userClubId),gf=home?result.homeGoals:result.awayGoals,ga=home?result.awayGoals:result.homeGoals,won=gf>ga,draw=gf===ga,importance=competitionImportance(comp.id);
   next={...next,world:{...next.world,lastUserMatch:result}};
   next=applyConfidenceEvent(next,{fans:(won?2.8:draw?.2:-3.4)*importance,board:(won?.9:draw?.1:-1.1)*importance,kind:'competition',reason:comp.name+' · '+game.stage+': '+(won?'vitória':draw?'empate':'derrota')+' por '+gf+' a '+ga+'.'});
+  const userClub=serieAClubs.find(c=>String(c.id)===String(next.userClubId));if(userClub)next=applyMatchDynamics(next,userClub,serieAClubs,result,{competition:comp.name,stage:game.stage});
   const trophy=trophyFor(comp),userNowChampion=comp.championId===String(next.userClubId),already=(next.trophies||[]).some(t=>t.id===trophy.id&&Number(t.season)===Number(comp.edition));
   if(userNowChampion&&!already){
     next={...next,trophies:[...(next.trophies||[]),trophy],pendingCelebration:{id:'celebration-'+comp.key,type:'trophy',trophy},messages:[{id:'title-'+comp.key,type:'title',title:'Campeão: '+comp.name,text:'Seu trabalho terminou com taça. '+comp.name+' foi adicionada à galeria.'},...(next.messages||[])]};
     next=applyConfidenceEvent(next,{fans:10*importance,board:8*importance,kind:'title',reason:'Título conquistado: '+comp.name+'.'});
+    next=applyTitleDynamics(next,trophy);
   }else{
     const wasAlive=before.teams.includes(String(next.userClubId))&&!before.eliminated.includes(String(next.userClubId))&&!before.championId,nowOut=comp.eliminated.includes(String(next.userClubId));
     if(wasAlive&&nowOut)next=applyConfidenceEvent(next,{fans:-2.4*importance,board:-1.4*importance,kind:'elimination',reason:'Eliminação na '+comp.name+' ('+game.stage+').'});
