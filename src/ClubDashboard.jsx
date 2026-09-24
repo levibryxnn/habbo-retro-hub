@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { ArrowRight, BadgeDollarSign, CalendarDays, CircleDot, Flag, Handshake, ShieldCheck, ShoppingBag, Target, TrendingUp, Trophy, Users } from 'lucide-react';
-import { standingsFromResults, topScorers, userMatchHistory } from './career-engine.js';
+import { standingsFromResults, topScorers } from './career-engine.js';
 import { nextCareerEvent, unifiedUserMatchHistory, worldClub } from './competition-engine.js';
 import WorldCrest from './WorldCrest.jsx';
 import { activeContracts } from './finance-model.js';
