@@ -228,7 +228,11 @@ export function managerCareerSummary(career){
   const buys=(career.transferHistory||[]).filter(t=>t.type==='buy'),sales=(career.transferHistory||[]).filter(t=>t.type==='sell');
   return{seasons:Math.max(1,(career.seasons||[]).length+(career.round>0?1:0)),matches:wins+draws+losses,wins,draws,losses,titles:(career.trophies||[]).length,reputation:Math.round(career.managerReputation??50),biggest,biggestBuy:buys.sort((a,b)=>b.amount-a.amount)[0]||null,biggestSale:sales.sort((a,b)=>b.amount-a.amount)[0]||null};
 }
-export function careerNews(career){return(career.newsFeed||[]).slice().sort((a,b)=>Number(b.season)-Number(a.season)||Number(b.round||0)-Number(a.round||0));}
+export function careerNews(career){
+  const universe=(career.universeNotes||[]).map(item=>({...item,importance:item.importance||2,round:item.round||0,timestamp:item.date||item.timestamp||String(item.season),type:item.type||'universe'}));
+  const merged=[...(career.newsFeed||[]),...universe],seen=new Set();
+  return merged.filter(item=>{if(!item?.id||seen.has(item.id))return false;seen.add(item.id);return true;}).sort((a,b)=>Number(b.season)-Number(a.season)||Number(b.round||0)-Number(a.round||0));
+}
 export function dynamicRivalries(career,clubs){
   return Object.entries(career.careerMemory?.rivalries||{}).map(([clubId,data])=>({clubId,name:clubs.find(c=>String(c.id)===clubId)?.name||clubId,...data,label:data.score>=75?'Rivalidade intensa':data.score>=55?'Rivalidade recente':data.score>=35?'Confronto quente':'Histórico normal'})).sort((a,b)=>b.score-a.score);
 }
