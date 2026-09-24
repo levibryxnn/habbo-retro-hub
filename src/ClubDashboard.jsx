@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react';
 import { ArrowRight, BadgeDollarSign, CalendarDays, CircleDot, Flag, Handshake, ShieldCheck, ShoppingBag, Target, TrendingUp, Trophy, Users } from 'lucide-react';
 import { standingsFromResults, topScorers, userMatchHistory } from './career-engine.js';
-import { nextCareerEvent, worldClub } from './competition-engine.js';
+import { nextCareerEvent, unifiedUserMatchHistory, worldClub } from './competition-engine.js';
 import WorldCrest from './WorldCrest.jsx';
 import { activeContracts } from './finance-model.js';
+import { financeHealth } from './economy-engine.js';
 import { getClubWorld } from './club-world.js';
 import { confidenceSnapshot } from './manager-confidence.js';
 import './dashboard.css';
@@ -35,7 +36,7 @@ export default function ClubDashboard({career,club,clubs,Crest,onNavigate,canMan
   const opponent=next?(next.homeId===club.id?away:home):null;
   const venueMeta=nextEvent?.type==='brasileirao'&&next?getClubWorld(next.homeId):null;
   const crestFor=item=>item?.external?<WorldCrest club={item}/>:<Crest club={item}/>;
-  const history=userMatchHistory(career).slice(0,5);
+  const history=unifiedUserMatchHistory(career).slice(0,5),finance=financeHealth(career);
   const objective=objectiveFor(club);
   const objectiveOk=row?row.position<=objective.maxPosition:false;
   const scorer=topScorers(career.scorers,20).find(item=>item.clubId===club.id);
@@ -60,6 +61,13 @@ export default function ClubDashboard({career,club,clubs,Crest,onNavigate,canMan
       action:'Ver legado',
       nav:'legacy',
     },
+    career.pressConference?{
+      tag:'IMPRENSA',
+      title:'Há uma coletiva esperando sua resposta',
+      copy:'O momento do clube ganhou repercussão. Sua postura pode afetar vestiário, torcida e diretoria.',
+      action:'Responder',
+      nav:'central',
+    }:null,
     confidence.board<30?{
       tag:confidence.board<15?'CARGO EM RISCO':'COBRANÇA',
       title:confidence.board<15?'A diretoria exige reação imediata':'A segurança do cargo caiu',
@@ -105,7 +113,7 @@ export default function ClubDashboard({career,club,clubs,Crest,onNavigate,canMan
     <section className="dashboard-kpis">
       <article><span><Trophy size={16}/></span><div><small>Posição</small><strong>{row?row.position+'º':'—'}</strong><em>{row?row.points+' pts':'0 pts'}</em></div></article>
       <article><span><TrendingUp size={16}/></span><div><small>Aproveitamento</small><strong>{row?row.efficiency+'%':'0%'}</strong><em>{played} jogos</em></div></article>
-      <article><span><BadgeDollarSign size={16}/></span><div><small>Caixa</small><strong>{money.format(career.cash||0)}</strong><em>{sponsors.length} patrocinador{sponsors.length===1?'':'es'}</em></div></article>
+      <article><span><BadgeDollarSign size={16}/></span><div><small>Mercado</small><strong>{money.format(finance.budget)}</strong><em>{finance.label} · {sponsors.length} patrocinador{sponsors.length===1?'':'es'}</em></div></article>
       <article><span><Target size={16}/></span><div><small>Saldo de gols</small><strong>{row?(row.goalDifference>0?'+':'')+row.goalDifference:'0'}</strong><em>{row?row.goalsFor+' marcados':'0 marcados'}</em></div></article>
     </section>
 
@@ -146,10 +154,10 @@ export default function ClubDashboard({career,club,clubs,Crest,onNavigate,canMan
       <section className="form-card">
         <div className="dash-section-title"><div><CircleDot size={17}/><span><small>MOMENTO</small><strong>Últimos jogos</strong></span></div><button onClick={()=>onNavigate('match')}>Histórico</button></div>
         {history.length?<div className="form-list">{history.map(item=>{
-          const opp=clubs.find(c=>c.id===(item.homeId===club.id?item.awayId:item.homeId));
+          const opp=worldClub(career,clubs,item.homeId===club.id?item.awayId:item.homeId);
           const clubGoals=item.homeId===club.id?item.homeGoals:item.awayGoals;
           const oppGoals=item.homeId===club.id?item.awayGoals:item.homeGoals;
-          return <article key={item.id}><span className={'form-letter result-'+item.points}>{resultLetter(item)}</span><Crest club={opp}/><div><strong>{opp?.name||'Adversário'}</strong><small>Rodada {item.roundNumber}</small></div><b>{clubGoals}–{oppGoals}</b></article>;
+          return <article key={item.id}><span className={'form-letter result-'+item.points}>{resultLetter(item)}</span>{crestFor(opp)}<div><strong>{opp?.name||'Adversário'}</strong><small>{item.competition} · {item.stage||('Rodada '+item.roundNumber)}</small></div><b>{clubGoals}–{oppGoals}</b></article>;
         })}</div>:<div className="dashboard-empty">Sua sequência de resultados aparecerá aqui após a primeira rodada.</div>}
       </section>
 
@@ -162,6 +170,7 @@ export default function ClubDashboard({career,club,clubs,Crest,onNavigate,canMan
     <section className="quick-actions">
       <div className="dash-section-title"><div><Flag size={17}/><span><small>ATALHOS</small><strong>Decisões do técnico</strong></span></div></div>
       <div>
+        <button onClick={()=>onNavigate('central')}><span><Flag size={18}/></span><div><strong>Central</strong><small>Notícias, base e universo</small></div><ArrowRight size={14}/></button>
         <button onClick={()=>onNavigate('competitions')}><span><CalendarDays size={18}/></span><div><strong>Competições</strong><small>Agenda e chaveamentos</small></div><ArrowRight size={14}/></button>
         <button onClick={()=>onNavigate('roster')}><span><Users size={18}/></span><div><strong>Elenco</strong><small>Escalação e jogadores</small></div><ArrowRight size={14}/></button>
         <button onClick={()=>onNavigate('transfers')}><span><ShoppingBag size={18}/></span><div><strong>Mercado</strong><small>Comprar e negociar</small></div><ArrowRight size={14}/></button>
