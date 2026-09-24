@@ -72,3 +72,21 @@ test('club DNA and organic difficulty are deterministic for the same project',fu
   assert.deepEqual(difficultyProfile(career,club),difficultyProfile(career,club));
   assert.ok(managerProfile('developer').youth>1);
 });
+
+
+test('first official match creates permanent career milestones and newsroom records',function(){
+  let career=createCareer(clubs,club.id);
+  const opponent=clubs[1],result={id:'milestone-1',homeId:club.id,awayId:opponent.id,homeGoals:2,awayGoals:0,homeLineup:club.players.slice(0,11).map(p=>String(p.id)),awayLineup:opponent.players.slice(0,11).map(p=>String(p.id)),events:[]};
+  career=applyMatchDynamics(career,club,clubs,result,{competition:'Brasileirão Série A',stage:'Rodada 1'});
+  const ids=(career.careerMemory.milestones||[]).map(item=>item.id);
+  assert.ok(ids.includes('manager-matches-1'));
+  assert.ok(ids.includes('manager-wins-1'));
+  assert.ok(careerNews(career).some(item=>item.id==='news-manager-matches-1'));
+});
+
+test('first academy promotion becomes part of career memory',function(){
+  let career=createCareer(clubs,club.id);
+  const prospect=career.youthAcademy.prospects[0];
+  career=promoteAcademyProspect(career,club,prospect.id);
+  assert.ok((career.careerMemory.milestones||[]).some(item=>item.id==='first-youth-promotion'));
+});
