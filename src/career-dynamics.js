@@ -111,7 +111,7 @@ function updateRivalry(career,info,result,clubs){
   map[id]=next;return{...career,careerMemory:{...memory,rivalries:map}};
 }
 function updatePlayerMood(career,club,result){
-  const room=career.dressingRoom||{morale:80,unity:75,leaders:[],playerMood:{}},mood={...(room.playerMood||{})},side=String(result.homeId)===String(club.id)?'home':'away',lineup=new Set((side==='home'?result.homeLineup:result.awayLineup||[]).map(String));
+  const room=career.dressingRoom||{morale:80,unity:75,leaders:[],playerMood:{}},mood={...(room.playerMood||{})},side=String(result.homeId)===String(club.id)?'home':'away',lineupIds=(side==='home'?result.homeLineup:result.awayLineup)||[],lineup=new Set(lineupIds.map(String));
   const ranked=(club.players||[]).slice().sort((a,b)=>playerGameStats(b).overall-playerGameStats(a).overall).slice(0,10);
   for(const player of ranked){
     const key=playerKey(club.id,player),old=mood[key]||{benchStreak:0,morale:78};
@@ -212,13 +212,14 @@ export function applyTitleDynamics(career,trophy){
   next=addNews(next,{id:'news-title-'+trophy.id+'-'+career.season,season:career.season,round:career.round,type:'title',importance:5,title:(career.managerName||'Treinador')+' coloca o clube no topo',text:'O título de '+trophy.name+' entra para a história do save e amplia o crédito do treinador com torcida e diretoria.',timestamp:String(career.season)+'-r'+String(career.round)});
   return next;
 }
-export function applySeasonDynamics(career,club){
-  let next=career,review=career.seasonReview||{},hof={...(career.hallOfFame||{players:[],moments:[]})};
-  if(review.bestPlayer&&review.bestPlayer.appearances>=8&&!hof.players.some(p=>p.name===review.bestPlayer.name&&p.season===career.season))hof.players=[{name:review.bestPlayer.name,season:career.season,rating:review.bestPlayer.averageRating,goals:review.bestPlayer.goals,reason:'Destaque da temporada'},...hof.players].slice(0,30);
-  hof.moments=[...(career.careerMemory?.historicMoments||[]).filter(m=>m.season===career.season),...(hof.moments||[])].slice(0,50);
-  const newSeason=career.season,president=presidentForClub(club.id,newSeason),profile=managerProfile(career.managerProfile);
+export function applySeasonDynamics(career,club,previousReview=career.seasonReview){
+  let next=career,review=previousReview||{},previousSeason=Number(review.season||career.season-1),hof={...(career.hallOfFame||{players:[],moments:[]})};
+  if(review.bestPlayer&&review.bestPlayer.appearances>=8&&!hof.players.some(p=>p.name===review.bestPlayer.name&&p.season===previousSeason))hof.players=[{name:review.bestPlayer.name,season:previousSeason,rating:review.bestPlayer.averageRating,goals:review.bestPlayer.goals,reason:'Destaque da temporada'},...hof.players].slice(0,30);
+  hof.moments=[...(career.careerMemory?.historicMoments||[]).filter(m=>m.season===previousSeason),...(hof.moments||[])].slice(0,50);
+  const newSeason=career.season,president=presidentForClub(club.id,newSeason);
   const academy={...(career.youthAcademy||{}),prospects:generateProspects(career,club,4+Math.floor(roll(club.id+'|'+newSeason+'intake')*3)),lastIntakeSeason:newSeason};
-  next={...next,hallOfFame:hof,presidentProfile:president,youthAcademy:academy,transferBudget:resetSeasonTransferBudget(career),fanCredit:clamp(0,30,(career.fanCredit||0)*.88),managerReputation:clamp(1,100,(career.managerReputation??50)+(review.position<=4?2:review.position>=17?-2:.5))};
+  const budgetCareer={...career,seasonReview:review};
+  next={...next,hallOfFame:hof,presidentProfile:president,youthAcademy:academy,transferBudget:resetSeasonTransferBudget(budgetCareer),fanCredit:clamp(0,30,(career.fanCredit||0)*.88),managerReputation:clamp(1,100,(career.managerReputation??50)+(review.position<=4?2:review.position>=17?-2:.5))};
   return addNews(next,{id:'news-preseason-'+newSeason,season:newSeason,round:0,type:'club',importance:2,title:'Novo ciclo começa no '+club.name,text:'Diretoria, base e elenco foram reavaliados para a temporada '+newSeason+'. O mercado e as metas refletem o que aconteceu no ano anterior.',timestamp:newSeason+'-01-01'});
 }
 export function managerCareerSummary(career){
