@@ -2,7 +2,9 @@ import React,{useEffect,useMemo,useState}from'react';
 import{ArrowLeftRight,BadgeDollarSign,Handshake,Search,ShieldAlert,Users,X}from'lucide-react';
 import{getClubWorld,rivalryLevel}from'./club-world.js';
 import{estimatedMonthlySalary,evaluateTransferOffer,executeTransfer,findCareerPlayer,formatMarketEUR,formatMoneyBRL,negotiationPreset,playerKey,playerMarketValueEUR}from'./transfer-engine.js';
-import{playerGameStats}from'./player-engine.js';
+import{careerPlayerOverall,playerGameStats}from'./player-engine.js';
+import{transferBudgetSnapshot}from'./economy-engine.js';
+import{observePlayer,scoutRange}from'./career-dynamics.js';
 import{translatePosition}from'./position-labels.js';
 import'./transfers.css';
 
@@ -11,7 +13,7 @@ function MarketValue({player,originClub}){
   return <span className="market-value"><strong>{formatMarketEUR(eur.value)}</strong><small>{eur.source}</small></span>;
 }
 function DealModal({deal,setDeal,career,club,clubs,baseClubs,onCareerChange,onClose}){
-  const item=findCareerPlayer(baseClubs,deal.playerKey);
+  const item=findCareerPlayer(baseClubs,deal.playerKey,career);
   const [result,setResult]=useState(null);
   const [message,setMessage]=useState('');
   if(!item)return null;
@@ -59,7 +61,7 @@ export default function TransferMarket({career,onCareerChange,club,clubs,baseClu
   const [appliedFilters,setAppliedFilters]=useState(null);
   const [deal,setDeal]=useState(null);
   const [visibleCount,setVisibleCount]=useState(24);
-  const world=getClubWorld(club.id);
+  const world=getClubWorld(club.id),finance=transferBudgetSnapshot(career);
 
   const normalizeText=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
   const countryNames=useMemo(()=>new Intl.DisplayNames(['pt-BR'],{type:'region'}),[]);
@@ -117,15 +119,19 @@ export default function TransferMarket({career,onCareerChange,club,clubs,baseClu
   function updateFilter(field,value){setFilters(current=>({...current,[field]:value}));}
 
   function openDeal(type,player,owner){
-    if(!canManage||career.pendingRound)return;
+    if(!canManage||career.pendingRound||career.pendingWorldMatch)return;
     const originClub=baseClubs.find(c=>c.id===String(player._originClubId||owner.id))||owner,key=player._playerKey||playerKey(originClub.id,player.id),to=type==='sell'||type==='loan-out'?(clubs.find(c=>c.id!==club.id)?.id||''):club.id,from=type==='sell'||type==='loan-out'?club.id:owner.id,preset=negotiationPreset(player,originClub,clubs.find(c=>c.id===to)||club);
     setDeal({type,playerKey:key,fromClubId:from,toClubId:to,amount:preset.suggestedBid,loanFee:preset.loanFee,salaryShare:preset.salaryShare,buyOption:preset.buyOption,swapPlayerKey:''});
+  }
+  function observe(player,owner){
+    const origin=baseClubs.find(c=>c.id===String(player._originClubId||owner.id))||owner,key=player._playerKey||playerKey(origin.id,player.id);
+    onCareerChange(observePlayer(career,key,player));
   }
 
   return <div className="transfer-content">
     <div className="transfer-heading"><div><div className="eyebrow">BASTIDORES DO FUTEBOL</div><h2>Mercado de transferências</h2><p>Pesquise apenas quem você quer analisar. Os filtros evitam carregar centenas de jogadores de uma vez e deixam o mercado mais rápido em qualquer aparelho.</p></div><span className="transfer-stage"><ArrowLeftRight size={14}/> Mercado aberto</span></div>
-    <div className="transfer-finance-row"><article><BadgeDollarSign size={18}/><span><small>Caixa disponível</small><strong>{formatMoneyBRL(career.cash)}</strong></span></article><article><Handshake size={18}/><span><small>Orçamento salarial mensal</small><strong>{formatMoneyBRL(world.wageBudgetMonthlyM*1_000_000)}</strong></span></article><article><Users size={18}/><span><small>Elenco atual</small><strong>{club.players.length} jogadores</strong></span></article></div>
-    {career.pendingRound&&<div className="transfer-lock"><ShieldAlert size={17}/><span>O mercado fica bloqueado enquanto uma rodada está em andamento.</span></div>}
+    <div className="transfer-finance-row"><article><BadgeDollarSign size={18}/><span><small>Orçamento de transferências</small><strong>{formatMoneyBRL(finance.budget)}</strong></span></article><article><Handshake size={18}/><span><small>Espaço salarial para reforços</small><strong>{formatMoneyBRL(finance.wageRoom)}<em> / mês</em></strong></span></article><article><Users size={18}/><span><small>Caixa operacional</small><strong>{formatMoneyBRL(career.cash)}</strong></span></article><article><Users size={18}/><span><small>Elenco atual</small><strong>{club.players.length} jogadores</strong></span></article></div>
+    {(career.pendingRound||career.pendingWorldMatch)&&<div className="transfer-lock"><ShieldAlert size={17}/><span>O mercado fica bloqueado enquanto uma partida está em andamento.</span></div>}
     <div className="transfer-tabs"><button className={view==='market'?'active':''} onClick={()=>setView('market')}>Comprar / pegar emprestado</button><button className={view==='squad'?'active':''} onClick={()=>setView('squad')}>Oferecer / emprestar</button><button className={view==='history'?'active':''} onClick={()=>setView('history')}>Negócios concluídos</button></div>
 
     {view==='market'&&<>
@@ -146,10 +152,10 @@ export default function TransferMarket({career,onCareerChange,club,clubs,baseClu
 
       {appliedFilters&&marketAll.length===0&&<div className="market-search-empty no-results"><Search size={24}/><strong>Nenhum jogador encontrado</strong><p>Tente remover um dos filtros ou buscar por parte do nome.</p></div>}
 
-      {appliedFilters&&marketAll.length>0&&<><div className="market-grid">{market.map(({player,owner})=>{const origin=baseClubs.find(c=>c.id===String(player._originClubId||owner.id))||owner,stats=playerGameStats(player),rival=rivalryLevel(owner.id,club.id);return <article className="market-player-card" key={(player._playerKey||owner.id+':'+player.id)}><div className="market-club"><Crest club={owner}/><span>{owner.name}{rival===2&&<small>RIVAL</small>}</span></div><h3>{player.name}</h3><p>{translatePosition(player.position)} · {nationalityLabel(player)} · {player.age??'—'} anos · OVR {stats.overall}</p><MarketValue player={player} originClub={origin}/><div className="market-actions"><button disabled={!canManage||Boolean(career.pendingRound)} onClick={()=>openDeal('buy',player,owner)}>Negociar compra</button><button disabled={!canManage||Boolean(career.pendingRound)} onClick={()=>openDeal('loan-in',player,owner)}>Empréstimo</button><button disabled={!canManage||Boolean(career.pendingRound)} onClick={()=>openDeal('swap',player,owner)}>Troca</button></div></article>;})}</div>{market.length<marketAll.length&&<div className="market-load-more"><button onClick={()=>setVisibleCount(value=>Math.min(value+24,marketAll.length))}>Carregar mais jogadores ({marketAll.length-market.length} restantes)</button></div>}</>}
+      {appliedFilters&&marketAll.length>0&&<><div className="market-grid">{market.map(({player,owner})=>{const origin=baseClubs.find(c=>c.id===String(player._originClubId||owner.id))||owner,key=player._playerKey||playerKey(origin.id,player.id),report=scoutRange(career,player,key),rival=rivalryLevel(owner.id,club.id);return <article className="market-player-card" key={key}><div className="market-club"><Crest club={owner}/><span>{owner.name}{rival===2&&<small>RIVAL</small>}</span></div><h3>{player.name}</h3><p>{translatePosition(player.position)} · {nationalityLabel(player)} · {player.age??'—'} anos · OVR {report.exact?report.min:report.min+'–'+report.max}</p><div className="scout-certainty"><span>Relatório {Math.round(report.certainty)}%</span><button onClick={()=>observe(player,owner)}>Observar</button></div><MarketValue player={player} originClub={origin}/><div className="market-actions"><button disabled={!canManage||Boolean(career.pendingRound)||Boolean(career.pendingWorldMatch)} onClick={()=>openDeal('buy',player,owner)}>Negociar compra</button><button disabled={!canManage||Boolean(career.pendingRound)||Boolean(career.pendingWorldMatch)} onClick={()=>openDeal('loan-in',player,owner)}>Empréstimo</button><button disabled={!canManage||Boolean(career.pendingRound)||Boolean(career.pendingWorldMatch)} onClick={()=>openDeal('swap',player,owner)}>Troca</button></div></article>;})}</div>{market.length<marketAll.length&&<div className="market-load-more"><button onClick={()=>setVisibleCount(value=>Math.min(value+24,marketAll.length))}>Carregar mais jogadores ({marketAll.length-market.length} restantes)</button></div>}</>}
     </>}
 
-    {view==='squad'&&<div className="market-grid">{own.map(player=>{const origin=baseClubs.find(c=>c.id===String(player._originClubId||club.id))||club,stats=playerGameStats(player);return <article className="market-player-card own-market-card" key={player._playerKey||club.id+':'+player.id}><div className="market-club"><Crest club={club}/><span>Seu elenco</span></div><h3>{player.name}</h3><p>{translatePosition(player.position)} · {player.age??'—'} anos · OVR {stats.overall}</p><MarketValue player={player} originClub={origin}/><div className="market-actions"><button disabled={!canManage||Boolean(career.pendingRound)} onClick={()=>openDeal('sell',player,club)}>Oferecer</button><button disabled={!canManage||Boolean(career.pendingRound)} onClick={()=>openDeal('loan-out',player,club)}>Emprestar</button></div></article>;})}</div>}
+    {view==='squad'&&<div className="market-grid">{own.map(player=>{const origin=baseClubs.find(c=>c.id===String(player._originClubId||club.id))||club,overall=careerPlayerOverall(player,career,club.id);return <article className="market-player-card own-market-card" key={player._playerKey||club.id+':'+player.id}><div className="market-club"><Crest club={club}/><span>Seu elenco</span></div><h3>{player.name}</h3><p>{translatePosition(player.position)} · {player.age??'—'} anos · OVR {overall}</p><MarketValue player={player} originClub={origin}/><div className="market-actions"><button disabled={!canManage||Boolean(career.pendingRound)||Boolean(career.pendingWorldMatch)} onClick={()=>openDeal('sell',player,club)}>Oferecer</button><button disabled={!canManage||Boolean(career.pendingRound)||Boolean(career.pendingWorldMatch)} onClick={()=>openDeal('loan-out',player,club)}>Emprestar</button></div></article>;})}</div>}
     {view==='history'&&<div className="transfer-history">{(career.transferHistory||[]).length?(career.transferHistory||[]).slice().reverse().map(item=><article key={item.id}><strong>{item.player}</strong><span>{clubs.find(c=>c.id===item.fromClubId)?.abbreviation||item.fromClubId} → {clubs.find(c=>c.id===item.toClubId)?.abbreviation||item.toClubId}</span><b>{item.type.includes('loan')?'Empréstimo':formatMoneyBRL(item.amount)}</b><small>Rodada {item.round} · {item.season}</small></article>):<p>Nenhum negócio concluído nesta carreira.</p>}</div>}
     <div className="transfer-source-note">Valores em euro usam referência de mercado Transfermarkt 2026. Quando não há correspondência individual no snapshot carregado, o jogo distribui o valor real estimado do elenco entre os atletas por idade, posição e rating interno. O euro do save usa câmbio de referência fixo para estabilidade do balanceamento.</div>
     {deal&&<DealModal deal={deal} setDeal={setDeal} career={career} club={club} clubs={clubs} baseClubs={baseClubs} onCareerChange={onCareerChange} onClose={()=>setDeal(null)}/>}
