@@ -1,15 +1,15 @@
 import React,{useEffect,useMemo,useState}from'react';
 import{ArrowLeftRight,BadgeDollarSign,Handshake,Search,ShieldAlert,Users,X}from'lucide-react';
 import{rivalryLevel}from'./club-world.js';
-import{estimatedMonthlySalary,evaluateTransferOffer,executeTransfer,findCareerPlayer,formatMarketEUR,formatMoneyBRL,incomingMarketOffers,negotiationPreset,playerKey,playerMarketValueEUR,rejectIncomingOffer}from'./transfer-engine.js';
+import{careerMarketValueEUR,estimatedMonthlySalary,evaluateTransferOffer,executeTransfer,findCareerPlayer,formatMarketEUR,formatMoneyBRL,incomingMarketOffers,negotiationPreset,playerKey,rejectIncomingOffer}from'./transfer-engine.js';
 import{careerPlayerOverall,playerGameStats}from'./player-engine.js';
 import{transferBudgetSnapshot}from'./economy-engine.js';
 import{observePlayer,scoutRange}from'./career-dynamics.js';
 import{translatePosition}from'./position-labels.js';
 import'./transfers.css';
 
-function MarketValue({player,originClub}){
-  const eur=playerMarketValueEUR(player,originClub);
+function MarketValue({player,originClub,career,playerKeyValue}){
+  const eur=careerMarketValueEUR(career,player,originClub,playerKeyValue);
   return <span className="market-value"><strong>{formatMarketEUR(eur.value)}</strong><small>{eur.source}</small></span>;
 }
 function DealModal({deal,setDeal,career,club,clubs,baseClubs,onCareerChange,onClose}){
@@ -20,7 +20,7 @@ function DealModal({deal,setDeal,career,club,clubs,baseClubs,onCareerChange,onCl
   const player=item.player,originClub=item.originClub;
   const fromClub=clubs.find(c=>c.id===String(deal.fromClubId));
   const toClub=clubs.find(c=>c.id===String(deal.toClubId));
-  const preset=negotiationPreset(player,originClub,toClub||club);
+  const preset=negotiationPreset(player,originClub,toClub||club,career,deal.playerKey);
   const ownPlayers=club.players.filter(p=>(p._playerKey||playerKey(p._originClubId||club.id,p.id))!==deal.playerKey);
   function update(field,value){setDeal({...deal,[field]:value});setResult(null);setMessage('');}
   function negotiate(){
@@ -43,8 +43,8 @@ function DealModal({deal,setDeal,career,club,clubs,baseClubs,onCareerChange,onCl
   return <div className="transfer-backdrop"><div className="transfer-modal">
     <button className="transfer-close" onClick={onClose}><X size={18}/></button>
     <div className="transfer-kicker">MERCADO · NEGOCIAÇÃO COM DIRETORIA</div><h2>{typeLabel}: {player.name}</h2>
-    <div className="deal-player-summary"><div><strong>{fromClub?.name||originClub.name}</strong><span>→</span><strong>{toClub?.name||club.name}</strong></div><MarketValue player={player} originClub={originClub}/></div>
-    {deal.type==='buy'&&<div className="deal-fields"><label>Oferta em dinheiro<input type="number" min="0" step="100000" value={deal.amount||0} onChange={e=>update('amount',Number(e.target.value))}/><small>Sugestão inicial: {formatMoneyBRL(preset.suggestedBid)}</small></label><label>Salário mensal estimado<input value={formatMoneyBRL(estimatedMonthlySalary(player,originClub))} disabled/></label></div>}
+    <div className="deal-player-summary"><div><strong>{fromClub?.name||originClub.name}</strong><span>→</span><strong>{toClub?.name||club.name}</strong></div><MarketValue player={player} originClub={originClub} career={career} playerKeyValue={deal.playerKey}/></div>
+    {deal.type==='buy'&&<div className="deal-fields"><label>Oferta em dinheiro<input type="number" min="0" step="100000" value={deal.amount||0} onChange={e=>update('amount',Number(e.target.value))}/><small>Sugestão inicial: {formatMoneyBRL(preset.suggestedBid)}</small></label><label>Salário mensal estimado<input value={formatMoneyBRL(estimatedMonthlySalary(player,originClub,career,deal.playerKey))} disabled/></label></div>}
     {['loan-in','loan-out'].includes(deal.type)&&<div className="deal-fields"><label>Taxa do empréstimo<input type="number" min="0" step="100000" value={deal.loanFee||0} onChange={e=>update('loanFee',Number(e.target.value))}/></label><label>Salário pago pelo clube recebedor (%)<input type="number" min="0" max="100" step="10" value={deal.salaryShare||0} onChange={e=>update('salaryShare',Number(e.target.value))}/></label><label>Opção de compra<input type="number" min="0" step="100000" value={deal.buyOption||0} onChange={e=>update('buyOption',Number(e.target.value))}/></label><label>Duração<input value="Até o fim da temporada" disabled/></label></div>}
     {['sell','loan-out'].includes(deal.type)&&<label className="club-target-label">Clube interessado<select value={deal.toClubId} onChange={e=>update('toClubId',e.target.value)}>{clubs.filter(c=>c.id!==club.id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
     {deal.type==='swap'&&<div className="deal-fields"><label>Jogador oferecido<select value={deal.swapPlayerKey||''} onChange={e=>update('swapPlayerKey',e.target.value)}><option value="">Selecione...</option>{ownPlayers.map(p=>{const key=p._playerKey||playerKey(p._originClubId||club.id,p.id);return <option key={key} value={key}>{p.name}</option>;})}</select></label><label>Compensação em dinheiro<input type="number" min="0" step="100000" value={deal.amount||0} onChange={e=>update('amount',Number(e.target.value))}/></label></div>}
@@ -97,9 +97,10 @@ export default function TransferMarket({career,onCareerChange,club,clubs,baseClu
     }).sort((a,b)=>{
       const ao=baseClubs.find(c=>c.id===String(a.player._originClubId||a.owner.id))||a.owner;
       const bo=baseClubs.find(c=>c.id===String(b.player._originClubId||b.owner.id))||b.owner;
-      return playerMarketValueEUR(b.player,bo).value-playerMarketValueEUR(a.player,ao).value;
+      const bk=String(b.player._playerKey||playerKey(b.player._originClubId||bo.id,b.player.id)),ak=String(a.player._playerKey||playerKey(a.player._originClubId||ao.id,a.player.id));
+      return careerMarketValueEUR(career,b.player,bo,bk).value-careerMarketValueEUR(career,a.player,ao,ak).value;
     });
-  },[appliedFilters,searchablePlayers,baseClubs]);
+  },[appliedFilters,searchablePlayers,baseClubs,career]);
 
   const market=marketAll.slice(0,visibleCount);
   useEffect(()=>setVisibleCount(24),[appliedFilters,view,club.id]);
