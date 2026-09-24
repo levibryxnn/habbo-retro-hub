@@ -101,6 +101,22 @@ function addMoment(career,moment){
   if((memory.historicMoments||[]).some(x=>x.id===moment.id))return career;
   return{...career,careerMemory:{...memory,historicMoments:[moment,...(memory.historicMoments||[])].slice(0,60)}};
 }
+function applyMilestone(career,{id,title,text,importance=3,type='milestone'}){
+  const memory=career.careerMemory||{streak:{type:'none',count:0},bestWin:null,rivalries:{},historicMoments:[],milestones:[]},milestones=Array.isArray(memory.milestones)?memory.milestones:[];
+  if(milestones.some(item=>item.id===id))return career;
+  const item={id,season:career.season,round:career.round,title,text,type};
+  let next={...career,careerMemory:{...memory,milestones:[item,...milestones].slice(0,60)}};
+  next=addMoment(next,{...item,type:'milestone'});
+  return addNews(next,{id:'news-'+id,season:career.season,round:career.round,type,importance,title,text,timestamp:String(career.season)+'-r'+String(career.round)});
+}
+function updateCareerMilestones(career){
+  let next=career,record=career.careerRecord||{matches:0,wins:0},matches=Number(record.matches||0),wins=Number(record.wins||0),titles=(career.trophies||[]).length;
+  const matchMarks=[1,50,100,250,500],winMarks=[1,50,100,250],titleMarks=[1,5,10];
+  for(const mark of matchMarks)if(matches>=mark)next=applyMilestone(next,{id:'manager-matches-'+mark,title:mark===1?'Primeiro jogo no comando':mark+' jogos como treinador',text:mark===1?'A carreira oficialmente começou à beira do campo.':'O treinador alcançou '+mark+' partidas oficiais no universo deste save.'});
+  for(const mark of winMarks)if(wins>=mark)next=applyMilestone(next,{id:'manager-wins-'+mark,title:mark===1?'Primeira vitória da carreira':mark+' vitórias alcançadas',text:mark===1?'O primeiro resultado positivo entrou para a memória da carreira.':'A carreira chegou a '+mark+' vitórias oficiais.'});
+  for(const mark of titleMarks)if(titles>=mark)next=applyMilestone(next,{id:'manager-titles-'+mark,title:mark===1?'Primeiro título da carreira':mark+' títulos conquistados',text:mark===1?'A primeira taça passa a fazer parte do legado do treinador.':'O treinador alcançou '+mark+' conquistas no save.',importance:4,type:'title'});
+  return next;
+}
 function resultInfo(result,userClubId){
   if(!result)return null;const home=String(result.homeId)===String(userClubId),gf=home?result.homeGoals:result.awayGoals,ga=home?result.awayGoals:result.homeGoals,opponentId=home?result.awayId:result.homeId;
   return{home,gf,ga,opponentId,outcome:gf>ga?'win':gf<ga?'loss':'draw',margin:gf-ga};
@@ -178,6 +194,7 @@ export function applyMatchDynamics(career,club,clubs,result,{competition='Brasil
     {id:'calm',label:'Manter serenidade',copy:'Evitar manchetes e tratar o momento com equilíbrio.'},
   ]}};
   next=maybeFinancialEvent(next);
+  next=updateCareerMilestones(next);
   return next;
 }
 export function resolvePressConference(career,choiceId){
@@ -207,6 +224,8 @@ export function promoteAcademyProspect(career,club,prospectId){
   const id='youth-'+hash(career.season+'|'+prospect.id).toString(36),key=String(club.id)+':'+id,player={id,name:prospect.name,age:prospect.age,position:prospect.position,nationality:'Brazil',countryCode:'BRA',_generatedOverall:prospect.overall,_potential:prospect.potential,_generation:2,_rootName:prospect.name,_careerAge:prospect.age,_baseAge:prospect.age,_originClubId:String(club.id),_playerKey:key};
   let next={...career,regens:[...(career.regens||[]),player],playerDevelopment:{...(career.playerDevelopment||{}),[key]:{age:prospect.age,baseAge:prospect.age,baseOverall:prospect.overall,delta:0,potential:prospect.potential,generation:2,rootName:prospect.name,position:prospect.position,createdSeason:career.season}},youthAcademy:{...academy,prospects:academy.prospects.map(p=>p.id===prospectId?{...p,status:'promoted'}:p)},newsFeed:[{id:'news-youth-'+prospect.id,season:career.season,round:career.round,type:'academy',importance:2,title:prospect.name+' sobe para o profissional',text:'A comissão decidiu promover uma promessa da base para trabalhar com o elenco principal.',timestamp:String(career.season)+'-r'+String(career.round)},...(career.newsFeed||[])]};
   if(managerProfile(career.managerProfile).id==='developer')next=applyConfidenceEvent(next,{board:.6,fans:.3,kind:'academy',reason:'O perfil formador do treinador reforçou o compromisso do clube com a base.'});
+  const promotedCount=(next.regens||[]).filter(p=>String(p._originClubId)===String(club.id)&&String(p.id||'').startsWith('youth-')).length;
+  if(promotedCount===1)next=applyMilestone(next,{id:'first-youth-promotion',title:'Primeiro talento promovido da base',text:prospect.name+' foi o primeiro jogador da base promovido pelo treinador neste save.',importance:3,type:'academy'});
   return next;
 }
 export function applyTransferDynamics(career,{type,playerName,amount=0,marketValue=0,fromUser=false,toUser=false}={}){
@@ -215,13 +234,15 @@ export function applyTransferDynamics(career,{type,playerName,amount=0,marketVal
   if(type==='buy'&&toUser){room={...room,morale:clamp(20,100,(room.morale??80)+(amount<=marketValue?2:1))};next={...next,managerReputation:clamp(1,100,(next.managerReputation??50)+(profile.id==='negotiator'?.7:.3))};}
   next={...next,dressingRoom:room};
   const verb=type==='sell'?'negocia saída de':type==='buy'?'acerta contratação de':type.includes('loan')?'fecha empréstimo de':'movimenta o mercado com';
-  return addNews(next,{id:'news-transfer-'+next.season+'-'+next.round+'-'+hash(type+'|'+playerName+'|'+amount),season:next.season,round:next.round,type:'transfer',importance:2,title:(next.managerName||'Clube')+' '+verb+' '+playerName,text:'O negócio movimentou '+Math.round(Number(amount||0)/1_000_000)+' milhões de reais e terá impacto esportivo e financeiro no projeto.',timestamp:String(next.season)+'-r'+String(next.round)});
+  next=addNews(next,{id:'news-transfer-'+next.season+'-'+next.round+'-'+hash(type+'|'+playerName+'|'+amount),season:next.season,round:next.round,type:'transfer',importance:2,title:(next.managerName||'Clube')+' '+verb+' '+playerName,text:'O negócio movimentou '+Math.round(Number(amount||0)/1_000_000)+' milhões de reais e terá impacto esportivo e financeiro no projeto.',timestamp:String(next.season)+'-r'+String(next.round)});
+  if(type==='sell'&&fromUser&&Number(amount)>=100_000_000)next=applyMilestone(next,{id:'sale-100m-'+hash(playerName+'|'+amount),title:'Venda de nove dígitos',text:playerName+' deixou o clube por '+Math.round(Number(amount)/1_000_000)+' milhões de reais, um negócio que entrou para a história financeira do save.',importance:4,type:'transfer'});
+  return updateCareerMilestones(next);
 }
 export function applyTitleDynamics(career,trophy){
   let next={...career,fanCredit:clamp(0,30,(career.fanCredit||0)+8),managerReputation:clamp(1,100,(career.managerReputation??50)+5)};
   next=addMoment(next,{id:'title-'+trophy.id+'-'+career.season,season:career.season,round:career.round,type:'title',title:'Campeão: '+trophy.name,text:'Título conquistado na temporada '+career.season+'.'});
   next=addNews(next,{id:'news-title-'+trophy.id+'-'+career.season,season:career.season,round:career.round,type:'title',importance:5,title:(career.managerName||'Treinador')+' coloca o clube no topo',text:'O título de '+trophy.name+' entra para a história do save e amplia o crédito do treinador com torcida e diretoria.',timestamp:String(career.season)+'-r'+String(career.round)});
-  return next;
+  return updateCareerMilestones(next);
 }
 export function applySeasonDynamics(career,club,previousReview=career.seasonReview){
   let next=career,review=previousReview||{},previousSeason=Number(review.season||career.season-1),hof={...(career.hallOfFame||{players:[],moments:[]})};
