@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { createCareer } from '../src/career-engine.js';
 import { initialCashForClub } from '../src/finance-model.js';
 import { rivalryLevel } from '../src/club-world.js';
-import { applyCareerRoster, evaluateTransferOffer, executeTransfer, incomingMarketOffers, negotiationPreset, playerKey, playerMarketValueBRL, playerMarketValueEUR, rejectIncomingOffer } from '../src/transfer-engine.js';
+import { applyCareerRoster, careerMarketValueBRL, evaluateTransferOffer, executeTransfer, incomingMarketOffers, negotiationPreset, playerKey, playerMarketValueBRL, playerMarketValueEUR, rejectIncomingOffer } from '../src/transfer-engine.js';
 
 const data=JSON.parse(fs.readFileSync(new URL('../src/data/serie-a-2026.json',import.meta.url),'utf8'));
 const clubs=data.clubs;
@@ -93,4 +93,23 @@ test('strong season performance creates deterministic incoming offers that can b
   assert.ok(first.length>=1);
   const rejected=rejectIncomingOffer(career,first[0].id);
   assert.ok(!incomingMarketOffers(rejected,clubs).some(item=>item.id===first[0].id));
+});
+
+
+test('market value reacts to performance inside the save without losing the base reference',function(){
+  const team=club('874'),player=team.players.find(p=>p.name==='Hugo Souza')||team.players[0],key=playerKey(team.id,player.id);
+  const baseCareer=createCareer(clubs,team.id),base=careerMarketValueBRL(baseCareer,player,team,key);
+  const hot={...baseCareer,seasonPerformance:{[String(player.id)]:{playerId:String(player.id),name:player.name,appearances:16,totalRating:124,goals:8,assists:3,minutes:1400}}};
+  const cold={...baseCareer,seasonPerformance:{[String(player.id)]:{playerId:String(player.id),name:player.name,appearances:16,totalRating:92,goals:0,assists:0,minutes:1400}}};
+  const hotValue=careerMarketValueBRL(hot,player,team,key),coldValue=careerMarketValueBRL(cold,player,team,key);
+  assert.ok(hotValue.valueBRL>base.valueBRL);
+  assert.ok(coldValue.valueBRL<hotValue.valueBRL);
+  assert.match(hotValue.source,/ajustado pelo desempenho no save/);
+});
+
+test('negotiation preset uses the same performance-adjusted market value shown in the career',function(){
+  const seller=club('9318'),buyer=club('819'),player=seller.players[0],key=playerKey(seller.id,player.id);
+  const career={...createCareer(clubs,buyer.id),seasonPerformance:{[String(player.id)]:{playerId:String(player.id),name:player.name,appearances:14,totalRating:109,goals:7,assists:2,minutes:1200}}};
+  const dynamic=careerMarketValueBRL(career,player,seller,key).valueBRL,preset=negotiationPreset(player,seller,buyer,career,key);
+  assert.equal(preset.market,dynamic);
 });
