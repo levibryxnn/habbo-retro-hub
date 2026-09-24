@@ -388,10 +388,21 @@ export function syncWorldToDate(career,serieAClubs,date){
     if(!due)break;
     const before=world.competitions[due.key],previousChampion=before?.championId||null;
     world=playFixture(world,career,serieAClubs,due.key,due.game.id);
-    const after=world.competitions[due.key],championId=after?.championId||null;
+    const after=world.competitions[due.key],championId=after?.championId||null,result=after?.results?.find(item=>String(item.fixtureId)===String(due.game.id));
+    if(result){
+      const home=world.clubRegistry?.[result.homeId]||worldClubById(result.homeId),away=world.clubRegistry?.[result.awayId]||worldClubById(result.awayId),homeWon=result.homeGoals>result.awayGoals,awayWon=result.awayGoals>result.homeGoals,powerGap=Math.abs(Number(result.homePower||0)-Number(result.awayPower||0)),underdogWon=(homeWon&&Number(result.homePower)<Number(result.awayPower))||(awayWon&&Number(result.awayPower)<Number(result.homePower));
+      if(underdogWon&&powerGap>=10){
+        const winner=homeWon?home:away,loser=homeWon?away:home,id='universe-upset-'+result.id;
+        if(!notes.some(item=>item.id===id))notes=[{id,season:after.edition,type:'universe',importance:3,title:(winner?.name||'Um azarão')+' surpreende em '+after.name,text:(winner?.name||'O vencedor')+' superou '+(loser?.name||'um favorito')+' por '+result.homeGoals+' a '+result.awayGoals+' e alterou o rumo da competição.',competition:after.name,clubId:homeWon?result.homeId:result.awayId,date:due.game.date},...notes].slice(0,70);
+      }
+      if(/Semifinal/i.test(due.game.stage)){
+        const winner=homeWon?home:awayWon?away:null,id='universe-semi-'+result.id;
+        if(winner&&!notes.some(item=>item.id===id))notes=[{id,season:after.edition,type:'universe',importance:3,title:(winner.name||'Um clube')+' chega à decisão',text:'A semifinal de '+after.name+' terminou '+result.homeGoals+' a '+result.awayGoals+'. O universo do save já conhece mais um finalista.',competition:after.name,clubId:homeWon?result.homeId:result.awayId,date:due.game.date},...notes].slice(0,70);
+      }
+    }
     if(championId&&!previousChampion){
       const champion=world.clubRegistry?.[championId]||worldClubById(championId),id='universe-title-'+after.key;
-      if(!notes.some(item=>item.id===id))notes=[{id,season:after.edition,type:'world',title:(champion?.name||'Um clube')+' conquista '+after.name,text:'A competição foi encerrada no universo do save.',competition:after.name,clubId:championId,date:due.game.date},...notes].slice(0,70);
+      if(!notes.some(item=>item.id===id))notes=[{id,season:after.edition,type:'world',importance:5,title:(champion?.name||'Um clube')+' conquista '+after.name,text:'A competição foi encerrada no universo do save.',competition:after.name,clubId:championId,date:due.game.date},...notes].slice(0,70);
     }
   }
   return{...career,world,universeNotes:notes};
