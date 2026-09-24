@@ -190,11 +190,6 @@ export function managerMatchModifier(career){
   const p=managerProfile(career?.managerProfile),morale=Number(career?.dressingRoom?.morale??80),unity=Number(career?.dressingRoom?.unity??75);
   return clamp(-.08,.10,p.matchEdge+(morale-75)*.0007+(unity-75)*.0005);
 }
-export function injuryOverallPenalty(career,clubId,playerId,roundNumber=career?.round||0){
-  const s=career?.playerStatus?.[String(clubId)+':'+String(playerId)];if(!s||(s.injuryThroughRound||0)<roundNumber)return 0;
-  const remaining=Math.max(1,(s.injuryThroughRound||roundNumber)-roundNumber+1);
-  return clamp(1,7,remaining+(/importante/i.test(s.injuryLabel||'')?3:/moderada/i.test(s.injuryLabel||'')?2:/leve/i.test(s.injuryLabel||'')?1:0));
-}
 export function scoutRange(career,player,key){
   const exact=playerGameStats(player).overall,report=career.scouting?.reports?.[key],level=Number(career.scouting?.level||1);
   if(report?.certainty>=90)return{min:exact,max:exact,certainty:100,exact:true};
