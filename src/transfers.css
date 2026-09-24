@@ -66,3 +66,11 @@
   .market-search-empty{min-height:185px;padding:22px 16px}
   .market-search-empty p{font-size:9px}
 }
+
+
+/* Release candidate · scouting + controlled budget */
+.transfer-finance-row{grid-template-columns:repeat(4,minmax(0,1fr))}
+.transfer-finance-row article strong em{font-size:8px;font-style:normal;font-weight:600;color:#8a9586}
+.scout-certainty{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:7px 0 2px;padding:6px 8px;border-radius:6px;background:#f2f5ee;border:1px solid #e3e9de}.scout-certainty span{font-size:8px;color:#7b8877}.scout-certainty button{border:0;background:transparent;color:#426549;font-size:8px;font-weight:800;padding:2px 0}
+@media(max-width:900px){.transfer-finance-row{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.transfer-finance-row{grid-template-columns:1fr}.scout-certainty span,.scout-certainty button{font-size:9px}}
