@@ -133,7 +133,7 @@ export function evaluateTransferOffer(career,baseClubs,offer){
   const sellerMeta=getClubWorld(seller.id),buyerMeta=getClubWorld(buyer.id);
   if(offer.type==='buy'){
     if(rivalry===2&&stars>=2&&Number(offer.amount||0)<diff.market*1.85)return{status:'rejected',reason:'O rival não pretende fortalecer um adversário direto com uma estrela.',minimum:Math.round(diff.market*1.9/100000)*100000};
-    const target=Math.round(diff.minimum*random/100000)*100000,amount=Number(offer.amount||0),wageMonthly=estimatedMonthlySalary(player,originClub);
+    const negotiationFactor=String(buyer.id)===String(career.userClubId)?managerProfile(career.managerProfile).transfer:1,target=Math.round(diff.minimum*random*negotiationFactor/100000)*100000,amount=Number(offer.amount||0),wageMonthly=estimatedMonthlySalary(player,originClub);
     if(String(buyer.id)===String(career.userClubId)){
       const appeal=destinationAppeal(career,player,buyer,stars),interestRoll=roll(seed+'|player-interest');
       if(appeal.score+interestRoll*.16<appeal.demand)return{status:'rejected',reason:'O estafe do jogador não vê este projeto como o próximo passo ideal da carreira. Resultados, reputação e competições continentais podem mudar esse cenário.',playerRejected:true};
