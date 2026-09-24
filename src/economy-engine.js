@@ -52,7 +52,8 @@ export function resetSeasonTransferBudget(career){
   const health=clamp(.75,1.25,.92+(cash-opening)/Math.max(opening,50_000_000)*.18);
   const board=clamp(.85,1.12,.88+(Number(career.managerConfidence?.board??70)/100)*.22);
   const performance=career.seasonReview?.position<=4?1.12:career.seasonReview?.position<=8?1.06:career.seasonReview?.position>=17?.88:1;
-  return round100k(base*health*board*performance);
+  const president=clamp(.82,1.10,Number(career.presidentProfile?.finance||1)),dna=clamp(.96,1.04,2-Number(career.clubDNA?.financeWeight||1));
+  return round100k(base*health*board*performance*president*dna);
 }
 export function financeHealth(career){
   const view=transferBudgetSnapshot(career),cash=Number(career.cash||0);
