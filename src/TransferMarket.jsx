@@ -1,6 +1,6 @@
 import React,{useEffect,useMemo,useState}from'react';
 import{ArrowLeftRight,BadgeDollarSign,Handshake,Search,ShieldAlert,Users,X}from'lucide-react';
-import{getClubWorld,rivalryLevel}from'./club-world.js';
+import{rivalryLevel}from'./club-world.js';
 import{estimatedMonthlySalary,evaluateTransferOffer,executeTransfer,findCareerPlayer,formatMarketEUR,formatMoneyBRL,incomingMarketOffers,negotiationPreset,playerKey,playerMarketValueEUR,rejectIncomingOffer}from'./transfer-engine.js';
 import{careerPlayerOverall,playerGameStats}from'./player-engine.js';
 import{transferBudgetSnapshot}from'./economy-engine.js';
@@ -62,7 +62,7 @@ export default function TransferMarket({career,onCareerChange,club,clubs,baseClu
   const [deal,setDeal]=useState(null);
   const [visibleCount,setVisibleCount]=useState(24);
   const [marketNotice,setMarketNotice]=useState('');
-  const world=getClubWorld(club.id),finance=transferBudgetSnapshot(career),incoming=useMemo(()=>incomingMarketOffers(career,baseClubs),[career,baseClubs]);
+  const finance=transferBudgetSnapshot(career),incoming=useMemo(()=>incomingMarketOffers(career,baseClubs),[career,baseClubs]);
 
   const normalizeText=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
   const countryNames=useMemo(()=>new Intl.DisplayNames(['pt-BR'],{type:'region'}),[]);
