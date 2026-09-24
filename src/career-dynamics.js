@@ -229,7 +229,8 @@ export function applySeasonDynamics(career,club,previousReview=career.seasonRevi
   return addNews(next,{id:'news-preseason-'+newSeason,season:newSeason,round:0,type:'club',importance:2,title:'Novo ciclo começa no '+club.name,text:'Diretoria, base e elenco foram reavaliados para a temporada '+newSeason+'. O mercado e as metas refletem o que aconteceu no ano anterior.',timestamp:newSeason+'-01-01'});
 }
 export function managerCareerSummary(career){
-  const wins=(career.history||[]).filter(x=>x.points===3).length,draws=(career.history||[]).filter(x=>x.points===1).length,losses=(career.history||[]).filter(x=>x.points===0).length;
+  const league=(career.history||[]).map(item=>item.points),world=(career.world?.history||[]).filter(item=>String(item.homeId)===String(career.userClubId)||String(item.awayId)===String(career.userClubId)).map(item=>{const home=String(item.homeId)===String(career.userClubId),gf=home?item.homeGoals:item.awayGoals,ga=home?item.awayGoals:item.homeGoals;return gf>ga?3:gf===ga?1:0;}),points=[...league,...world];
+  const wins=points.filter(value=>value===3).length,draws=points.filter(value=>value===1).length,losses=points.filter(value=>value===0).length;
   const biggest=(career.careerMemory?.historicMoments||[]).find(m=>m.type==='score');
   const buys=(career.transferHistory||[]).filter(t=>t.type==='buy'),sales=(career.transferHistory||[]).filter(t=>t.type==='sell');
   return{seasons:Math.max(1,(career.seasons||[]).length+(career.round>0?1:0)),matches:wins+draws+losses,wins,draws,losses,titles:(career.trophies||[]).length,reputation:Math.round(career.managerReputation??50),biggest,biggestBuy:buys.sort((a,b)=>b.amount-a.amount)[0]||null,biggestSale:sales.sort((a,b)=>b.amount-a.amount)[0]||null};
