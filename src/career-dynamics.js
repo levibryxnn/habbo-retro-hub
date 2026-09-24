@@ -111,7 +111,9 @@ function updateRivalry(career,info,result,clubs){
   map[id]=next;return{...career,careerMemory:{...memory,rivalries:map}};
 }
 function updatePlayerMood(career,club,result){
-  const room=career.dressingRoom||{morale:80,unity:75,leaders:[],playerMood:{}},mood={...(room.playerMood||{})},side=String(result.homeId)===String(club.id)?'home':'away',lineupIds=(side==='home'?result.homeLineup:result.awayLineup)||[],lineup=new Set(lineupIds.map(String));
+  const room=career.dressingRoom||{morale:80,unity:75,leaders:[],playerMood:{}},mood={...(room.playerMood||{})},side=String(result.homeId)===String(club.id)?'home':'away',lineupIds=(side==='home'?result.homeLineup:result.awayLineup)||[];
+  if(!lineupIds.length)return career;
+  const lineup=new Set(lineupIds.map(String));
   const ranked=(club.players||[]).slice().sort((a,b)=>playerGameStats(b).overall-playerGameStats(a).overall).slice(0,10);
   for(const player of ranked){
     const key=playerKey(club.id,player),old=mood[key]||{benchStreak:0,morale:78};
