@@ -68,7 +68,7 @@
 }
 
 
-/* beta00 · estatísticas e notas de partida */
+/* 1.0 · estatísticas e notas de partida */
 .stats-card{background:linear-gradient(180deg,#fff,#fbfcf9);gap:11px}
 .stats-title>div{display:flex;align-items:center;gap:7px;color:#48644a}
 .stats-title>div svg{color:#5d7d5b}
