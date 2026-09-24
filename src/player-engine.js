@@ -83,6 +83,17 @@ export function playerCondition(career,clubId,playerId){
   const value=career?.conditions?.[statusKey(clubId,playerId)];
   return clamp(35,100,Number.isFinite(value)?value:100);
 }
+export function injuryOverallPenalty(career,clubId,playerId,roundNumber=(career?.round||0)+1){
+  const status=playerStatus(career,clubId,playerId);
+  if((status.injuryThroughRound||0)<roundNumber)return 0;
+  const remaining=Math.max(1,(status.injuryThroughRound||roundNumber)-roundNumber+1);
+  const label=String(status.injuryLabel||'');
+  const severity=/importante/i.test(label)?4:/moderada/i.test(label)?3:/leve/i.test(label)?2:1;
+  return clamp(1,7,Math.max(severity,remaining+severity-1));
+}
+export function careerPlayerOverall(player,career,clubId,roundNumber=(career?.round||0)+1){
+  return clamp(35,94,playerGameStats(player).overall-injuryOverallPenalty(career,clubId,player.id,roundNumber));
+}
 export function playerAvailability(career,clubId,player,roundNumber){
   const status=playerStatus(career,clubId,player.id);
   const reasons=[];
@@ -91,9 +102,9 @@ export function playerAvailability(career,clubId,player,roundNumber){
   return {available:reasons.length===0,reasons,status,condition:playerCondition(career,clubId,player.id)};
 }
 function roleScore(player,career,clubId){
-  const stats=playerGameStats(player);
+  const overall=careerPlayerOverall(player,career,clubId);
   const condition=playerCondition(career,clubId,player.id);
-  return stats.overall*(.72+condition/100*.28);
+  return overall*(.72+condition/100*.28);
 }
 export function autoLineup(club,career,roundNumber){
   const available=(club?.players||[]).filter(function(player){
@@ -180,10 +191,10 @@ export function currentBench(result,side,second){
   return bench.filter(id=>!usedIn.has(id));
 }
 export function effectivePlayerRating(player,career,clubId,minute,isSubstitute){
-  const stats=playerGameStats(player);
+  const overall=careerPlayerOverall(player,career,clubId);
   const condition=playerCondition(career,clubId,player.id);
   const fatigue=isSubstitute?Math.max(0,(minute-1)*.08):Math.max(0,(minute-55)*.22);
-  return stats.overall*(.7+condition/100*.3)-fatigue;
+  return overall*(.7+condition/100*.3)-fatigue;
 }
 
 
