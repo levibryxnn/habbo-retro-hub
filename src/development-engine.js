@@ -65,6 +65,7 @@ export function advancePlayerLifecycle(career,clubs,newSeason){
       const nextAge=profile.age+1;
       if(nextAge>=45){
         retired[key]={season:newSeason-1,clubId:String(club.id),name:player.name,generation:profile.generation};
+        delete development[key];
         const successor=regenFor(player,club,profile,newSeason,regens.length);regens.push(successor);
         development[successor._playerKey]={age:16,baseAge:16,baseOverall:successor._generatedOverall,delta:0,potential:successor._potential,generation:successor._generation,rootName:successor._rootName,position:successor.position,createdSeason:newSeason};
         if(String(club.id)===String(career.userClubId))pending.push({id:'retire-'+key+'-'+newSeason,player:key,name:player.name,age:nextAge,clubId:String(club.id),successorName:successor.name,successorOverall:successor._generatedOverall,successorPotential:successor._potential});
@@ -74,6 +75,7 @@ export function advancePlayerLifecycle(career,clubs,newSeason){
       development[key]={...profile,age:nextAge,delta,potential:profile.potential};
     }
   }
-  return{...career,playerDevelopment:development,retiredPlayers:retired,regens,pendingRetirements:[...(career.pendingRetirements||[]),...pending]};
+  const activeRegens=regens.filter(player=>!retired[String(player._playerKey||String(player._originClubId||'')+':'+player.id)]);
+  return{...career,playerDevelopment:development,retiredPlayers:retired,regens:activeRegens,pendingRetirements:[...(career.pendingRetirements||[]),...pending].slice(-20)};
 }
 export function retirementSummary(career){return Array.isArray(career.pendingRetirements)?career.pendingRetirements:[];}
