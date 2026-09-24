@@ -216,8 +216,8 @@ export function applySeasonDynamics(career,club){
   let next=career,review=career.seasonReview||{},hof={...(career.hallOfFame||{players:[],moments:[]})};
   if(review.bestPlayer&&review.bestPlayer.appearances>=8&&!hof.players.some(p=>p.name===review.bestPlayer.name&&p.season===career.season))hof.players=[{name:review.bestPlayer.name,season:career.season,rating:review.bestPlayer.averageRating,goals:review.bestPlayer.goals,reason:'Destaque da temporada'},...hof.players].slice(0,30);
   hof.moments=[...(career.careerMemory?.historicMoments||[]).filter(m=>m.season===career.season),...(hof.moments||[])].slice(0,50);
-  const newSeason=career.season+1,president=presidentForClub(club.id,newSeason),profile=managerProfile(career.managerProfile);
-  const academy={...(career.youthAcademy||{}),prospects:generateProspects({...career,season:newSeason},club,4+Math.floor(roll(club.id+'|'+newSeason+'intake')*3)),lastIntakeSeason:newSeason};
+  const newSeason=career.season,president=presidentForClub(club.id,newSeason),profile=managerProfile(career.managerProfile);
+  const academy={...(career.youthAcademy||{}),prospects:generateProspects(career,club,4+Math.floor(roll(club.id+'|'+newSeason+'intake')*3)),lastIntakeSeason:newSeason};
   next={...next,hallOfFame:hof,presidentProfile:president,youthAcademy:academy,transferBudget:resetSeasonTransferBudget(career),fanCredit:clamp(0,30,(career.fanCredit||0)*.88),managerReputation:clamp(1,100,(career.managerReputation??50)+(review.position<=4?2:review.position>=17?-2:.5))};
   return addNews(next,{id:'news-preseason-'+newSeason,season:newSeason,round:0,type:'club',importance:2,title:'Novo ciclo começa no '+club.name,text:'Diretoria, base e elenco foram reavaliados para a temporada '+newSeason+'. O mercado e as metas refletem o que aconteceu no ano anterior.',timestamp:newSeason+'-01-01'});
 }
