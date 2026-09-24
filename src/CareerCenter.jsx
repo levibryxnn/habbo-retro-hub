@@ -1,5 +1,5 @@
 import React,{useMemo,useRef,useState}from'react';
-import { Archive, ArrowRight, BookOpen, Download, FileUp, Landmark, Newspaper, ShieldCheck, Sparkles, Trophy, Upload, Users } from 'lucide-react';
+import { Archive, ArrowRight, BookOpen, Download, FileUp, Landmark, Newspaper, ShieldCheck, Sparkles, Trophy, Users } from 'lucide-react';
 import { careerNews, difficultyProfile, dynamicRivalries, managerCareerSummary, managerProfile, promoteAcademyProspect, resolvePressConference } from './career-dynamics.js';
 import { financeHealth } from './economy-engine.js';
 import { worldClub, worldCompetitionList } from './competition-engine.js';
@@ -7,7 +7,6 @@ import { parseCareerSave, saveFileName, serializeCareerSave } from './save-forma
 import './career-center.css';
 
 const money=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
-const dateLabel=value=>{if(!value)return'';if(/^\d{4}-\d{2}-\d{2}$/.test(value)){try{return new Date(value+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'}).replace('.','');}catch{}}return value;};
 
 function SavePanel({career,club,onImportCareer}){
   const input=useRef(null),[notice,setNotice]=useState('');
