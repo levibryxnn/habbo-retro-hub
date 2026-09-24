@@ -116,7 +116,7 @@ function updatePlayerMood(career,club,result){
   for(const player of ranked){
     const key=playerKey(club.id,player),old=mood[key]||{benchStreak:0,morale:78};
     const started=lineup.has(String(player.id)),benchStreak=started?0:old.benchStreak+1,morale=clamp(20,100,old.morale+(started?1:benchStreak>=3?-4:0));
-    mood[key]={...old,name:player.name,benchStreak,morale,unhappy:benchStreak>=4&&playerGameStats(player).overall>=72};
+    mood[key]={...old,key,name:player.name,benchStreak,morale,unhappy:benchStreak>=4&&playerGameStats(player).overall>=72,wantsTransfer:benchStreak>=6&&playerGameStats(player).overall>=72};
   }
   return{...career,dressingRoom:{...room,playerMood:mood}};
 }
@@ -140,6 +140,9 @@ export function applyMatchDynamics(career,club,clubs,result,{competition='Brasil
   next={...next,dressingRoom:{...room,morale:clamp(20,100,(room.morale??82)+moraleDelta),unity:clamp(20,100,(room.unity??78)+unityDelta)},careerMemory:memory,managerReputation:clamp(1,100,(next.managerReputation??50)+(info.outcome==='win'?.45:info.outcome==='loss'?-.25:.05))};
   next=updateRivalry(next,info,{...result,stage},clubs);
   next=updatePlayerMood(next,club,result);
+  for(const mood of Object.values(next.dressingRoom?.playerMood||{}).filter(item=>item.wantsTransfer)){
+    next=addNews(next,{id:'news-transfer-request-'+next.season+'-'+mood.key,season:next.season,round:next.round,type:'dressing-room',importance:3,title:mood.name+' quer mais espaço no time',text:'A sequência fora dos titulares incomodou o jogador. Sem mudança de cenário, uma saída passa a ser considerada.',timestamp:String(next.season)+'-r'+String(next.round)});
+  }
   const opp=clubs.find(c=>String(c.id)===String(info.opponentId)),clubName=club.name,oppName=opp?.name||'adversário';
   const headline=info.outcome==='win'?pick([clubName+' confirma bom momento',clubName+' soma vitória importante',clubName+' faz valer o trabalho'],result.id+'w'):info.outcome==='loss'?pick([clubName+' deixa pontos pelo caminho',clubName+' terá de reagir',clubName+' sofre revés na temporada'],result.id+'l'):clubName+' empata com '+oppName;
   next=addNews(next,{id:'news-match-'+result.id,season:next.season,round:next.round,type:'match',importance:/Final|Semifinal/i.test(stage)?4:2,title:headline,text:clubName+' '+(info.outcome==='win'?'venceu':info.outcome==='loss'?'perdeu':'empatou')+' com '+oppName+' por '+info.gf+' a '+info.ga+' em '+competition+(stage?' · '+stage:'')+'.',timestamp:String(next.season)+'-r'+String(next.round)});
@@ -152,6 +155,7 @@ export function applyMatchDynamics(career,club,clubs,result,{competition='Brasil
   const credit=Math.max(0,Number(next.fanCredit||0));if(info.outcome==='loss'&&credit>0)next=applyConfidenceEvent(next,{fans:Math.min(1.8,credit*.08),kind:'legacy',reason:'O histórico recente do treinador ainda lhe dá crédito com parte da torcida.'});
   if(profile.id==='strategist'&&info.outcome==='win')next=applyConfidenceEvent(next,{board:.4,kind:'profile',reason:'A diretoria reconheceu a preparação tática do treinador.'});
   if(profile.id==='motivator'&&info.outcome==='win')next=applyConfidenceEvent(next,{fans:.5,kind:'profile',reason:'O ambiente positivo do vestiário se refletiu nas arquibancadas.'});
+  if(profile.id==='manager'&&info.outcome==='loss')next=applyConfidenceEvent(next,{board:.45,kind:'profile',reason:'A organização do projeto preservou parte da confiança da diretoria após o resultado.'});
   const president=next.presidentProfile||presidentForClub(next.userClubId,next.season),dna=next.clubDNA||clubDNAFor(next.userClubId);
   if(info.outcome==='loss'&&president.id==='ambitious')next=applyConfidenceEvent(next,{board:-.6*president.pressure,kind:'board-style',reason:'A presidência ambiciosa elevou a cobrança após o resultado.'});
   if(info.outcome==='loss'&&president.id==='patient')next=applyConfidenceEvent(next,{board:.45,kind:'board-style',reason:'A diretoria manteve respaldo ao projeto apesar do resultado.'});
