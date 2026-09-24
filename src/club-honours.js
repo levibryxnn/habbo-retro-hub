@@ -1,4 +1,4 @@
-// beta00 historical honours database.
+// Historical honours database used by the release build.
 // Scope: official senior men's first-team trophies commonly recognized by clubs,
 // federations and confederations. Counts reflect public records available in 2026.
 // Career trophies earned in the save are added on top of these historical counts.
