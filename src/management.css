@@ -26,3 +26,10 @@
 .historical-trophy .trophy-card-top>svg{color:#a78b43}
 .historical-trophy h3{min-height:36px;display:flex;align-items:center;justify-content:center}
 @media(max-width:620px){.trophy-grid{grid-template-columns:1fr 1fr;gap:10px}.trophy-card{padding-left:10px;padding-right:10px}.trophy-art-wrap{width:112px}.cup-art{width:100px;height:116px}.trophy-number-pop{top:4px;right:0;min-width:28px;height:28px;font-size:14px}.historical-trophy h3{font-size:13px;min-height:32px}.trophy-card p{font-size:9px}.trophy-state{font-size:8px}}
+
+
+/* Release candidate · finanças legíveis */
+.finance-summary-release{grid-template-columns:repeat(4,minmax(0,1fr))}
+.finance-summary-release>div>em{display:block;font-style:normal;font-size:7px;color:#8b9688;margin-top:2px}
+@media(max-width:820px){.finance-summary-release{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.finance-summary-release{grid-template-columns:1fr}}
