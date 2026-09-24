@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ArrowRight, Award, BadgeCheck, Check, CircleDollarSign, Handshake, LockKeyhole, Shield, Trophy, Wallet } from 'lucide-react';
 import { HONOUR_FILTERS, historicalTitleTotal, honoursWithCareer } from './club-honours.js';
 import { activeContracts, endSponsor, offers, projectedOfferValue, requirementStatus, signSponsor, slots, sponsorContext, sponsorshipTotals } from './finance-model';
+import { financeHealth } from './economy-engine.js';
 import Trophy3D from './Trophy3D.jsx';
 import './management.css';
 
@@ -37,6 +38,7 @@ export default function Management({club,tab,career,onCareerChange,canManage,onC
   const [notice,setNotice]=useState('');
   const totals=sponsorshipTotals(career);
   const active=activeContracts(career);
+  const finance=financeHealth(career);
   const context=useMemo(function(){ return sponsorContext(career,club,standings); },[career,club,standings]);
 
   function sign(item) {
@@ -84,10 +86,11 @@ export default function Management({club,tab,career,onCareerChange,canManage,onC
     {storageError&&<p className="management-alert" role="alert">O navegador não permitiu salvar. As alterações ficam disponíveis apenas nesta sessão.</p>}
     {!canManage&&<div className="choose-notice"><Shield size={19}/><p>Escolha o {club.name} para gerenciar contratos e caixa.</p><button onClick={onChoose}>Escolher clube <ArrowRight size={15}/></button></div>}
     {notice&&<div className="management-notice" role="status"><Check size={15}/>{notice}</div>}
-    <div className="finance-summary">
-      <div><Wallet size={18}/><small>Saldo do clube</small><strong>{money(career.cash)}</strong></div>
-      <div><Handshake size={18}/><small>Contratos ativos</small><strong>{active.length}<em> / 3 espaços</em></strong></div>
-      <div><Award size={18}/><small>Já recebido em patrocínios</small><strong>{money(totals.received)}</strong></div>
+    <div className="finance-summary finance-summary-release">
+      <div><Wallet size={18}/><small>Caixa operacional</small><strong>{money(career.cash)}</strong><em>{finance.label}</em></div>
+      <div><CircleDollarSign size={18}/><small>Orçamento de transferências</small><strong>{money(finance.budget)}</strong><em>{Math.round(finance.reinvestmentRate*100)}% das vendas reinvestem</em></div>
+      <div><Award size={18}/><small>Espaço salarial para reforços</small><strong>{money(finance.wageRoom)}</strong><em>por mês</em></div>
+      <div><Handshake size={18}/><small>Patrocínios ativos</small><strong>{active.length}<em> / 3 espaços</em></strong></div>
     </div>
 
     <div className="subheading"><h3>Parceiros do clube</h3><span>Rodada {career.round} · Temporada {career.season}</span></div>
