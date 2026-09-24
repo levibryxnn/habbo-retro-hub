@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { createCareer } from '../src/career-engine.js';
 import { initialCashForClub } from '../src/finance-model.js';
 import { rivalryLevel } from '../src/club-world.js';
-import { applyCareerRoster, evaluateTransferOffer, executeTransfer, negotiationPreset, playerKey, playerMarketValueBRL, playerMarketValueEUR } from '../src/transfer-engine.js';
+import { applyCareerRoster, evaluateTransferOffer, executeTransfer, incomingMarketOffers, negotiationPreset, playerKey, playerMarketValueBRL, playerMarketValueEUR, rejectIncomingOffer } from '../src/transfer-engine.js';
 
 const data=JSON.parse(fs.readFileSync(new URL('../src/data/serie-a-2026.json',import.meta.url),'utf8'));
 const clubs=data.clubs;
@@ -81,4 +81,16 @@ test('selling well below market value reduces board confidence',function(){
   assert.ok(done.career.managerConfidence.board<82);
   assert.equal(done.career.transferHistory.at(-1).marketValue,market);
   assert.ok(done.career.transferHistory.at(-1).valueRatio<.7);
+});
+
+
+test('strong season performance creates deterministic incoming offers that can be dismissed',function(){
+  const user=club('874'),player=user.players[0];
+  let career=createCareer(clubs,user.id);
+  career={...career,round:18,seasonPerformance:{[String(player.id)]:{playerId:String(player.id),name:player.name,appearances:15,totalRating:112,goals:9,assists:4,minutes:1200}}};
+  const first=incomingMarketOffers(career,clubs),second=incomingMarketOffers(career,clubs);
+  assert.deepEqual(first,second);
+  assert.ok(first.length>=1);
+  const rejected=rejectIncomingOffer(career,first[0].id);
+  assert.ok(!incomingMarketOffers(rejected,clubs).some(item=>item.id===first[0].id));
 });
