@@ -1,6 +1,6 @@
 {
   "name": "linha-de-frente-manager",
-  "version": "0.9.1-beta.0",
+  "version": "1.0.0-rc.2",
   "private": true,
   "type": "module",
   "scripts": {
