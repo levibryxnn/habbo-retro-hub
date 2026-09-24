@@ -152,6 +152,11 @@ export function applyMatchDynamics(career,club,clubs,result,{competition='Brasil
   const credit=Math.max(0,Number(next.fanCredit||0));if(info.outcome==='loss'&&credit>0)next=applyConfidenceEvent(next,{fans:Math.min(1.8,credit*.08),kind:'legacy',reason:'O histórico recente do treinador ainda lhe dá crédito com parte da torcida.'});
   if(profile.id==='strategist'&&info.outcome==='win')next=applyConfidenceEvent(next,{board:.4,kind:'profile',reason:'A diretoria reconheceu a preparação tática do treinador.'});
   if(profile.id==='motivator'&&info.outcome==='win')next=applyConfidenceEvent(next,{fans:.5,kind:'profile',reason:'O ambiente positivo do vestiário se refletiu nas arquibancadas.'});
+  const president=next.presidentProfile||presidentForClub(next.userClubId,next.season),dna=next.clubDNA||clubDNAFor(next.userClubId);
+  if(info.outcome==='loss'&&president.id==='ambitious')next=applyConfidenceEvent(next,{board:-.6*president.pressure,kind:'board-style',reason:'A presidência ambiciosa elevou a cobrança após o resultado.'});
+  if(info.outcome==='loss'&&president.id==='patient')next=applyConfidenceEvent(next,{board:.45,kind:'board-style',reason:'A diretoria manteve respaldo ao projeto apesar do resultado.'});
+  if(info.outcome==='win'&&dna.titlePressure>1.1)next=applyConfidenceEvent(next,{fans:.25,kind:'club-dna',reason:'A vitória respondeu à cultura de protagonismo que cerca o clube.'});
+  if((next.cash||0)<0&&president.id==='prudent')next=applyConfidenceEvent(next,{board:-.7,kind:'finance',reason:'A diretoria prudente demonstrou preocupação com o caixa negativo.'});
   const pressure=(next.careerMemory?.streak?.type==='losses'&&next.careerMemory.streak.count>=3)||rivalryLevel(next.userClubId,info.opponentId)>=2||/Final|Semifinal/i.test(stage);
   if(pressure&&!next.pressConference)next={...next,pressConference:{id:'press-'+next.season+'-'+next.round,season:next.season,round:next.round,reason:rivalryLevel(next.userClubId,info.opponentId)>=2?'clássico':/Final|Semifinal/i.test(stage)?'decisão':'sequência ruim',opponent:oppName,choices:[
     {id:'protect',label:'Proteger o elenco',copy:'Assumir a responsabilidade e tirar pressão dos jogadores.'},
