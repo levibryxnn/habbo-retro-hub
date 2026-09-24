@@ -139,7 +139,7 @@ test('manager identity is stored and preserved by career sanitization',function(
   const named={...base,managerName:'Levi'};
   const restored=sanitizeCareer(named,clubs,clubs[0].id);
   assert.equal(restored.managerName,'Levi');
-  assert.equal(restored.version,10);
+  assert.equal(restored.version,11);
 });
 
 test('simulated matches persist the selected presentation mode for their history clock',function(){
