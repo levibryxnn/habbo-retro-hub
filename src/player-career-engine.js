@@ -1,6 +1,6 @@
 import { getClubWorld } from './club-world.js';
 import { clamp, effectiveOverall, expectedGoals, formRegression, hashSeed, individualInjuryRisk, injuryRecovery, logisticDominance, mulberry32, teamStrength } from './ldf-engine.js';
-import { createPlayerFinance, effectivePlayerAttributes, playerLifeBonuses, refreshPlayerSponsorOffers, sanitizePlayerFinance, settlePlayerMonth } from './player-life-engine.js';
+import { createPlayerFinance, effectivePlayerAttributes, enqueuePlayerMoment, playerLifeBonuses, refreshPlayerSponsorOffers, sanitizePlayerFinance, settlePlayerMonth } from './player-life-engine.js';
 import { parseSafeJson } from './save-format.js';
 
 export const PLAYER_CAREER_KEY='ldf.playerCareer.v1';
@@ -100,7 +100,7 @@ export function createPlayerCareer(input={},season=2026){
     version:PLAYER_CAREER_VERSION,mode:'player',seed:String(seed),season,week:0,age:16,stage:'trial',clubId:null,dreamClubId:String(input.dreamClubId||''),trial:{answers:{},score:null,completed:false,report:null},player:{
       id:'user-player',name,position,foot:['left','right'].includes(input.foot)?input.foot:'right',archetype:archetype.id,face:{...faceDefaults(seed),...(input.face||{})},attributes,potential,currentOverall:initialOverall,condition:100,morale:78,form:0,coachTrust:42,reputation:5,contractSatisfaction:70,injury:null,injuryHistory:0,
     },
-    trainingFocus:'balanced',matchApproach:'balanced',contract:null,nationalTeamStatus:'none',awards:[],dayOfSeason:0,dayOfWeek:0,finance:createPlayerFinance(),careerStats:{matches:0,starts:0,minutes:0,goals:0,assists:0,totalRating:0,titles:0},seasonStats:{matches:0,starts:0,minutes:0,goals:0,assists:0,totalRating:0},timeline:[{id:'career-created',season,week:0,type:'start',title:'O sonho começa',text:name+' inicia a carreira aos 16 anos e entra em uma peneira.'}],offers:[],pendingOffer:null,pendingMoment:null,news:[],lastMatch:null,lastDay:null,achievements:[],saveId:'pc-'+hashSeed(seed,'save').toString(36),
+    trainingFocus:'balanced',matchApproach:'balanced',contract:null,nationalTeamStatus:'none',awards:[],dayOfSeason:0,dayOfWeek:0,finance:createPlayerFinance(),careerStats:{matches:0,starts:0,minutes:0,goals:0,assists:0,totalRating:0,titles:0},seasonStats:{matches:0,starts:0,minutes:0,goals:0,assists:0,totalRating:0},timeline:[{id:'career-created',season,week:0,type:'start',title:'O sonho começa',text:name+' inicia a carreira aos 16 anos e entra em uma peneira.'}],offers:[],pendingOffer:null,pendingMoment:null,momentQueue:[],news:[],lastMatch:null,lastDay:null,achievements:[],saveId:'pc-'+hashSeed(seed,'save').toString(36),
   };
 }
 function trialSkillValue(career,choice){
@@ -157,19 +157,24 @@ function weeklyDevelopment(career,performance,rng){
   return attrs;
 }
 function maybeMilestone(career,performance){
-  let timeline=[...(career.timeline||[])],achievements=[...(career.achievements||[])],pending=career.pendingMoment||null;
-  const ensure=(id,title,text,type='milestone')=>{if(!timeline.some(x=>x.id===id)){timeline.unshift({id,title,text,season:career.season,week:career.week,day:career.dayOfSeason,type});achievements.unshift(id);if(!pending)pending={id,type,title,subtitle:'Momento da carreira',text,season:career.season,day:career.dayOfSeason};}};
+  let next=career,timeline=[...(career.timeline||[])],achievements=[...(career.achievements||[])];
+  const ensure=(id,title,text,type='milestone')=>{
+    if(timeline.some(item=>item.id===id))return;
+    timeline.unshift({id,title,text,season:career.season,week:career.week,day:career.dayOfSeason,type});achievements.unshift(id);
+    next=enqueuePlayerMoment({...next,timeline:timeline.slice(0,120),achievements:achievements.slice(0,80)},{id,type,title,subtitle:'Momento da carreira',text,season:career.season,day:career.dayOfSeason});
+  };
   if(career.careerStats.matches>=1)ensure('first-match','Primeiro jogo','A carreira registrou a primeira partida oficial.','match');
   if(career.careerStats.goals>=1)ensure('first-goal','Primeiro gol','O primeiro gol da carreira virou memória do save.','goal');
   if(career.careerStats.matches>=50)ensure('matches-50','50 jogos','Uma marca importante de continuidade.','milestone');
   if(career.careerStats.goals>=50)ensure('goals-50','50 gols','A carreira alcançou cinquenta gols oficiais.','goal');
-  return{...career,timeline:timeline.slice(0,120),achievements:achievements.slice(0,80),pendingMoment:pending};
+  return{...next,timeline:timeline.slice(0,120),achievements:achievements.slice(0,80)};
 }
 function maybeProfessionalPromotion(career,club){
   if(career.stage!=='academy')return career;const p=career.player,avg=career.seasonStats.matches?career.seasonStats.totalRating/career.seasonStats.matches:0,score=playerBaseCareerOverall(career)*.55+p.coachTrust*.25+avg*2.5+career.seasonStats.minutes/700;
   if(career.week<8||score<62)return career;
   const life=playerLifeBonuses(career),salary=contractSalary(club,playerBaseCareerOverall(career),career.age,Math.min(100,score))*life.salaryMultiplier,contract={clubId:String(club.id),clubName:club.name,startSeason:career.season,expirySeason:career.season+3,salaryMonthly:Math.round(salary*2.4/500)*500,role:'Profissional',kind:'pro'};
-  return{...career,stage:'professional',contract,pendingMoment:career.pendingMoment||{id:'promotion-'+career.season+'-'+career.week,type:'promotion',title:'Você subiu para o profissional',subtitle:club.name,text:'O trabalho na base virou contrato profissional.',season:career.season,day:career.dayOfSeason},player:{...p,morale:clamp(0,100,p.morale+8),reputation:clamp(1,100,p.reputation+6),contractSatisfaction:88},timeline:[{id:'promotion-'+career.season+'-'+career.week,title:'Promovido ao profissional',text:'A comissão do '+club.name+' decidiu integrar '+p.name+' ao elenco principal e ofereceu o primeiro contrato profissional.',season:career.season,week:career.week,type:'promotion'},...(career.timeline||[])],news:[{id:'promotion-news-'+career.season+'-'+career.week,title:p.name+' sobe ao profissional',text:'A evolução na base abriu a porta do elenco principal.',season:career.season,week:career.week},...(career.news||[])]};
+  const promoted={...career,stage:'professional',contract,player:{...p,morale:clamp(0,100,p.morale+8),reputation:clamp(1,100,p.reputation+6),contractSatisfaction:88},timeline:[{id:'promotion-'+career.season+'-'+career.week,title:'Promovido ao profissional',text:'A comissão do '+club.name+' decidiu integrar '+p.name+' ao elenco principal e ofereceu o primeiro contrato profissional.',season:career.season,week:career.week,type:'promotion'},...(career.timeline||[])],news:[{id:'promotion-news-'+career.season+'-'+career.week,title:p.name+' sobe ao profissional',text:'A evolução na base abriu a porta do elenco principal.',season:career.season,week:career.week},...(career.news||[])]};
+  return enqueuePlayerMoment(promoted,{id:'promotion-'+career.season+'-'+career.week,type:'promotion',title:'Você subiu para o profissional',subtitle:club.name,text:'O trabalho na base virou contrato profissional.',season:career.season,day:career.dayOfSeason});
 }
 function maybeTransferOffer(career,clubs,rng){
   if(career.stage!=='professional'||career.pendingOffer||career.week%8!==0)return career;
@@ -184,7 +189,8 @@ export function respondPlayerOffer(career,clubs,accept){
   if(!accept)return{...career,pendingOffer:null,player:{...career.player,morale:clamp(0,100,career.player.morale+1)},timeline:[{id:offer.id+'-reject',title:'Permanência escolhida',text:career.player.name+' decidiu seguir no projeto atual.',season:career.season,week:career.week,type:'decision'},...(career.timeline||[])]};
   const target=clubs.find(c=>String(c.id)===String(offer.clubId));if(!target)return{...career,pendingOffer:null};
   const contract={clubId:String(target.id),clubName:target.name,startSeason:career.season,expirySeason:career.season+Number(offer.years||3),salaryMonthly:Number(offer.salaryMonthly||contractSalary(target,playerBaseCareerOverall(career),career.age,60)),role:offer.role||'Profissional',kind:'pro'};
-  return{...career,clubId:String(target.id),contract,pendingOffer:null,pendingMoment:career.pendingMoment||{id:offer.id+'-moment',type:offer.dreamClub?'dream-club':'transfer',title:offer.dreamClub?'O clube dos sonhos':'Novo capítulo',subtitle:target.name,text:career.player.name+' aceitou um novo passo na carreira'+(offer.dreamClub?' e realizou o objetivo de vestir a camisa do clube dos sonhos.':'.'),season:career.season,day:career.dayOfSeason},player:{...career.player,coachTrust:45,morale:clamp(0,100,career.player.morale+(offer.dreamClub?8:3)),reputation:clamp(1,100,career.player.reputation+2),contractSatisfaction:90},timeline:[{id:offer.id+'-accept',title:'Novo clube: '+target.name,text:career.player.name+' aceitou um novo passo na carreira'+(offer.dreamClub?' e realizou o objetivo de vestir a camisa do clube dos sonhos.':'.'),season:career.season,week:career.week,type:'transfer'},...(career.timeline||[])]};
+  const moved={...career,clubId:String(target.id),contract,pendingOffer:null,player:{...career.player,coachTrust:45,morale:clamp(0,100,career.player.morale+(offer.dreamClub?8:3)),reputation:clamp(1,100,career.player.reputation+2),contractSatisfaction:90},timeline:[{id:offer.id+'-accept',title:'Novo clube: '+target.name,text:career.player.name+' aceitou um novo passo na carreira'+(offer.dreamClub?' e realizou o objetivo de vestir a camisa do clube dos sonhos.':'.'),season:career.season,week:career.week,type:'transfer'},...(career.timeline||[])]};
+  return enqueuePlayerMoment(moved,{id:offer.id+'-moment',type:offer.dreamClub?'dream-club':'transfer',title:offer.dreamClub?'O clube dos sonhos':'Novo capítulo',subtitle:target.name,text:career.player.name+' aceitou um novo passo na carreira'+(offer.dreamClub?' e realizou o objetivo de vestir a camisa do clube dos sonhos.':'.'),season:career.season,day:career.dayOfSeason});
 }
 function seasonHonours(career){
   const s=career.seasonStats||{},avg=s.matches?finite(s.totalRating)/Math.max(1,s.matches):0,awards=[...(career.awards||[])],timeline=[...(career.timeline||[])];let reputation=finite(career.player?.reputation,5);
@@ -198,13 +204,17 @@ function maybeNationalTeam(career){
   if(career.nationalTeamStatus==='called-up'||career.stage!=='professional'||career.age<18)return career;
   const overall=playerCareerOverall(career),rep=finite(career.player.reputation,5),avg=career.seasonStats.matches?finite(career.seasonStats.totalRating)/Math.max(1,career.seasonStats.matches):0;
   if(overall<78||rep<50||avg<6.9)return career;
-  return{...career,nationalTeamStatus:'called-up',pendingMoment:career.pendingMoment||{id:'national-team-'+career.season,type:'national-team',title:'Primeira convocação',subtitle:'Seleção nacional',text:career.player.name+' recebeu a primeira convocação para a seleção.',season:career.season,day:career.dayOfSeason},player:{...career.player,morale:clamp(0,100,career.player.morale+6),reputation:clamp(1,100,career.player.reputation+5)},timeline:[{id:'national-team-'+career.season,title:'Primeira convocação',text:career.player.name+' recebeu a primeira convocação para a seleção.',season:career.season,week:career.week,type:'national-team'},...(career.timeline||[])],news:[{id:'national-team-news-'+career.season,title:career.player.name+' é convocado',text:'O bom momento no clube abriu espaço na seleção.',season:career.season,week:career.week},...(career.news||[])]};
+  const called={...career,nationalTeamStatus:'called-up',player:{...career.player,morale:clamp(0,100,career.player.morale+6),reputation:clamp(1,100,career.player.reputation+5)},timeline:[{id:'national-team-'+career.season,title:'Primeira convocação',text:career.player.name+' recebeu a primeira convocação para a seleção.',season:career.season,week:career.week,type:'national-team'},...(career.timeline||[])],news:[{id:'national-team-news-'+career.season,title:career.player.name+' é convocado',text:'O bom momento no clube abriu espaço na seleção.',season:career.season,week:career.week},...(career.news||[])]};
+  return enqueuePlayerMoment(called,{id:'national-team-'+career.season,type:'national-team',title:'Primeira convocação',subtitle:'Seleção nacional',text:career.player.name+' recebeu a primeira convocação para a seleção.',season:career.season,day:career.dayOfSeason});
 }
 function advancePlayerSeason(career){
   if(finite(career.dayOfSeason,career.week*7)<266)return career;
   let prepared=seasonHonours(career);const age=prepared.age+1,season=prepared.season+1,p=prepared.player,decline=age>=35?(p.position==='GOL'&&age<39?0:.6):0,attrs={...p.attributes};if(decline)for(const key of ['pace','physical'])attrs[key]=clamp(20,96,finite(attrs[key],50)-decline);
   const shouldRetire=age>=43||(age>=40&&playerCareerOverall(prepared)<63);
-  if(shouldRetire)return{...prepared,age,season,week:0,dayOfSeason:0,dayOfWeek:0,stage:'retired',pendingMoment:prepared.pendingMoment||{id:'retirement-'+season,type:'retirement',title:'Último apito',subtitle:'Fim da carreira',text:p.name+' encerra a trajetória profissional aos '+age+' anos.',season,day:0},player:{...p,attributes:attrs,condition:clamp(35,100,p.condition+8),form:0,injury:null},timeline:[{id:'retirement-'+season,title:'Fim da carreira',text:p.name+' encerra a trajetória profissional aos '+age+' anos.',season,week:0,type:'retirement'},...(prepared.timeline||[])]};
+  if(shouldRetire){
+    const retired={...prepared,age,season,week:0,dayOfSeason:0,dayOfWeek:0,stage:'retired',player:{...p,attributes:attrs,condition:clamp(35,100,p.condition+8),form:0,injury:null},timeline:[{id:'retirement-'+season,title:'Fim da carreira',text:p.name+' encerra a trajetória profissional aos '+age+' anos.',season,week:0,type:'retirement'},...(prepared.timeline||[])]};
+    return enqueuePlayerMoment(retired,{id:'retirement-'+season,type:'retirement',title:'Último apito',subtitle:'Fim da carreira',text:p.name+' encerra a trajetória profissional aos '+age+' anos.',season,day:0});
+  }
   let contract=prepared.contract;
   if(contract&&Number(contract.expirySeason)<=season){
     const currentSalary=finite(contract.salaryMonthly,5000),life=playerLifeBonuses(prepared),raise=clamp(1.04,1.48,(1.08+Math.max(0,playerCareerOverall(prepared)-70)*.012+Math.max(0,p.form)*.025)*life.salaryMultiplier),salary=Math.round(currentSalary*raise/500)*500;
@@ -243,6 +253,7 @@ export function simulatePlayerDay(career,clubs=[]){
   const club=clubs.find(c=>String(c.id)===String(career.clubId));if(!club)return career;
   let next={...career,dayOfSeason:finite(career.dayOfSeason,career.week*7)+1},p={...career.player},life=playerLifeBonuses(career),focus=trainingDef(career.trainingFocus);
   next.week=Math.floor(next.dayOfSeason/7);next.dayOfWeek=next.dayOfSeason%7;
+  if(next.pendingOffer&&next.week>finite(next.pendingOffer.expiresWeek,next.week)){next={...next,pendingOffer:null,news:[{id:'offer-expired-'+next.season+'-'+next.dayOfSeason,title:'Proposta expirada',text:'A janela de decisão terminou e o clube retirou a proposta.',season:next.season,week:next.week,day:next.dayOfSeason},...(next.news||[])].slice(0,80)};}
   const trainingDay=[1,2,3,4].includes(next.dayOfWeek),matchDay=next.dayOfWeek===5;
   if(p.injury){
     const remaining=Math.max(0,finite(p.injury.daysRemaining,p.injury.matchesRemaining*7)-1),injury=remaining>0?{...p.injury,daysRemaining:remaining,matchesRemaining:Math.max(1,Math.ceil(remaining/7))}:null;p.injury=injury;p.condition=clamp(35,100,p.condition+1.6+life.dailyRecovery);next.lastDay={day:next.dayOfSeason,type:injury?'recovery':'medical-clearance',title:injury?'Recuperação':'Liberado pelo departamento médico',text:injury?'O tratamento reduziu o tempo restante para '+remaining+' dia(s).':'Você está novamente disponível.'};
@@ -258,7 +269,10 @@ export function simulatePlayerDays(career,clubs=[],days=1){
   let next=career;for(let i=0;i<Math.max(1,Math.min(31,Math.round(days)));i++){if(next.stage==='retired')break;next=simulatePlayerDay(next,clubs);}return next;
 }
 export function simulatePlayerWeek(career,clubs=[]){return simulatePlayerDays(career,clubs,7);}
-export function acknowledgePlayerMoment(career){return{...career,pendingMoment:null};}
+export function acknowledgePlayerMoment(career){
+  const queue=Array.isArray(career?.momentQueue)?career.momentQueue:[];
+  return{...career,pendingMoment:queue[0]||null,momentQueue:queue.slice(1)};
+}
 export function playerCalendarLabel(career){
   const base=new Date(Date.UTC(Number(career?.season||2026),0,5)),date=new Date(base.getTime()+finite(career?.dayOfSeason,0)*86400000);return new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'short',timeZone:'UTC'}).format(date);
 }
@@ -293,6 +307,7 @@ export function sanitizePlayerCareer(raw,clubs=[]){
     timeline:Array.isArray(raw.timeline)?raw.timeline.slice(0,120):base.timeline,news:Array.isArray(raw.news)?raw.news.slice(0,80):[],achievements:Array.isArray(raw.achievements)?raw.achievements.slice(0,80):[],awards:Array.isArray(raw.awards)?raw.awards.slice(0,60):[],
     pendingOffer:raw.pendingOffer&&typeof raw.pendingOffer==='object'&&!Array.isArray(raw.pendingOffer)?{...raw.pendingOffer,clubId:String(raw.pendingOffer.clubId||'').slice(0,80),clubName:String(raw.pendingOffer.clubName||'').slice(0,100),salaryMonthly:clamp(0,100_000_000,finite(raw.pendingOffer.salaryMonthly,0)),years:clamp(1,5,finite(raw.pendingOffer.years,3)),expiresWeek:clamp(0,41,finite(raw.pendingOffer.expiresWeek,0))}:null,
     pendingMoment:raw.pendingMoment&&typeof raw.pendingMoment==='object'&&!Array.isArray(raw.pendingMoment)?{id:String(raw.pendingMoment.id||'moment').slice(0,100),type:String(raw.pendingMoment.type||'milestone').slice(0,40),title:String(raw.pendingMoment.title||'Momento da carreira').slice(0,120),subtitle:String(raw.pendingMoment.subtitle||'').slice(0,120),text:String(raw.pendingMoment.text||'').slice(0,500),season:clamp(2026,2100,finite(raw.pendingMoment.season,raw.season||2026)),day:clamp(0,266,finite(raw.pendingMoment.day,0))}:null,
+    momentQueue:Array.isArray(raw.momentQueue)?raw.momentQueue.slice(0,20).filter(item=>item&&typeof item==='object').map(item=>({id:String(item.id||'moment').slice(0,100),type:String(item.type||'milestone').slice(0,40),title:String(item.title||'Momento da carreira').slice(0,120),subtitle:String(item.subtitle||'').slice(0,120),text:String(item.text||'').slice(0,500),season:clamp(2026,2100,finite(item.season,raw.season||2026)),day:clamp(0,266,finite(item.day,0))})):[],
     lastDay:raw.lastDay&&typeof raw.lastDay==='object'&&!Array.isArray(raw.lastDay)?{day:clamp(0,266,finite(raw.lastDay.day,0)),type:String(raw.lastDay.type||'day').slice(0,40),title:String(raw.lastDay.title||'Dia concluído').slice(0,120),text:String(raw.lastDay.text||'').slice(0,500)}:null,
   };
   return merged;
