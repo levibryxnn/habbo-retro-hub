@@ -280,3 +280,38 @@ export function rivalryScore({historicBase=0,matches=0,knockouts=0,finals=0,titl
 export function careerDifficultyScore({squadGap=0,budgetGap=0,boardPressure=0,competitionLevel=0,scheduleDensity=0,clubExpectation=0}={}){
   return clamp(1,100,50+finite(squadGap,0)*1.2+finite(budgetGap,0)*.8+finite(boardPressure,0)*.8+finite(competitionLevel,0)*.65+finite(scheduleDensity,0)*.55+finite(clubExpectation,0)*.7);
 }
+
+export function achievementValue({
+  importance=1,
+  expectedDifficulty=1,
+  clubStrength=70,
+}={}){
+  const strength=clamp(35,100,finite(clubStrength,70));
+  return Number(clamp(.15,4.5,finite(importance,1)*clamp(.45,2.4,finite(expectedDifficulty,1))*(72/strength)).toFixed(3));
+}
+
+export function jobInterestScore({
+  managerReputation=50,
+  clubTargetLevel=50,
+  styleMatch=50,
+  recentResults=50,
+  availability=100,
+  clubAmbition=50,
+  salaryCost=50,
+  projectMismatch=0,
+  careerJump=0,
+  variance=0,
+}={}){
+  const reputationMatch=100-Math.abs(clamp(1,100,finite(managerReputation,50))-clamp(1,100,finite(clubTargetLevel,50)))*1.15;
+  const score=
+    reputationMatch*.28+
+    clamp(0,100,finite(styleMatch,50))*.14+
+    clamp(0,100,finite(recentResults,50))*.17+
+    clamp(0,100,finite(availability,100))*.08+
+    clamp(0,100,finite(clubAmbition,50))*.14-
+    clamp(0,100,finite(salaryCost,50))*.07-
+    clamp(0,100,finite(projectMismatch,0))*.08-
+    clamp(0,100,finite(careerJump,0))*.08+
+    clamp(-12,12,finite(variance,0));
+  return Number(clamp(0,100,score).toFixed(2));
+}
