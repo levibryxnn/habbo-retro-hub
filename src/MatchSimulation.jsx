@@ -94,7 +94,7 @@ function MatchTacticStrip({career,onSelect,live=false,disabled=false}){
 }
 function MatchContextStrip({result,career}){
   const weather=result?.environment?.weather,info=result?.intelligence;
-  return <div className="match-context-strip"><span><small>Treino</small><strong>{info?.training||({balanced:'Equilibrado',recovery:'Recuperação',physical:'Físico',attacking:'Ataque',defending:'Defesa',possession:'Posse',setpieces:'Bola parada',academy:'Integração da base'}[career?.trainingState?.focus]||'Equilibrado')}</strong></span><span><small>Clima / campo</small><strong>{weather?.label||info?.weather||'A confirmar'}{weather?.pitch?' · '+weather.pitch:''}</strong></span><span><small>xG</small><strong>{result?.xg?result.xg[0].toFixed(2)+' × '+result.xg[1].toFixed(2):'pré-jogo'}</strong></span></div>;
+  return <div className="match-context-strip"><span><small>Treino</small><strong>{info?.training||({balanced:'Equilibrado',recovery:'Recuperação',physical:'Físico',attacking:'Ataque',defending:'Defesa',possession:'Posse',setpieces:'Bola parada',academy:'Integração da base'}[career?.trainingState?.focus]||'Equilibrado')}</strong></span><span><small>Clima / campo</small><strong>{weather?.label||info?.weather||'A confirmar'}{weather?.pitch?' · '+weather.pitch:''}</strong></span><span><small>xG</small><strong>{result?.xg?result.xg[0].toFixed(2)+' × '+result.xg[1].toFixed(2):'pré-jogo'}</strong></span>{Number.isFinite(info?.homeStrength)&&<span><small>Força LDF</small><strong>{info.homeStrength.toFixed(1)} × {info.awayStrength.toFixed(1)}</strong></span>}</div>;
 }
 function OpponentBrief({career,club,opponent,roundNumber}){
   if(!opponent)return null;
