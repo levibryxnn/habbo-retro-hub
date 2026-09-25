@@ -339,43 +339,47 @@ function applyAiManagement(result,home,away,career,interactiveClubId,rng){
 }
 
 export function simulateMatch(home,away,seed,context){
-  const ctx=context||{},rng=rngFrom(seed);
-  const homeLineup=(ctx.homeLineup||autoLineup(home,ctx.career||{},ctx.roundNumber||1)).map(String);
-  const awayLineup=(ctx.awayLineup||autoLineup(away,ctx.career||{},ctx.roundNumber||1)).map(String);
-  const homeBench=(ctx.homeBench||matchBench(home,ctx.career||{},ctx.roundNumber||1,homeLineup)).map(String);
-  const awayBench=(ctx.awayBench||matchBench(away,ctx.career||{},ctx.roundNumber||1,awayLineup)).map(String);
-  const hp=lineupProfile(home,homeLineup,ctx.career||{}),ap=lineupProfile(away,awayLineup,ctx.career||{});
+  const ctx=context||{},rng=rngFrom(seed),career=ctx.career||{};
+  const homeLineup=(ctx.homeLineup||autoLineup(home,career,ctx.roundNumber||1)).map(String);
+  const awayLineup=(ctx.awayLineup||autoLineup(away,career,ctx.roundNumber||1)).map(String);
+  const homeBench=(ctx.homeBench||matchBench(home,career,ctx.roundNumber||1,homeLineup)).map(String);
+  const awayBench=(ctx.awayBench||matchBench(away,career,ctx.roundNumber||1,awayLineup)).map(String);
+  const hp=lineupProfile(home,homeLineup,career),ap=lineupProfile(away,awayLineup,career);
   const homeForm=recentForm(ctx.results||[],home.id),awayForm=recentForm(ctx.results||[],away.id),homePlan=aiTeamPlan(hp,homeForm),awayPlan=aiTeamPlan(ap,awayForm);
   const midfieldEdge=(hp.midfield-ap.midfield)/18,homeAttackEdge=(hp.attack-ap.defense)/15,awayAttackEdge=(ap.attack-hp.defense)/15,homeMomentum=(homeForm-awayForm)/7;
-  const managerEdge=managerMatchModifier(ctx.career||{}),homeManager=String(home.id)===String(ctx.career?.userClubId)?managerEdge:0,awayManager=String(away.id)===String(ctx.career?.userClubId)?managerEdge:0;
-  const homeLambda=clamp(.30,3.55,1.16+homeAttackEdge+midfieldEdge*.25+homeMomentum*.18+.20+homePlan.attackBoost-awayPlan.defenseBoost*.55+homeManager-awayManager*.35);
-  const awayLambda=clamp(.28,3.35,.98+awayAttackEdge-midfieldEdge*.2-homeMomentum*.12+awayPlan.attackBoost-homePlan.defenseBoost*.55+awayManager-homeManager*.35);
-  const homeGoals=clamp(0,7,poisson(homeLambda,rng)),awayGoals=clamp(0,7,poisson(awayLambda,rng));
+  const managerEdge=managerMatchModifier(career),homeUser=String(home.id)===String(career.userClubId),awayUser=String(away.id)===String(career.userClubId),homeManager=homeUser?managerEdge:0,awayManager=awayUser?managerEdge:0;
+  const neutralTactic={attackBoost:0,defenseBoost:0,possession:0,tempo:1,fatigueMultiplier:1,injuryMultiplier:1,counterRisk:0,setPiece:0,label:'CPU'};
+  const homeTactic=homeUser?tacticalMatchup(career,awayPlan,{isHome:true}):neutralTactic,awayTactic=awayUser?tacticalMatchup(career,homePlan,{isHome:false}):neutralTactic;
+  const weather=matchWeather(seed),homeSetPiece=homeUser?setPieceAttackModifier(career):0,awaySetPiece=awayUser?setPieceAttackModifier(career):0;
+  const homeXg=clamp(.26,3.75,1.16+homeAttackEdge+midfieldEdge*.25+homeMomentum*.18+.20+homePlan.attackBoost-awayPlan.defenseBoost*.55+homeManager-awayManager*.35+homeTactic.attackBoost-awayTactic.defenseBoost*.72+homeSetPiece+weather.passing*.45);
+  const awayXg=clamp(.24,3.55,.98+awayAttackEdge-midfieldEdge*.2-homeMomentum*.12+awayPlan.attackBoost-homePlan.defenseBoost*.55+awayManager-homeManager*.35+awayTactic.attackBoost-homeTactic.defenseBoost*.72+awaySetPiece+weather.passing*.45);
+  const homeGoals=clamp(0,7,poisson(homeXg,rng)),awayGoals=clamp(0,7,poisson(awayXg,rng));
   const durationSecond=FULL_TIME_SECOND+(1+Math.floor(rng()*5))*60,events=[],used=new Set();let eventIndex=0;
-  for(let i=0;i<homeGoals;i++){const scorer=weightedPlayer(home,homeLineup,rng);events.push(makeGoalEvent('home',uniqueEventSecond(rng,used,durationSecond),home,homeLineup,scorer,eventIndex++,rng));}
-  for(let i=0;i<awayGoals;i++){const scorer=weightedPlayer(away,awayLineup,rng);events.push(makeGoalEvent('away',uniqueEventSecond(rng,used,durationSecond),away,awayLineup,scorer,eventIndex++,rng));}
-  const tempoFactor=Math.round((8+Math.floor(rng()*5))*((homePlan.tempo+awayPlan.tempo)/2)),types=['shot','shot','big-chance','foul','corner'];
+  for(let i=0;i<homeGoals;i++){const scorer=weightedPlayer(home,homeLineup,rng);events.push(makeGoalEvent('home',uniqueEventSecond(rng,used,durationSecond),home,homeLineup,scorer,eventIndex++,rng,{xg:Number((homeXg/Math.max(1,homeGoals)).toFixed(2))}));}
+  for(let i=0;i<awayGoals;i++){const scorer=weightedPlayer(away,awayLineup,rng);events.push(makeGoalEvent('away',uniqueEventSecond(rng,used,durationSecond),away,awayLineup,scorer,eventIndex++,rng,{xg:Number((awayXg/Math.max(1,awayGoals)).toFixed(2))}));}
+  const tempoFactor=Math.round((8+Math.floor(rng()*5))*((homePlan.tempo*homeTactic.tempo+awayPlan.tempo*awayTactic.tempo)/2)*Math.max(.82,1+weather.tempo)),types=['shot','shot','big-chance','foul','corner'];
   for(let i=0;i<tempoFactor;i++){
-    const homeChance=.5+clamp(-.13,.13,(hp.midfield+hp.attack-ap.midfield-ap.attack)/120),side=rng()<homeChance?'home':'away',club=side==='home'?home:away,lineup=side==='home'?homeLineup:awayLineup;
+    const tacticalPossession=(homeTactic.possession-awayTactic.possession)/100,homeChance=.5+clamp(-.16,.16,(hp.midfield+hp.attack-ap.midfield-ap.attack)/120+tacticalPossession),side=rng()<homeChance?'home':'away',club=side==='home'?home:away,lineup=side==='home'?homeLineup:awayLineup;
     events.push(makeEvent(side,types[Math.floor(rng()*types.length)],uniqueEventSecond(rng,used,durationSecond),club,weightedPlayer(club,lineup,rng),eventIndex++));
   }
-  const baseHomeShots=5+Math.floor(rng()*6)+homeGoals+Math.max(0,Math.round((hp.attack-ap.defense)/8));
-  const baseAwayShots=4+Math.floor(rng()*6)+awayGoals+Math.max(0,Math.round((ap.attack-hp.defense)/8));
+  const baseHomeShots=5+Math.floor(rng()*6)+homeGoals+Math.max(0,Math.round((hp.attack-ap.defense)/8))+Math.round(homeTactic.attackBoost*8);
+  const baseAwayShots=4+Math.floor(rng()*6)+awayGoals+Math.max(0,Math.round((ap.attack-hp.defense)/8))+Math.round(awayTactic.attackBoost*8);
   let result={
     id:String(seed),season:ctx.season||2026,roundNumber:ctx.roundNumber||1,competition:'Brasileirão Série A',
     matchday:matchdayProjection(home.id,away.id,ctx.roundNumber||1,seed),
     homeId:home.id,awayId:away.id,homeLineup,awayLineup,homeBench,awayBench,substitutions:[],durationSecond,simulationMode:ctx.mode||'normal',events:events.sort((a,b)=>a.second-b.second),
-    homeGoals,awayGoals,
-    stats:{possession:[clamp(35,68,Math.round(50+(hp.midfield-ap.midfield)*.55+homePlan.possession-awayPlan.possession+(rng()-.5)*6)),0],shots:[Math.max(homeGoals,baseHomeShots+Math.round((homePlan.tempo-1)*5)),Math.max(awayGoals,baseAwayShots+Math.round((awayPlan.tempo-1)*5))],onTarget:[0,0],corners:[Math.floor(rng()*7),Math.floor(rng()*7)],fouls:[7+Math.floor(rng()*10),7+Math.floor(rng()*10)]},
-    intelligence:{homeOverall:Math.round(hp.overall),awayOverall:Math.round(ap.overall),homeCondition:Math.round(hp.condition),awayCondition:Math.round(ap.condition),homeForm:Number(homeForm.toFixed(2)),awayForm:Number(awayForm.toFixed(2)),homePlan:homePlan.label,awayPlan:awayPlan.label},
+    homeGoals,awayGoals,xg:[Number(homeXg.toFixed(2)),Number(awayXg.toFixed(2))],environment:{weather},
+    stats:{possession:[clamp(33,70,Math.round(50+(hp.midfield-ap.midfield)*.55+homePlan.possession-awayPlan.possession+homeTactic.possession-awayTactic.possession+(rng()-.5)*6)),0],shots:[Math.max(homeGoals,baseHomeShots+Math.round((homePlan.tempo*homeTactic.tempo-1)*5)),Math.max(awayGoals,baseAwayShots+Math.round((awayPlan.tempo*awayTactic.tempo-1)*5))],onTarget:[0,0],corners:[Math.max(0,Math.floor(rng()*7)+Math.round(homeSetPiece*12)),Math.max(0,Math.floor(rng()*7)+Math.round(awaySetPiece*12))],fouls:[7+Math.floor(rng()*10),7+Math.floor(rng()*10)]},
+    intelligence:{homeOverall:Math.round(hp.overall),awayOverall:Math.round(ap.overall),homeCondition:Math.round(hp.condition),awayCondition:Math.round(ap.condition),homeForm:Number(homeForm.toFixed(2)),awayForm:Number(awayForm.toFixed(2)),homePlan:homeUser?homeTactic.label:homePlan.label,awayPlan:awayUser?awayTactic.label:awayPlan.label,homeFatigue:homeTactic.fatigueMultiplier,awayFatigue:awayTactic.fatigueMultiplier,homeInjuryMultiplier:homeTactic.injuryMultiplier*weather.injury,awayInjuryMultiplier:awayTactic.injuryMultiplier*weather.injury,weather:weather.label,temperature:weather.temperature,training:trainingMatchModifier(career).label},
     homeClubStub:{id:home.id,name:home.name,abbreviation:home.abbreviation},awayClubStub:{id:away.id,name:away.name,abbreviation:away.abbreviation},
   };
   result.stats.possession[1]=100-result.stats.possession[0];
   result.stats.onTarget=[Math.max(homeGoals,Math.round(result.stats.shots[0]*(.34+rng()*.17))),Math.max(awayGoals,Math.round(result.stats.shots[1]*(.34+rng()*.17)))];
-  result=generateDisciplineAndInjuries(result,home,away,rng,used,ctx.career||{},ctx.interactiveClubId);
+  result=generateDisciplineAndInjuries(result,home,away,rng,used,career,ctx.interactiveClubId);
   result=applyDismissalConsequences(result,home,away,rng);
-  result=applyAiManagement(result,home,away,ctx.career||{},ctx.interactiveClubId,rng);
-  if(rng()<.30){
+  result=applyAiManagement(result,home,away,career,ctx.interactiveClubId,rng);
+  const penaltyBase=.30+(homeSetPiece+awaySetPiece)*.18;
+  if(rng()<penaltyBase){
     const side=rng()<.5?'home':'away',club=side==='home'?home:away,lineup=side==='home'?homeLineup:awayLineup;
     const penalty=makeEvent(side,'penalty',uniqueEventSecond(rng,used,durationSecond,12*60),club,bestPenaltyTaker(club,lineup)||weightedPlayer(club,lineup,rng),eventIndex++,{
       requiresDecision:club.id===ctx.interactiveClubId&&ctx.mode!=='instant',
