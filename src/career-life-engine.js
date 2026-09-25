@@ -150,3 +150,23 @@ export function advanceWorldManagers(career,clubs){
   }
   return changed?{...career,worldManagers:managers,universeNotes:notes.slice(0,70)}:career;
 }
+
+export function declineJobOffer(career,offerId){
+  return{...career,jobOffers:(career.jobOffers||[]).map(item=>item.id===offerId?{...item,status:'declined'}:item)};
+}
+export function evaluateProjectObjectives(career,seasonReview){
+  const objectives=(career.projectObjectives||[]).map(item=>{
+    if(item.status!=='active'||item.targetSeason>career.season)return item;
+    let completed=false;
+    if(item.type==='league')completed=Number(seasonReview?.position||20)<=12;
+    else if(item.type==='finance')completed=Number(career.cash||0)>=0;
+    else if(item.type==='academy')completed=(career.regens||[]).some(player=>String(player._originClubId)===String(career.userClubId)&&String(player.id||'').startsWith('youth-'));
+    return{...item,status:completed?'completed':'missed',resolvedSeason:career.season};
+  });
+  const resolved=objectives.filter(item=>item.resolvedSeason===career.season),completed=resolved.filter(item=>item.status==='completed').length,missed=resolved.filter(item=>item.status==='missed').length;
+  let next={...career,projectObjectives:objectives};
+  if(completed)next=applyConfidenceEvent(next,{board:completed*1.4,kind:'project-objective',reason:'Metas de médio prazo foram cumpridas.'});
+  if(missed)next=applyConfidenceEvent(next,{board:-missed*1.2,kind:'project-objective',reason:'Metas de médio prazo ficaram abaixo do esperado.'});
+  for(const item of resolved)next=emitCareerEvent(next,{type:item.status==='completed'?'PROJECT_OBJECTIVE_COMPLETED':'PROJECT_OBJECTIVE_MISSED',importance:item.status==='completed'?2:3,payload:{label:item.label}});
+  return next;
+}
