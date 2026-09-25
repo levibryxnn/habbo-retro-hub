@@ -222,6 +222,12 @@ export function applyMatchDynamics(career,club,clubs,result,{competition='Brasil
   ]}};
   next=maybeFinancialEvent(next);
   next=updateCareerMilestones(next);
+  const userSide=String(result.homeId)===String(next.userClubId)?'home':'away',lateGoals=(result.events||[]).filter(event=>event.type==='goal'&&event.side===userSide&&Number(event.second||0)>=90*60).sort((a,b)=>b.second-a.second);
+  if(!next.pendingCinematic&&/Final/i.test(stage)&&info.outcome==='win'&&lateGoals.length){
+    const hero=lateGoals[0];next={...next,pendingCinematic:{id:'late-final-'+result.id,type:'last-minute-final',title:'No último suspiro',subtitle:'Gol decisivo em uma final',text:(hero.player||'Um jogador')+' marcou aos '+hero.minute+"' e decidiu uma final que entra para a história deste save.",season:next.season,round:next.round,player:hero.player,importance:5}};
+  }else if(!next.pendingCinematic&&Number(next.careerRecord?.matches||0)===500){
+    next={...next,pendingCinematic:{id:'manager-500',type:'manager-milestone',title:'500 jogos à beira do campo',subtitle:'Uma carreira virou legado',text:'Quinhentas partidas oficiais já fazem parte da trajetória de '+String(next.managerName||'seu treinador')+'.',season:next.season,round:next.round,importance:5}};
+  }
   return next;
 }
 export function resolvePressConference(career,choiceId){
