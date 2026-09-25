@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   TRIAL_DRILLS,
+  acknowledgePlayerMoment,
   answerTrialDrill,
   completeTrial,
   createPlayerCareer,
@@ -140,4 +141,23 @@ test('player career remains bounded over a long multi-season simulation',functio
   assert.ok(career.player.reputation>=1&&career.player.reputation<=100);
   assert.ok(career.dayOfSeason>=0&&career.dayOfSeason<=266);
   assert.ok(JSON.stringify(career).length<500000);
+});
+
+
+test('career offers expire when the decision window passes',function(){
+  let career=finishTrial(createPlayerCareer({name:'Prazo',position:'MEI',archetype:'technical',dreamClubId:clubs[8].id},2026));
+  career={...career,dayOfSeason:7,week:1,pendingOffer:{id:'expired',clubId:clubs[9].id,clubName:clubs[9].name,expiresWeek:0,status:'open'}};
+  const next=simulatePlayerDay(career,clubs);
+  assert.equal(next.pendingOffer,null);
+  assert.ok(next.news.some(item=>item.title==='Proposta expirada'));
+});
+
+test('achievement popup queue preserves consecutive career moments',function(){
+  let career=finishTrial(createPlayerCareer({name:'Momentos',position:'ATA',archetype:'finisher',dreamClubId:clubs[10].id},2026));
+  career={...career,pendingMoment:{id:'one',type:'milestone',title:'Um',subtitle:'',text:'Primeiro',season:2026,day:1},momentQueue:[{id:'two',type:'goal',title:'Dois',subtitle:'',text:'Segundo',season:2026,day:2}]};
+  career=acknowledgePlayerMoment(career);
+  assert.equal(career.pendingMoment.id,'two');
+  assert.equal(career.momentQueue.length,0);
+  career=acknowledgePlayerMoment(career);
+  assert.equal(career.pendingMoment,null);
 });
