@@ -1,0 +1,13 @@
+.unified-crest{--crest-optical-scale:1;--crest-optical-shift:0 0;position:relative;display:inline-grid;place-items:center;flex:0 0 auto;overflow:visible;background:transparent;border:0;border-radius:0;color:inherit}
+.unified-crest img{display:block;width:86%;height:86%;max-width:100%;max-height:100%;object-fit:contain;object-position:center;transform:translate(var(--crest-optical-shift)) scale(var(--crest-optical-scale));transform-origin:center;filter:drop-shadow(0 2px 3px #10231718)}
+.unified-crest.mini{width:24px;height:24px}.unified-crest.normal{width:36px;height:36px}.unified-crest.large{width:74px;height:82px}
+.unified-crest.fallback{clip-path:none;background:transparent;box-shadow:none}
+.unified-crest .crest-fallback{position:relative;width:82%;height:92%;padding:0;display:grid;place-items:center;overflow:hidden;border-radius:10% 10% 48% 48%/8% 8% 30% 30%;background:linear-gradient(150deg,var(--crest-primary),color-mix(in srgb,var(--crest-primary) 70%,#000));border:2px solid color-mix(in srgb,var(--crest-secondary) 75%,#fff);box-shadow:inset 0 0 0 2px #ffffff24,0 2px 6px #14271b22;color:var(--crest-secondary)}
+.unified-crest .crest-fallback:before,.unified-crest .crest-fallback:after{content:'';position:absolute;pointer-events:none}
+.unified-crest .crest-fallback:before{width:70%;height:70%;border:1px solid #ffffff2c;border-radius:50%}
+.unified-crest .crest-fallback:after{width:120%;height:2px;background:#ffffff2e;transform:rotate(-26deg)}
+.unified-crest .crest-fallback i{position:absolute;width:10px;height:10px;border-radius:50%;background:var(--crest-secondary);top:11%}
+.unified-crest .crest-fallback b{position:relative;z-index:2;font-family:'Barlow Condensed',sans-serif;font-size:11px;line-height:1;font-weight:800;letter-spacing:.35px;text-shadow:0 1px 2px #0005}
+.unified-crest.mini .crest-fallback{border-width:1px}.unified-crest.mini .crest-fallback i{display:none}.unified-crest.mini .crest-fallback b{font-size:8px}
+.unified-crest.large .crest-fallback b{font-size:22px}.unified-crest.large .crest-fallback i{width:14px;height:14px}
+@media(max-width:620px){.unified-crest.large{width:64px;height:72px}}
