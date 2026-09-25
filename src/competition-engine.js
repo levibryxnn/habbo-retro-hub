@@ -1,6 +1,9 @@
-import { playerGameStats } from './player-engine.js';
+import { autoLineup, playerGameStats, sanitizeLineup, statusKey } from './player-engine.js';
 import { applyConfidenceEvent } from './manager-confidence.js';
 import { applyMatchDynamics, applyTitleDynamics, managerMatchModifier } from './career-dynamics.js';
+import { applyWeeklyTraining, matchWeather, setPieceAttackModifier, tacticalMatchup } from './tactical-engine.js';
+import { advanceWorldManagers, processPlayerPromises, refreshJobOffers } from './career-life-engine.js';
+import { emitCareerEvent } from './event-engine.js';
 import {
   COPA_DO_BRASIL_QUALIFIERS,
   LIBERTADORES_GROUPS_2026,
@@ -361,9 +364,18 @@ function poisson(lambda,seed){
   const L=Math.exp(-lambda);let p=1,k=0;while(p>L&&k<8){k++;p*=Math.max(.001,roll(seed+'|'+k));}return Math.max(0,k-1);
 }
 function simulateScore(world,career,serieAClubs,game){
-  const hp=powerFor(world,serieAClubs,game.homeId,career),ap=powerFor(world,serieAClubs,game.awayId,career),edge=(hp-ap)/16,homeAdv=game.neutral?0:.18,managerEdge=managerMatchModifier(career),homeManager=String(game.homeId)===String(career.userClubId)?managerEdge:0,awayManager=String(game.awayId)===String(career.userClubId)?managerEdge:0;
-  const hg=poisson(clamp(.2,3.7,1.28+edge+homeAdv+homeManager-awayManager*.35),game.id+'|h'),ag=poisson(clamp(.2,3.4,1.08-edge+awayManager-homeManager*.35),game.id+'|a');
-  return{homeGoals:hg,awayGoals:ag,homePower:Number(hp.toFixed(1)),awayPower:Number(ap.toFixed(1))};
+  const hp=powerFor(world,serieAClubs,game.homeId,career),ap=powerFor(world,serieAClubs,game.awayId,career),edge=(hp-ap)/16,homeAdv=game.neutral?0:.18,managerEdge=managerMatchModifier(career),homeUser=String(game.homeId)===String(career.userClubId),awayUser=String(game.awayId)===String(career.userClubId),homeManager=homeUser?managerEdge:0,awayManager=awayUser?managerEdge:0,neutral={attackBoost:0,defenseBoost:0,injuryMultiplier:1,label:'CPU'},homeTactic=homeUser?tacticalMatchup(career,'balanced',{isHome:true}):neutral,awayTactic=awayUser?tacticalMatchup(career,'balanced',{isHome:false}):neutral,weather=matchWeather(game.id),homeSet=homeUser?setPieceAttackModifier(career):0,awaySet=awayUser?setPieceAttackModifier(career):0;
+  const homeXg=clamp(.18,3.9,1.28+edge+homeAdv+homeManager-awayManager*.35+homeTactic.attackBoost-awayTactic.defenseBoost*.7+homeSet+weather.passing*.35),awayXg=clamp(.18,3.65,1.08-edge+awayManager-homeManager*.35+awayTactic.attackBoost-homeTactic.defenseBoost*.7+awaySet+weather.passing*.35),hg=poisson(homeXg,game.id+'|h'),ag=poisson(awayXg,game.id+'|a');
+  const homeClub=serieAClubs.find(c=>String(c.id)===String(game.homeId)),awayClub=serieAClubs.find(c=>String(c.id)===String(game.awayId)),round=Math.max(1,(career.round||0)+1),homeLineup=homeClub?(homeUser?sanitizeLineup(homeClub,career,round,career.lineup):autoLineup(homeClub,career,round)):[],awayLineup=awayClub?(awayUser?sanitizeLineup(awayClub,career,round,career.lineup):autoLineup(awayClub,career,round)):[],events=[];
+  const userClub=homeUser?homeClub:awayUser?awayClub:null,userLineup=homeUser?homeLineup:awayLineup;
+  if(userClub&&userLineup.length){
+    const risk=(homeUser?homeTactic.injuryMultiplier:awayTactic.injuryMultiplier)*weather.injury;
+    if(roll(game.id+'|injury')<clamp(.08,.34,.14*risk)){
+      const playerId=userLineup[hashString(game.id+'|injury-player')%userLineup.length],player=userClub.players.find(p=>String(p.id)===String(playerId)),severityRoll=roll(game.id+'|injury-severity'),severity=severityRoll<.55?1:severityRoll<.82?2:severityRoll<.95?3:4,duration=severity===1?1:severity===2?2:severity===3?3:5+Math.floor(roll(game.id+'|injury-duration')*3),label=severity===1?'Pancada / desconforto':severity===2?'Lesão muscular leve':severity===3?'Entorse moderada':'Lesão muscular importante';
+      if(player)events.push({id:'world-injury-'+game.id+'-'+player.id,type:'injury',side:homeUser?'home':'away',clubId:String(userClub.id),playerId:String(player.id),player:player.name,minute:25+Math.floor(roll(game.id+'|injury-minute')*55),second:1500+Math.floor(roll(game.id+'|injury-second')*3300),severityMatches:duration,injurySeverity:severity,injuryLabel:label});
+    }
+  }
+  return{homeGoals:hg,awayGoals:ag,homePower:Number(hp.toFixed(1)),awayPower:Number(ap.toFixed(1)),homeLineup,awayLineup,substitutions:[],events,xg:[Number(homeXg.toFixed(2)),Number(awayXg.toFixed(2))],environment:{weather},intelligence:{homePlan:homeUser?homeTactic.label:'CPU',awayPlan:awayUser?awayTactic.label:'CPU',weather:weather.label}};
 }
 function updateRatings(world,result){
   const hp=Number(world.ratings?.[result.homeId]||0),ap=Number(world.ratings?.[result.awayId]||0),expected=1/(1+Math.pow(10,(ap-hp)/14)),actual=result.homeGoals>result.awayGoals?1:result.homeGoals===result.awayGoals?.5:0,k=1.5,delta=k*(actual-expected);
@@ -427,7 +439,17 @@ function applyUserWorldOutcome(next,before,game,comp,result,serieAClubs){
   const home=result.homeId===String(next.userClubId),gf=home?result.homeGoals:result.awayGoals,ga=home?result.awayGoals:result.homeGoals,won=gf>ga,draw=gf===ga,importance=competitionImportance(comp.id);
   next={...next,world:{...next.world,lastUserMatch:result}};
   next=applyConfidenceEvent(next,{fans:(won?2.8:draw?.2:-3.4)*importance,board:(won?.9:draw?.1:-1.1)*importance,kind:'competition',reason:comp.name+' · '+game.stage+': '+(won?'vitória':draw?'empate':'derrota')+' por '+gf+' a '+ga+'.'});
-  const userClub=serieAClubs.find(c=>String(c.id)===String(next.userClubId));if(userClub)next=applyMatchDynamics(next,userClub,serieAClubs,result,{competition:comp.name,stage:game.stage});
+  const userClub=serieAClubs.find(c=>String(c.id)===String(next.userClubId));if(userClub){
+    for(const injury of(result.events||[]).filter(e=>e.type==='injury'&&String(e.clubId)===String(next.userClubId))){
+      const key=statusKey(next.userClubId,injury.playerId),status={...(next.playerStatus||{})},current={yellowCount:0,injuryThroughRound:0,suspensionThroughRound:0,...(status[key]||{})};current.injuryThroughRound=Math.max(current.injuryThroughRound||0,(next.round||0)+(injury.severityMatches||1));current.injuryLabel=injury.injuryLabel||'Lesão';status[key]=current;next={...next,playerStatus:status};
+    }
+    next=applyMatchDynamics(next,userClub,serieAClubs,result,{competition:comp.name,stage:game.stage});
+    next=processPlayerPromises(next,userClub,result);
+    next=applyWeeklyTraining(next,userClub);
+    next=refreshJobOffers(next,serieAClubs);
+    next=emitCareerEvent(next,{type:'MATCH_FINISHED',importance:competitionImportance(comp.id)>=1.2?4:3,payload:{competition:comp.name,stage:game.stage,homeId:result.homeId,awayId:result.awayId,homeGoals:result.homeGoals,awayGoals:result.awayGoals,xg:result.xg||null}});
+  }
+  next=advanceWorldManagers(next,serieAClubs);
   const trophy=trophyFor(comp),userNowChampion=comp.championId===String(next.userClubId),already=(next.trophies||[]).some(t=>t.id===trophy.id&&Number(t.season)===Number(comp.edition));
   if(userNowChampion&&!already){
     next={...next,trophies:[...(next.trophies||[]),trophy],pendingCelebration:{id:'celebration-'+comp.key,type:'trophy',trophy},messages:[{id:'title-'+comp.key,type:'title',title:'Campeão: '+comp.name,text:'Seu trabalho terminou com taça. '+comp.name+' foi adicionada à galeria.'},...(next.messages||[])]};
