@@ -16,3 +16,124 @@
 .pc-moment-overlay{position:fixed;inset:0;z-index:18000;background:#07130dcc;display:grid;place-items:center;padding:18px;backdrop-filter:blur(9px)}.pc-moment-card{position:relative;width:min(520px,100%);overflow:hidden;text-align:center;background:#f7faf4;border:1px solid #c8d8ba;border-radius:17px;padding:26px;box-shadow:0 30px 100px #0009}.pc-moment-close{position:absolute;right:11px;top:11px;z-index:3;width:30px;height:30px;border:1px solid #d8e2d3;background:#fff;border-radius:50%;display:grid;place-items:center;color:#5e715c}.pc-moment-art{position:relative;height:155px;margin:-26px -26px 18px;display:grid;place-items:center;background:linear-gradient(145deg,#173527,#3d6744);color:#e0efaa;overflow:hidden}.pc-moment-art span,.pc-moment-art i{position:absolute;border-radius:50%;background:#ffffff0d}.pc-moment-art span{width:180px;height:180px;right:-45px;top:-65px}.pc-moment-art i{width:130px;height:130px;left:-30px;bottom:-70px}.pc-moment-art svg{position:relative;z-index:2;filter:drop-shadow(0 9px 16px #0003)}.pc-moment-card h2{font-family:'Barlow Condensed',sans-serif;font-size:34px;margin:5px 0 2px;color:#304535}.pc-moment-card>strong{font-size:8px;color:#758471}.pc-moment-card>p{font-size:9px;line-height:1.6;color:#73816f;max-width:410px;margin:13px auto}.pc-moment-meta{display:flex;justify-content:center;gap:5px;margin-bottom:14px}.pc-moment-meta span{font-size:6px;background:#edf4e8;border:1px solid #dae6d2;border-radius:999px;padding:5px 7px}
 @media(max-width:760px){.pc-mode-tabs{top:61px;width:100%}.pc-calendar-strip{grid-template-columns:repeat(7,minmax(78px,1fr));overflow-x:auto;padding-bottom:3px}.pc-life-category{grid-template-columns:1fr}.pc-life-options{grid-template-columns:1fr}.pc-finance-metrics{grid-template-columns:1fr 1fr}.pc-life-visual{min-height:110px}.pc-life-option{grid-template-columns:1fr auto}.pc-life-option button{grid-column:1/-1}.pc-sponsor-offers article{grid-template-columns:1fr}.pc-sponsor-offers article>div:last-child{width:100%}.pc-sponsor-offers button{flex:1}}
 @media(max-width:480px){.pc-finance-hero{grid-template-columns:1fr;padding:17px}.pc-finance-hero>svg{display:none}.pc-finance-hero h2{font-size:34px}.pc-finance-metrics{grid-template-columns:1fr}.pc-advance-actions{grid-template-columns:1fr}.pc-life-category{padding:10px}.pc-life-options{grid-template-columns:1fr}.pc-awards-grid{grid-template-columns:1fr 1fr}.pc-moment-card{padding:20px}.pc-moment-art{margin:-20px -20px 16px}}
+
+
+/* RC6 readability + game HUD pass */
+.pc-face.eyes-1 .pc-eye{height:4%;width:8%;border-radius:60% 60% 45% 45%}
+.pc-face.eyes-2 .pc-eye{height:8%;width:8%;border-radius:50%;box-shadow:inset 0 0 0 2px #fff8}
+.pc-face.eyes-3 .pc-eye{height:3%;width:9%;border-radius:999px;transform:rotate(-3deg)}
+.pc-face.eyes-3 .pc-eye.right{transform:rotate(3deg)}
+.pc-status-metrics.expanded{grid-template-columns:repeat(4,minmax(0,1fr))}
+.pc-status-metrics.expanded span{min-height:55px;display:flex;flex-direction:column;justify-content:center}
+.pc-next-match{display:flex;align-items:center;gap:10px;background:#173b2d;color:#fff;border-radius:10px;padding:11px 13px;margin:10px 0 2px}
+.pc-next-match>span{display:grid;grid-template-columns:1fr auto;gap:2px 12px;align-items:center;min-width:0;flex:1}
+.pc-next-match small{grid-column:1/-1;color:#bbcea9;font-size:9px;font-weight:800;letter-spacing:.45px}
+.pc-next-match strong{font-family:'Barlow Condensed',sans-serif;font-size:20px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pc-next-match em{font-style:normal;font-size:10px;color:#dfe9d7}
+.pc-next-match.free-agent{background:#3a4738}
+.pc-role-metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:11px 0}
+.pc-role-metrics span{background:#f5f8f2;border:1px solid #e2e8de;border-radius:8px;padding:8px;min-width:0}
+.pc-role-metrics small,.pc-role-metrics b{display:block}
+.pc-role-metrics small{font-size:9px;line-height:1.25;color:#72806e}
+.pc-role-metrics b{font-family:'Barlow Condensed',sans-serif;font-size:18px;color:#304a36;margin-top:3px}
+.pc-team-record{display:grid;grid-template-columns:2fr 1fr 1fr;gap:6px;margin-top:8px}
+.pc-team-record span{background:#eef4ea;border-radius:8px;padding:9px}
+.pc-team-record small,.pc-team-record b{display:block}
+.pc-team-record small{font-size:9px;color:#758372}
+.pc-team-record b{font-size:12px;margin-top:3px}
+.pc-objectives>div:last-child{display:grid;gap:8px}
+.pc-objectives article{display:grid;grid-template-columns:minmax(0,1fr) 110px;align-items:center;gap:10px}
+.pc-objectives article>span strong,.pc-objectives article>span small{display:block}
+.pc-objectives article>span strong{font-size:11px}
+.pc-objectives article>span small{font-size:9px;color:#81907e;margin-top:2px}
+.pc-objectives article>i{height:8px;background:#e8eee4;border-radius:999px;overflow:hidden}
+.pc-objectives article>i b{display:block;height:100%;background:#78945f;border-radius:999px}
+.pc-objectives article.done>i b{background:#315f43}
+.pc-contract-offer{border-color:#a9c396;background:#f4f8ef}
+
+/* Text below 9px was difficult to read on modern mobile screens. */
+.player-career-shell .pc-eyebrow,
+.player-career-shell .pc-face-controls label,
+.player-career-shell .pc-inline-fields label,
+.player-career-shell .pc-name-field,
+.player-career-shell .pc-name-field span,
+.player-career-shell .pc-inline-fields label>span,
+.player-career-shell .pc-field-label,
+.player-career-shell .pc-choice-grid button small,
+.player-career-shell .pc-inline-fields label>small,
+.player-career-shell .pc-rule-note small,
+.player-career-shell .pc-trial-tip,
+.player-career-shell .pc-player-head small,
+.player-career-shell .pc-player-head span,
+.player-career-shell .pc-status-metrics small,
+.player-career-shell .pc-injury small,
+.player-career-shell .pc-story-card small,
+.player-career-shell .pc-story-card p,
+.player-career-shell .pc-offer small,
+.player-career-shell .pc-offer p,
+.player-career-shell .pc-offer button,
+.player-career-shell .pc-panel>p,
+.player-career-shell .pc-panel-head>span,
+.player-career-shell .pc-training-list small,
+.player-career-shell .pc-current-focus,
+.player-career-shell .pc-match-result span,
+.player-career-shell .pc-match-rating>span,
+.player-career-shell .pc-panel>small,
+.player-career-shell .pc-stat-grid small,
+.player-career-shell .pc-attributes small,
+.player-career-shell .pc-timeline article p,
+.player-career-shell .pc-subheading,
+.player-career-shell .pc-approach-list small,
+.player-career-shell .pc-contract-panel dt,
+.player-career-shell .pc-career-flags small,
+.player-career-shell .pc-news-panel article small,
+.player-career-shell .pc-news-panel article p,
+.player-career-shell .pc-mode-tabs button,
+.player-career-shell .pc-calendar-strip small,
+.player-career-shell .pc-calendar-strip b,
+.player-career-shell .pc-last-day small,
+.player-career-shell .pc-engine-note,
+.player-career-shell .pc-finance-hero p,
+.player-career-shell .pc-finance-metrics small,
+.player-career-shell .pc-life-category-copy p,
+.player-career-shell .pc-life-option p,
+.player-career-shell .pc-life-option>span,
+.player-career-shell .pc-life-option button,
+.player-career-shell .pc-active-sponsor small,
+.player-career-shell .pc-sponsor-offers p,
+.player-career-shell .pc-sponsor-offers small,
+.player-career-shell .pc-sponsor-offers button,
+.player-career-shell .pc-transactions article small,
+.player-career-shell .pc-awards-grid small,
+.player-career-shell .pc-moment-card>strong,
+.player-career-shell .pc-moment-card>p,
+.player-career-shell .pc-moment-meta span,
+.player-career-shell .pc-footer{font-size:9px}
+.player-career-shell .pc-choice-grid button strong,
+.player-career-shell .pc-rule-note strong,
+.player-career-shell .pc-training-list strong,
+.player-career-shell .pc-approach-list strong,
+.player-career-shell .pc-injury strong,
+.player-career-shell .pc-news-panel article strong,
+.player-career-shell .pc-life-option strong,
+.player-career-shell .pc-transactions article strong,
+.player-career-shell .pc-awards-grid strong{font-size:10px}
+.player-career-shell .pc-contract-panel dd,.player-career-shell .pc-career-flags b,.player-career-shell .pc-attributes b{font-size:11px}
+.player-career-shell .pc-secondary,.player-career-shell .pc-primary{font-size:11px}
+.player-career-shell .pc-mode-tabs button{min-height:38px}
+.player-career-shell .pc-life-category-copy p,.player-career-shell .pc-panel>p,.player-career-shell .pc-offer p,.player-career-shell .pc-news-panel article p{line-height:1.55}
+
+@media(max-width:760px){
+  .pc-status-metrics.expanded{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .pc-role-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .pc-role-metrics span:last-child{grid-column:auto}
+  .pc-team-record{grid-template-columns:1fr 1fr}.pc-team-record span:first-child{grid-column:1/-1}
+  .pc-objectives article{grid-template-columns:1fr}.pc-objectives article>i{width:100%}
+  .pc-next-match>span{grid-template-columns:1fr}.pc-next-match small{grid-column:auto}.pc-next-match em{margin-top:2px}
+}
+@media(max-width:420px){
+  .pc-status-metrics.expanded{grid-template-columns:1fr 1fr}
+  .pc-status-metrics.expanded span:last-child{grid-column:auto}
+  .pc-calendar-strip{grid-template-columns:repeat(4,1fr)}
+  .pc-calendar-strip>span{min-height:56px}
+}
