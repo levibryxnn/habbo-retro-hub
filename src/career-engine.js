@@ -22,7 +22,7 @@ import { advancePlayerLifecycle } from './development-engine.js';
 import { brasileiraoDateForRound, createWorldState, finishPendingWorldFixture, nextCareerEvent, pendingSeasonFixtures, playNextWorldFixture, rollWorldToNextSeason, sanitizeWorldState, syncWorldToDate } from './competition-engine.js';
 import { applyMatchDynamics, applySeasonDynamics, applyTitleDynamics, initializeCareerSystems, managerMatchModifier } from './career-dynamics.js';
 import { applyWeeklyTraining, matchWeather, sanitizeTacticalState, setPieceAttackModifier, setTacticalPreset, tacticalMatchup, trainingMatchModifier, updateTacticalState } from './tactical-engine.js';
-import { advanceWorldManagers, evaluateProjectObjectives, initializeCareerLife, processPlayerPromises, refreshJobOffers } from './career-life-engine.js';
+import { advanceWorldManagers, evaluateProjectObjectives, expirePlayerContracts, initializeCareerLife, processPlayerPromises, refreshJobOffers } from './career-life-engine.js';
 import { emitCareerEvent } from './event-engine.js';
 
 export const CAREER_KEY='ldf.career.v2';
@@ -805,7 +805,7 @@ export function simulateRound(career,clubs){
 export function startNextSeason(career,clubs){
   if(career.pendingRound||career.pendingWorldMatch||career.round<career.schedule.length)return career;
   if(pendingSeasonFixtures(career,clubs).length)return career;
-  const evaluated=evaluateProjectObjectives(career,career.seasonReview),newSeason=career.season+1,developed=advancePlayerLifecycle(evaluated,clubs,newSeason),userClub=clubs.find(c=>c.id===career.userClubId);
+  const newSeason=career.season+1,currentClub=clubs.find(c=>String(c.id)===String(career.userClubId)),contracted=currentClub?expirePlayerContracts(career,currentClub,newSeason):career,evaluated=evaluateProjectObjectives(contracted,career.seasonReview),developed=advancePlayerLifecycle(evaluated,clubs,newSeason),userClub=clubs.find(c=>c.id===career.userClubId);
   const transitioned=userClub?applySeasonDynamics({...developed,season:newSeason},userClub,career.seasonReview):{...developed,season:newSeason};
   const cleanStatus={};for(const[key,value]of Object.entries(transitioned.playerStatus||{}))cleanStatus[key]={...value,yellowCount:0,suspensionThroughRound:0,injuryThroughRound:0,injuryLabel:null};
   let next={...transitioned,round:0,schedule:buildSchedule(clubs),results:[],scorers:{},seasonPerformance:{},lastRoundResults:[],lastUserMatch:null,pendingRound:null,pendingWorldMatch:null,playerStatus:cleanStatus,conditions:defaultConditions(clubs),sponsors:(transitioned.sponsors||[]).map(contract=>({...contract,active:false})),openingCash:transitioned.cash,seasonReview:null,pendingCelebration:null,boardPressureStreak:0,boardWarning:null,managerStatus:'active',dismissal:null};
