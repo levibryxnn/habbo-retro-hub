@@ -68,8 +68,8 @@ export function tacticalMatchup(career,opponentPlan,{isHome=false}={}){
   const defenseBoost=clamp(-.20,.24,(50-own.risk)/250-lineSpace*.07+training.defense);
   const possession=clamp(-7,8,control*12+pressure*3+(own.tempo<50?1.5:0));
   const tempo=clamp(.82,1.25,.82+own.tempo/235);
-  const fatigueMultiplier=clamp(.82,1.34,.82+own.pressing/230+own.tempo/520+own.risk/650);
-  const injuryMultiplier=clamp(.72,1.48,training.injury*(.88+fatigueMultiplier*.18));
+  const fatigueMultiplier=clamp(.82,1.30,.72+own.pressing/300+own.tempo/650+own.risk/900);
+  const injuryMultiplier=clamp(.72,1.42,training.injury*(.72+fatigueMultiplier*.28));
   return{attackBoost,defenseBoost,possession,tempo,fatigueMultiplier,injuryMultiplier,counterRisk,setPiece:training.setPiece||0,label:tacticalPreset(own.preset).name};
 }
 export function matchWeather(seed){
