@@ -17,7 +17,7 @@ test('three consecutive seasons remain coherent compact and playable',function()
   let career=createCareer(clubs,'874',2026);
   for(let seasonIndex=0;seasonIndex<3;seasonIndex++){
     career=finishSeason(career);
-    assert.equal(career.round,38);
+    assert.equal(career.round,38,'season stalled: '+JSON.stringify({season:career.season,round:career.round,status:career.managerStatus,board:career.managerConfidence?.board,fans:career.managerConfidence?.fans,pending:!!career.pendingRound,pendingWorld:!!career.pendingWorldMatch,injured:Object.values(career.playerStatus||{}).filter(item=>Number(item.injuryThroughRound||0)>Number(career.round||0)).length,lineup:(career.lineup||[]).length}));
     assert.ok(career.seasonReview);
     assert.ok(career.careerRecord.matches>=(seasonIndex+1)*38);
     assert.ok((career.newsFeed||[]).length<=80);
