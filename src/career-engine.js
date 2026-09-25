@@ -24,6 +24,7 @@ import { applyMatchDynamics, applySeasonDynamics, applyTitleDynamics, initialize
 import { applyWeeklyTraining, matchWeather, sanitizeTacticalState, setPieceAttackModifier, setTacticalPreset, tacticalMatchup, trainingMatchModifier, updateTacticalState } from './tactical-engine.js';
 import { advanceWorldManagers, evaluateProjectObjectives, expirePlayerContracts, initializeCareerLife, processPlayerPromises, refreshJobOffers } from './career-life-engine.js';
 import { emitCareerEvent } from './event-engine.js';
+import { LDF_ENGINE_VERSION, adaptiveAiDecision, combinedInjuryChance, contextScore, expectedGoals, fatigueConditionLoss, fatigueLoad, fitnessPenalty, formScore, individualInjuryRisk, logisticDominance, roleLoad, tacticalExecutionScore, teamStrength } from './ldf-engine.js';
 import { challengeSeasonResult } from './challenge-engine.js';
 
 export const CAREER_KEY='ldf.career.v2';
@@ -234,18 +235,30 @@ function generateDisciplineAndInjuries(result,home,away,rng,used,career,interact
       events.push(makeEvent(side,'red',second,club,player,eventIndex++,{reason:'direct'}));
     }
   }
-  const homeCondition=result.homeLineup.map(id=>playerCondition(career,home.id,id)).reduce((a,b)=>a+b,0)/Math.max(1,result.homeLineup.length),awayCondition=result.awayLineup.map(id=>playerCondition(career,away.id,id)).reduce((a,b)=>a+b,0)/Math.max(1,result.awayLineup.length);
-  const homeRisk=clamp(.55,1.8,(result.intelligence?.homeInjuryMultiplier||1)*(1+(82-homeCondition)*.012)),awayRisk=clamp(.55,1.8,(result.intelligence?.awayInjuryMultiplier||1)*(1+(82-awayCondition)*.012)),injuryChance=clamp(.13,.55,.19*((homeRisk+awayRisk)/2));
-  if(rng()<injuryChance){
-    const side=rng()<homeRisk/(homeRisk+awayRisk)?'home':'away',club=side==='home'?home:away,lineup=side==='home'?result.homeLineup:result.awayLineup;
-    const players=lineupPlayers(club,lineup);
-    if(players.length){
-      const player=players[Math.floor(rng()*players.length)],second=uniqueEventSecond(rng,used,result.durationSecond,10*60),age=Number(player._careerAge??player.age??27),medical=String(club.id)===String(career.userClubId)?Number(career.facilities?.medical||1):2;
-      const severityRoll=rng()+Math.max(0,age-31)*.008-medical*.025,severity=severityRoll<.48?1:severityRoll<.74?2:severityRoll<.90?3:severityRoll<.975?4:5;
-      const duration=severity===1?1:severity===2?2:severity===3?3+Math.floor(rng()*2):severity===4?5+Math.floor(rng()*3):8+Math.floor(rng()*5);
-      const label=severity===1?'Pancada / desconforto':severity===2?'Lesão muscular leve':severity===3?'Entorse moderada':severity===4?'Lesão muscular importante':'Lesão ligamentar grave';
-      events.push(makeEvent(side,'injury',second,club,player,eventIndex++,{severityMatches:duration,injurySeverity:severity,injuryLabel:label,requiresAttention:club.id===interactiveClubId}));
+  const weather=result.environment?.weather||{},pitchMultiplier=/pesado/i.test(String(weather.pitch||''))?1.12:/irregular/i.test(String(weather.pitch||''))?1.08:1;
+  const injuryPool=[];
+  for(const side of['home','away']){
+    const club=side==='home'?home:away,lineup=side==='home'?result.homeLineup:result.awayLineup;
+    const intensity=Number(side==='home'?result.intelligence?.homeIntensity:result.intelligence?.awayIntensity)||1;
+    const tacticalInjury=Number(side==='home'?result.intelligence?.homeTacticalInjury:result.intelligence?.awayTacticalInjury)||1;
+    const medical=String(club.id)===String(career.userClubId)?Number(career.facilities?.medical||1):2;
+    for(const player of lineupPlayers(club,lineup)){
+      const condition=playerCondition(career,club.id,player.id),stats=playerGameStats(player),age=Number(player._careerAge??player.age??27);
+      const load=fatigueLoad({minutes:90,intensity,roleLoad:roleLoad(positionGroup(player.position)),fitnessPenalty:fitnessPenalty({stamina:stats.stamina,condition,age})});
+      const risk=individualInjuryRisk({baseRisk:.0085,fatigue:load,intensity,condition,age,weatherMultiplier:Number(weather.injury)||1,pitchMultiplier,trainingMultiplier:tacticalInjury,medicalLevel:medical});
+      injuryPool.push({side,club,player,risk,load,condition,medical});
     }
+  }
+  const injuryChance=combinedInjuryChance(injuryPool.map(item=>item.risk));
+  if(injuryPool.length&&rng()<injuryChance){
+    const totalRisk=injuryPool.reduce((sum,item)=>sum+item.risk,0);let pick=rng()*totalRisk,chosen=injuryPool[0];
+    for(const item of injuryPool){pick-=item.risk;if(pick<=0){chosen=item;break;}}
+    const {side,club,player,load,condition,medical}=chosen,second=uniqueEventSecond(rng,used,result.durationSecond,10*60),age=Number(player._careerAge??player.age??27);
+    const severityRoll=rng()+Math.max(0,age-31)*.008+Math.max(0,74-condition)*.004+Math.max(0,load-92)*.0012-medical*.025;
+    const severity=severityRoll<.48?1:severityRoll<.74?2:severityRoll<.90?3:severityRoll<.975?4:5;
+    const duration=severity===1?1:severity===2?2:severity===3?3+Math.floor(rng()*2):severity===4?5+Math.floor(rng()*3):8+Math.floor(rng()*5);
+    const label=severity===1?'Pancada / desconforto':severity===2?'Lesão muscular leve':severity===3?'Entorse moderada':severity===4?'Lesão muscular importante':'Lesão ligamentar grave';
+    events.push(makeEvent(side,'injury',second,club,player,eventIndex++,{severityMatches:duration,injurySeverity:severity,injuryLabel:label,requiresAttention:club.id===interactiveClubId,injuryRisk:Number(chosen.risk.toFixed(4)),fatigueLoad:Number(load.toFixed(1))}));
   }
   return{...result,events:events.sort((a,b)=>a.second-b.second)};
 }
