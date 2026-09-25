@@ -6,19 +6,31 @@ import '@fontsource-variable/dm-sans/index.css';
 import '@fontsource/barlow-condensed/600.css';
 import '@fontsource/barlow-condensed/700.css';
 import './styles.css';
-import Management from './Management';
-import LeagueTable from './LeagueTable';
-import MatchSimulation from './MatchSimulation';
-import Legacy from './Legacy';
-import TransferMarket from './TransferMarket';
-import ClubDashboard from './ClubDashboard';
-import SeasonReviewModal from './SeasonReviewModal';
-import CompetitionHub from './CompetitionHub';
-import RetirementModal from './RetirementModal';
+
+
+
+
+
+
+
+
+
 import LandingScreen from './LandingScreen';
-import CareerCenter from './CareerCenter';
-import PlayerCareer from './PlayerCareer';
-import CareerMomentModal from './CareerMomentModal';
+const Management=React.lazy(()=>import('./Management'));
+const LeagueTable=React.lazy(()=>import('./LeagueTable'));
+const MatchSimulation=React.lazy(()=>import('./MatchSimulation'));
+const Legacy=React.lazy(()=>import('./Legacy'));
+const TransferMarket=React.lazy(()=>import('./TransferMarket'));
+const ClubDashboard=React.lazy(()=>import('./ClubDashboard'));
+const SeasonReviewModal=React.lazy(()=>import('./SeasonReviewModal'));
+const CompetitionHub=React.lazy(()=>import('./CompetitionHub'));
+const RetirementModal=React.lazy(()=>import('./RetirementModal'));
+const CareerCenter=React.lazy(()=>import('./CareerCenter'));
+const PlayerCareer=React.lazy(()=>import('./PlayerCareer'));
+const CareerMomentModal=React.lazy(()=>import('./CareerMomentModal'));
+
+
+
 import { applyCareerRoster } from './transfer-engine.js';
 import { clubThemeStyle, getClubWorld } from './club-world.js';
 import { positionGroup } from './position-labels.js';
@@ -296,4 +308,4 @@ function App() {
     {dialog&&typeof dialog==='object'&&<Modal title={`Ficha de ${dialog.name}`} onClose={()=>setDialog(null)}><div className="player-modal-club"><Crest club={club}/><span>{club.name} · {career.season}</span></div><span className={`position ${position(dialog)}`}>{labels[position(dialog)]}</span><h2>{dialog.name}</h2><div className="player-facts"><div><small>Camisa</small><strong>{dialog.number||'—'}</strong></div><div><small>Idade na temporada</small><strong>{age(dialog)!==null?`${age(dialog)} anos`:'—'}</strong></div><div><small>Nacionalidade</small><strong>{country(dialog)}</strong></div><div><small>Altura</small><strong>{dialog.heightCm?`${dialog.heightCm} cm`:'—'}</strong></div><div><small>Overall</small><strong>{careerPlayerOverall(dialog,career,club.id)}</strong></div></div><p className="fineprint">Cadastro da ESPN · Consulta de {displayDate}. Vínculo atual sujeito à confirmação.</p><button className="primary" onClick={()=>setDialog(null)}>Voltar ao elenco <ArrowRight size={17}/></button></Modal>}
   </div>;
 }
-createRoot(document.getElementById('root')).render(<App/>);
+createRoot(document.getElementById('root')).render(<React.Suspense fallback={<div className="app-loading"><span className="brand-symbol">L<span>F</span></span><strong>Carregando...</strong></div>}><App/></React.Suspense>);
