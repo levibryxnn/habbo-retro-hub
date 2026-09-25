@@ -777,6 +777,7 @@ export function finishPendingRound(career,clubs){
     next=applyMatchDynamics(next,userClub,clubs,userResult,{competition:'Brasileirão Série A',stage:'Rodada '+roundNumber});
     next=processPlayerPromises(next,userClub,userResult);
     next=emitCareerEvent(next,{type:'MATCH_FINISHED',importance:2,payload:{competition:'Brasileirão Série A',stage:'Rodada '+roundNumber,homeId:userResult.homeId,awayId:userResult.awayId,homeGoals:userResult.homeGoals,awayGoals:userResult.awayGoals,xg:userResult.xg||null}});
+    for(const injury of(userResult.events||[]).filter(event=>event.type==='injury'&&String(event.clubId)===String(next.userClubId)))next=emitCareerEvent(next,{type:'PLAYER_INJURED',playerId:injury.playerId,importance:Number(injury.injurySeverity||1)>=4?4:2,payload:{name:injury.player,label:injury.injuryLabel,duration:injury.severityMatches,severity:injury.injurySeverity||1}});
     next=applyWeeklyTraining(next,userClub);
     next=refreshJobOffers(next,clubs);
   }
