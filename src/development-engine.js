@@ -61,7 +61,7 @@ export function applyDevelopmentProfile(player,key,career){
   return{...player,age:profile.age,_careerAge:profile.age,_baseAge:profile.baseAge,_overallDelta:profile.delta,_potential:profile.potential,_generation:profile.generation,_rootName:profile.rootName};
 }
 export function advancePlayerLifecycle(career,clubs,newSeason){
-  const development={...(career.playerDevelopment||{})},retired={...(career.retiredPlayers||{})},regens=[...(career.regens||[])],pending=[];
+  const development={...(career.playerDevelopment||{})},retired={...(career.retiredPlayers||{})},regens=[...(career.regens||[])],status={...(career.playerStatus||{})},pending=[];
   const seen=new Set();
   for(const club of clubs){
     for(const player of club.players||[]){
@@ -76,11 +76,12 @@ export function advancePlayerLifecycle(career,clubs,newSeason){
         if(String(club.id)===String(career.userClubId))pending.push({id:'retire-'+key+'-'+newSeason,player:key,name:player.name,age:nextAge,clubId:String(club.id),successorName:successor.name,successorOverall:successor._generatedOverall,successorPotential:successor._potential});
         continue;
       }
-      const boost=performanceBoost(career,key),trainingYouth=Number(career.trainingState?.youthBonus||0),delta=nextDelta(profile,key,newSeason,boost,trainingYouth,lifecycleContext(career,player,key));
-      development[key]={...profile,age:nextAge,delta,potential:profile.potential};
+      const boost=performanceBoost(career,key),trainingYouth=Number(career.trainingState?.youthBonus||0),context=lifecycleContext(career,player,key),medical=Number(career.facilities?.medical||1),permanentRisk=Number(status[key]?.permanentLossRisk||0),permanentLoss=permanentRisk>0&&roll(key+'|permanent-loss|'+newSeason)<permanentRisk?Math.max(1,Math.min(3,Math.round(1+(5-medical)*.35+context.injuryHistory*.08))):0,adjustedProfile=permanentLoss?{...profile,delta:profile.delta-permanentLoss,potential:Math.max(profile.baseOverall-4,profile.potential-Math.ceil(permanentLoss*.7))}:profile,delta=nextDelta(adjustedProfile,key,newSeason,boost,trainingYouth,context);
+      development[key]={...adjustedProfile,age:nextAge,delta,potential:adjustedProfile.potential};
+      if(status[key])status[key]={...status[key],permanentLossRisk:0,lastPermanentLoss:permanentLoss||status[key].lastPermanentLoss||0};
     }
   }
   const activeRegens=regens.filter(player=>!retired[String(player._playerKey||String(player._originClubId||'')+':'+player.id)]);
-  return{...career,playerDevelopment:development,retiredPlayers:retired,regens:activeRegens,pendingRetirements:[...(career.pendingRetirements||[]),...pending].slice(-20)};
+  return{...career,playerDevelopment:development,playerStatus:status,retiredPlayers:retired,regens:activeRegens,pendingRetirements:[...(career.pendingRetirements||[]),...pending].slice(-20)};
 }
 export function retirementSummary(career){return Array.isArray(career.pendingRetirements)?career.pendingRetirements:[];}
