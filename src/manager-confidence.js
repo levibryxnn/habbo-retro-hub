@@ -39,7 +39,7 @@ export function jobSecurityLabel(board){
 export function applyConfidenceEvent(career,event){
   const current=sanitizeManagerConfidence(career?.managerConfidence);
   const rawFanDelta=Number(event?.fans)||0,boardDelta=Number(event?.board)||0,legacyCredit=clamp(0,.72,Number(career?.fanCredit||0)/42),fanDelta=rawFanDelta<0?rawFanDelta*(1-legacyCredit):rawFanDelta;
-  const alpha=.55,currentEventScore=clamp(0,100,current.fans+fanDelta/alpha),fans=clamp(0,100,Math.round((alpha*currentEventScore+(1-alpha)*current.fans)*10)/10);
+  const alpha=.68,currentEventScore=clamp(0,100,current.fans+fanDelta),fans=clamp(0,100,Math.round((alpha*currentEventScore+(1-alpha)*current.fans)*10)/10);
   const board=clamp(0,100,Math.round((current.board+boardDelta)*10)/10);
   const record={
     id:'confidence-'+(career?.season||0)+'-'+(career?.round||0)+'-'+((current.events||[]).length+1)+'-'+String(event?.kind||'event'),
