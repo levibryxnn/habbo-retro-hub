@@ -40,8 +40,8 @@ export function updateTacticalState(career,patch){
 }
 export function setTrainingFocus(career,id){const focus=trainingFocus(id);return{...career,trainingState:{...(career.trainingState||{}),focus:focus.id,lastChangedRound:career.round||0}};}
 export function trainingMatchModifier(career){
-  const focus=trainingFocus(career?.trainingState?.focus||'balanced');
-  return{attack:focus.attack||0,defense:focus.defense||0,condition:focus.condition||0,injury:focus.injury||1,setPiece:focus.setPiece||0,youth:focus.youth||0,label:focus.name};
+  const focus=trainingFocus(career?.trainingState?.focus||'balanced'),level=clamp(1,5,Number(career?.facilities?.training)||1),medical=clamp(1,5,Number(career?.facilities?.medical)||1),quality=(level-1)*.006;
+  return{attack:(focus.attack||0)+quality,defense:(focus.defense||0)+quality*.8,condition:(focus.condition||0)+(level-1)*.45,injury:(focus.injury||1)*(1-(medical-1)*.025),setPiece:(focus.setPiece||0)+quality*.35,youth:(focus.youth||0)+(level-1)*.006,label:focus.name,facilityLevel:level};
 }
 export function applyWeeklyTraining(career,club){
   if(!club)return career;
