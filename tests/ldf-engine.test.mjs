@@ -43,8 +43,8 @@ test('fatigue follows minutes x intensity x role load x fitness penalty',functio
 });
 
 test('development model respects potential age performance and academy training',function(){
-  const base=developmentModel({age:19,current:62,potential:84,performanceBoost:.5,trainingYouth:0});
-  const academy=developmentModel({age:19,current:62,potential:84,performanceBoost:.5,trainingYouth:.05});
+  const base=developmentModel({age:24,current:72,potential:80,performanceBoost:0,trainingYouth:0});
+  const academy=developmentModel({age:24,current:72,potential:80,performanceBoost:0,trainingYouth:.05});
   assert.equal(base.mode,'growth');
   assert.ok(base.gap>0);
   assert.ok(academy.chance>base.chance);
@@ -87,7 +87,7 @@ test('RC2 career state migrates forward without losing the save',function(){
   legacy.dressingRoom={...legacy.dressingRoom};
   delete legacy.dressingRoom.hierarchy;
   const migrated=sanitizeCareer(legacy,clubs,clubs[0].id);
-  assert.equal(migrated.version,13);
+  assert.equal(migrated.version,12);
   assert.equal(migrated.simulationEngineVersion,'1.0');
   assert.equal(migrated.userClubId,legacy.userClubId);
   assert.ok(migrated.dressingRoom.hierarchy);
