@@ -1,5 +1,6 @@
 import { getClubWorld } from './club-world.js';
 import { clamp, effectiveOverall, formRegression, hashSeed, individualInjuryRisk, injuryRecovery, mulberry32 } from './ldf-engine.js';
+import { parseSafeJson } from './save-format.js';
 
 export const PLAYER_CAREER_KEY='ldf.playerCareer.v1';
 export const PLAYER_CAREER_VERSION=1;
@@ -110,7 +111,7 @@ export function completeTrial(career,clubs=[]){
   const eligibility=ranked.filter(x=>score>=clamp(42,88,34+x.level*.57));
   let destination=null,reason='';
   if(dream&&eligibility.some(x=>String(x.club.id)===String(dream.club.id))){destination=dream.club;reason='A atuação foi suficiente para abrir uma vaga na base do clube dos sonhos.';}
-  else if(eligibility.length){const ideal=eligibility.slice().sort((a,b)=>Math.abs((score+8)-b.level)-Math.abs((score+8)-a.level))[0];destination=ideal.club;reason='A comissão encontrou um projeto compatível com o desempenho da peneira.';}
+  else if(eligibility.length){const ideal=eligibility.slice().sort((a,b)=>Math.abs((score+8)-a.level)-Math.abs((score+8)-b.level))[0];destination=ideal.club;reason='A comissão encontrou um projeto compatível com o desempenho da peneira.';}
   else{destination=ranked[0]?.club||clubs[0]||null;reason='Uma equipe decidiu apostar no potencial, mesmo com uma peneira difícil.';}
   if(!destination)return{...career,trial:{...career.trial,score,completed:true,report:{reason:'Nenhum clube disponível nesta base.'}}};
   const clubName=destination.name,dreamSuccess=String(destination.id)===String(career.dreamClubId);
@@ -195,8 +196,7 @@ export function sanitizePlayerCareer(raw,clubs=[]){
 }
 export function serializePlayerCareer(career){return JSON.stringify({signature:'linha-de-frente-player-save',fileVersion:1,exportedAt:new Date().toISOString(),career});}
 export function parsePlayerCareer(text,clubs=[]){
-  if(String(text||'').length>5_000_000)throw new Error('Arquivo de carreira de jogador excede o limite permitido.');
-  let payload;try{payload=JSON.parse(String(text||''));}catch{throw new Error('Arquivo de jogador inválido.');}
+  const payload=parseSafeJson(text);
   if(!payload||payload.signature!=='linha-de-frente-player-save'||payload.fileVersion>1)throw new Error('Este arquivo não é uma carreira de jogador válida.');
   const career=sanitizePlayerCareer(payload.career,clubs);if(!career)throw new Error('Estado da carreira de jogador inválido.');return career;
 }
