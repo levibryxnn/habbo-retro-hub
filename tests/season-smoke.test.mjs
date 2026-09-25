@@ -30,9 +30,11 @@ test('a complete Serie A season produces 380 matches and 38 games for every club
 });
 
 test('the actual simulated champion receives the Brasileirao trophy automatically', function(){
-  const reference=completeSeason(clubs[0].id);
-  const championId=standingsFromResults(reference.results,clubs)[0].clubId;
-  const championCareer=completeSeason(championId);
+  const favoriteId=clubs[0].id,boosted=clubs.map(club=>club.id===favoriteId?{...club,players:(club.players||[]).map(player=>({...player,_generatedOverall:94}))}:club);
+  let championCareer=createCareer(boosted,favoriteId,2026);
+  for(let round=0;round<38;round++)championCareer=simulateRound(championCareer,boosted);
+  const table=standingsFromResults(championCareer.results,boosted);
+  assert.equal(table[0].clubId,favoriteId,'the boosted test club must win the deterministic season used by this trophy regression test');
   assert.ok(championCareer.trophies.some(function(trophy){return trophy.id==='brasileirao'&&trophy.season===2026;}));
   assert.ok(championCareer.messages.some(function(message){return message.id==='brasileirao-2026';}));
   assert.equal(championCareer.pendingCelebration?.type,'trophy');
