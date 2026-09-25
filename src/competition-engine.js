@@ -419,12 +419,19 @@ function updateRatings(world,result){
   const hp=Number(world.ratings?.[result.homeId]||0),ap=Number(world.ratings?.[result.awayId]||0),expected=1/(1+Math.pow(10,(ap-hp)/14)),actual=result.homeGoals>result.awayGoals?1:result.homeGoals===result.awayGoals?.5:0,k=1.5,delta=k*(actual-expected);
   return{...world,ratings:{...world.ratings,[result.homeId]:clamp(-8,8,hp+delta),[result.awayId]:clamp(-8,8,ap-delta)}};
 }
+function compactWorldCompetitionResult(official){
+  return{id:official.id,fixtureId:official.fixtureId,competitionId:official.competitionId,competitionName:official.competitionName,stage:official.stage,date:official.date,homeId:official.homeId,awayId:official.awayId,homeGoals:Number(official.homeGoals)||0,awayGoals:Number(official.awayGoals)||0,homePower:Number(official.homePower)||0,awayPower:Number(official.awayPower)||0,durationSecond:90*60};
+}
+function compactWorldHistory(history){
+  return(history||[]).slice(0,120).map((item,index)=>index<48?item:compactWorldCompetitionResult(item));
+}
 function commitFixtureResult(world,compKey,fixtureId,result){
   let comp=world.competitions[compKey],game=comp?.fixtures.find(item=>item.id===fixtureId);if(!comp||!game||game.played)return world;
   const official={...result,id:'wr-'+game.id,fixtureId:game.id,competitionId:comp.id,competitionName:comp.name,stage:game.stage,date:game.date,homeId:game.homeId,awayId:game.awayId,durationSecond:90*60};
-  comp={...comp,fixtures:comp.fixtures.map(item=>item.id===game.id?{...item,played:true}:item),results:[...comp.results,official]};
-  let next={...world,competitions:{...world.competitions,[compKey]:comp},history:[official,...(world.history||[])].slice(0,180)};
-  next=updateRatings(next,official);return ensureCompetitionProgress(next);
+  const stored=compactWorldCompetitionResult(official);
+  comp={...comp,fixtures:comp.fixtures.map(item=>item.id===game.id?{...item,played:true}:item),results:[...comp.results,stored]};
+  let next={...world,competitions:{...world.competitions,[compKey]:comp},history:compactWorldHistory([official,...(world.history||[])])};
+  next=updateRatings(next,stored);return ensureCompetitionProgress(next);
 }
 function playFixture(world,career,serieAClubs,compKey,fixtureId){
   const comp=world.competitions[compKey],game=comp?.fixtures.find(item=>item.id===fixtureId);if(!comp||!game||game.played)return world;
