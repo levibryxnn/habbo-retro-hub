@@ -192,7 +192,9 @@ export function currentBench(result,side,second){
   return bench.filter(id=>!usedIn.has(id));
 }
 function playerFormValue(player,career,clubId){
-  const key=statusKey(clubId,player.id),perf=career?.seasonPerformance?.[key]||career?.seasonPerformance?.[String(player.id)];
+  const key=statusKey(clubId,player.id),persisted=Number(career?.playerForm?.[key]);
+  if(Number.isFinite(persisted))return clamp(-3,3,persisted);
+  const perf=career?.seasonPerformance?.[key]||career?.seasonPerformance?.[String(player.id)];
   if(!perf?.appearances)return 0;
   const avg=Number(perf.totalRating||0)/Math.max(1,Number(perf.appearances||0));
   return clamp(-2,2,(avg-6.5)/.65);
