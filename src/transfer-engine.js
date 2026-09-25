@@ -79,14 +79,14 @@ export function applyCareerRoster(baseClubs,career){
   const byId=Object.fromEntries(clones.map(club=>[club.id,club]));
   for(const origin of baseClubs){
     for(const raw of origin.players||[]){
-      const key=playerKey(origin.id,raw.id);if(career?.retiredPlayers?.[key])continue;
+      const key=playerKey(origin.id,raw.id);if(career?.retiredPlayers?.[key]||career?.releasedPlayers?.[key])continue;
       const owner=currentOwnerId(career,key,origin.id),target=byId[owner]||byId[origin.id];
       target.players.push(applyDevelopmentProfile(playerRef(raw,origin.id),key,career));
     }
   }
   for(const raw of career?.regens||[]){
     const originId=String(raw._originClubId||raw.clubId||career.userClubId),key=String(raw._playerKey||playerKey(originId,raw.id));
-    if(career?.retiredPlayers?.[key])continue;
+    if(career?.retiredPlayers?.[key]||career?.releasedPlayers?.[key])continue;
     const owner=currentOwnerId(career,key,originId),target=byId[owner]||byId[originId];
     if(target)target.players.push(applyDevelopmentProfile(playerRef(raw,originId),key,career));
   }
