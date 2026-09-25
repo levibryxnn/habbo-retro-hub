@@ -1,6 +1,6 @@
 import React,{useMemo,useRef,useState}from'react';
 import { Archive, ArrowRight, BookOpen, Briefcase, Download, Dumbbell, FileUp, Gauge, Landmark, Newspaper, Save, ShieldCheck, Sparkles, Target, Trash2, Trophy, Users, Wrench } from 'lucide-react';
-import { careerNews, difficultyProfile, dynamicRivalries, managerCareerSummary, managerProfile, promoteAcademyProspect, resolvePressConference } from './career-dynamics.js';
+import { careerNews, difficultyProfile, dynamicRivalries, managerCareerSummary, managerProfile, promoteAcademyProspect, resolvePressConference, squadHierarchyFor } from './career-dynamics.js';
 import { financeHealth } from './economy-engine.js';
 import { worldClub, worldCompetitionList } from './competition-engine.js';
 import { deleteManualSaveSlot, listManualSaveSlots, parseCareerSave, saveFileName, serializeCareerSave, writeManualSaveSlot } from './save-format.js';
@@ -55,7 +55,7 @@ function SavePanel({career,club,onImportCareer}){
 export default function CareerCenter({career,club,clubs,Crest,onCareerChange,onImportCareer}){
   const [tab,setTab]=useState('news'),[actionNotice,setActionNotice]=useState(''),[spectatorMatch,setSpectatorMatch]=useState(null),crestFor=item=>item?.external?<WorldCrest club={item} size="mini"/>:<Crest club={item}/>;
   const news=useMemo(()=>careerNews(career),[career]),summary=useMemo(()=>managerCareerSummary(career),[career]),rivalries=useMemo(()=>dynamicRivalries(career,clubs).slice(0,8),[career,clubs]),competitions=useMemo(()=>worldCompetitionList(career,clubs),[career,clubs]),contracts=useMemo(()=>expiringContracts(career,club,1).slice(0,8),[career,club]),universeMatches=useMemo(()=>(career.world?.history||[]).filter(item=>String(item.homeId)!==String(career.userClubId)&&String(item.awayId)!==String(career.userClubId)).slice(0,8),[career.world?.history,career.userClubId]),finance=financeHealth(career),difficulty=difficultyProfile(career,club),profile=managerProfile(career.managerProfile),room=career.dressingRoom||{},president=career.presidentProfile||{},dna=career.clubDNA||{},academy=career.youthAcademy||{prospects:[]},tactic=sanitizeTacticalState(career.tacticalState),facilities=career.facilities||{},activePromises=(career.playerPromises||[]).filter(item=>item.status==='active'),jobOffers=(career.jobOffers||[]).filter(item=>item.status==='open'),worldManagers=Object.values(career.worldManagers||{}).slice(0,10);
-  const hierarchyLeaders=Object.values(room.hierarchy||{}).filter(item=>item.tier==='leader').sort((a,b)=>b.influence-a.influence).slice(0,4);
+  const hierarchyLeaders=Object.values(squadHierarchyFor(club)).filter(item=>item.tier==='leader').sort((a,b)=>b.influence-a.influence).slice(0,4);
   const tabs=[['news','Notícias',Newspaper],['club','Clube',ShieldCheck],['planning','Planejamento',Dumbbell],['academy','Base',Users],['universe','Universo',Landmark],['legacy','Carreira',Trophy],['save','Save',Archive]];
   function promote(id){onCareerChange(promoteAcademyProspect(career,club,id));}
   function press(choice){onCareerChange(resolvePressConference(career,choice));}
