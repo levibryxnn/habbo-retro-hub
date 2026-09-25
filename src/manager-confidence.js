@@ -86,9 +86,9 @@ function structuralInputs(career){
   const objectives=Array.isArray(career?.projectObjectives)?career.projectObjectives:[],resolved=objectives.filter(x=>['completed','missed'].includes(x.status)),objectivesScore=resolved.length?clamp(35,98,48+(resolved.filter(x=>x.status==='completed').length/resolved.length)*50):78;
   const cash=Number(career?.cash||0),opening=Math.max(1,Number(career?.openingCash||cash||1)),cashRatio=cash/opening,finance=clamp(20,98,64+Math.max(-1,Math.min(1.3,cashRatio-0.55))*27);
   const transfers=Array.isArray(career?.transferHistory)?career.transferHistory:[],sales=transfers.filter(x=>['sell','loan-out'].includes(x.type)),badSales=sales.filter(x=>Number(x.amount||0)<Number(x.marketValue||0)*.82).length,transfersScore=clamp(35,95,75+(sales.length?((sales.length-badSales)/sales.length-.7)*24:0));
-  const promoted=(career?.regens||[]).filter(x=>String(x._originClubId||'')===String(career?.userClubId||'')&&String(x.id||'').startsWith('youth-')).length,youth=clamp(50,96,70+Math.min(4,promoted)*6);
+  const promoted=(career?.regens||[]).filter(x=>String(x._originClubId||'')===String(career?.userClubId||'')&&String(x.id||'').startsWith('youth-')).length,youth=clamp(50,96,70+Math.min(4,promoted)*6),titles=clamp(45,100,52+Math.min(4,(career?.trophies||[]).length)*12+Math.min(6,(career?.managerTrophies||[]).length)*3);
   const dnaLabels=career?.clubDNA?.labels||[],clubDNA=clamp(55,94,74+(dnaLabels.length>=3?4:0)+(cash>=0?2:0));
-  return{results,objectives:objectivesScore,finance,transfers:transfersScore,youth,clubDNA};
+  return{results,titles,objectives:objectivesScore,finance,transfers:transfersScore,youth,clubDNA};
 }
 export function reconcileStructuralBoardTrust(career,{weight=.08}={}){
   const current=sanitizeManagerConfidence(career?.managerConfidence),inputs=structuralInputs(career),president=String(career?.presidentProfile?.id||'balanced'),target=boardTrustScore({...inputs,president}),blend=clamp(.02,.22,weight),board=Number(clamp(0,100,current.board*(1-blend)+target*blend).toFixed(1));
