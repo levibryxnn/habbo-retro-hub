@@ -1,6 +1,6 @@
 import React,{useEffect,useMemo,useRef,useState}from'react';
-import{ArrowLeft,ArrowRight,Briefcase,ChevronRight,Download,Dumbbell,FileUp,Footprints,HeartPulse,Play,RotateCcw,Shield,Star,Target,Trophy,UserRound,Users}from'lucide-react';
-import{PLAYER_ARCHETYPES,PLAYER_CAREER_KEY,PLAYER_POSITIONS,PLAYER_TRAINING,TRIAL_DRILLS,answerTrialDrill,completeTrial,createPlayerCareer,parsePlayerCareer,playerCareerOverall,respondPlayerOffer,sanitizePlayerCareer,serializePlayerCareer,setPlayerTraining,simulatePlayerWeek,trialScore}from'./player-career-engine.js';
+import { ArrowLeft, ArrowRight, Briefcase, ChevronRight, Download, Dumbbell, FileUp, Footprints, HeartPulse, Play, RotateCcw, Shield, Star, Target, Trophy, UserRound, Users } from 'lucide-react';
+import { PLAYER_ARCHETYPES, PLAYER_CAREER_KEY, PLAYER_POSITIONS, PLAYER_TRAINING, TRIAL_DRILLS, answerTrialDrill, completeTrial, createPlayerCareer, parsePlayerCareer, playerCareerOverall, respondPlayerOffer, sanitizePlayerCareer, serializePlayerCareer, setPlayerTraining, simulatePlayerWeek, trialScore } from './player-career-engine.js';
 import'./player-career.css';
 
 const positionLabel=id=>PLAYER_POSITIONS.find(x=>x.id===id)?.label||id;
