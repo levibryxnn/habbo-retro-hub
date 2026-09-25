@@ -226,8 +226,33 @@ export function simulatePlayerWeek(career,clubs=[]){
 export function sanitizePlayerCareer(raw,clubs=[]){
   if(!raw||raw.mode!=='player'||!raw.player||Number(raw.version||0)>PLAYER_CAREER_VERSION)return null;
   const base=createPlayerCareer({name:raw.player.name,position:raw.player.position,archetype:raw.player.archetype,foot:raw.player.foot,dreamClubId:raw.dreamClubId,face:raw.player.face},finite(raw.season,2026));
-  const stage=['trial','academy','professional','retired'].includes(raw.stage)?raw.stage:'trial',clubId=raw.clubId&&clubs.some(c=>String(c.id)===String(raw.clubId))?String(raw.clubId):null;
-  const merged={...base,...raw,version:PLAYER_CAREER_VERSION,mode:'player',stage,clubId,age:clamp(16,50,finite(raw.age,16)),week:clamp(0,38,finite(raw.week,0)),season:clamp(2026,2100,finite(raw.season,2026)),player:{...base.player,...raw.player,name:safeName(raw.player.name),attributes:{...base.player.attributes,...raw.player.attributes},condition:clamp(35,100,finite(raw.player.condition,100)),morale:clamp(0,100,finite(raw.player.morale,78)),coachTrust:clamp(0,100,finite(raw.player.coachTrust,42)),reputation:clamp(1,100,finite(raw.player.reputation,5)),potential:clamp(45,99,finite(raw.player.potential,base.player.potential)),face:{...base.player.face,...raw.player.face}},timeline:Array.isArray(raw.timeline)?raw.timeline.slice(0,120):base.timeline,news:Array.isArray(raw.news)?raw.news.slice(0,80):[],achievements:Array.isArray(raw.achievements)?raw.achievements.slice(0,80):[]};
+  const stage=['trial','academy','professional','retired'].includes(raw.stage)?raw.stage:'trial';
+  const clubId=raw.clubId&&clubs.some(c=>String(c.id)===String(raw.clubId))?String(raw.clubId):null;
+  const matchApproach=PLAYER_MATCH_APPROACHES.some(item=>item.id===raw.matchApproach)?raw.matchApproach:'balanced';
+  const trainingFocus=PLAYER_TRAINING.some(item=>item.id===raw.trainingFocus)?raw.trainingFocus:'balanced';
+  const nationalTeamStatus=['none','called-up'].includes(raw.nationalTeamStatus)?raw.nationalTeamStatus:'none';
+  const rawContract=raw.contract&&typeof raw.contract==='object'&&!Array.isArray(raw.contract)?raw.contract:null;
+  const contract=rawContract&&clubId?{
+    clubId,
+    clubName:String(rawContract.clubName||clubs.find(c=>String(c.id)===clubId)?.name||'Clube').slice(0,100),
+    startSeason:clamp(2026,2100,finite(rawContract.startSeason,raw.season||2026)),
+    expirySeason:clamp(2026,2110,finite(rawContract.expirySeason,(raw.season||2026)+3)),
+    salaryMonthly:clamp(0,100_000_000,finite(rawContract.salaryMonthly,0)),
+    role:String(rawContract.role||'Profissional').slice(0,60),
+    kind:['youth','pro'].includes(rawContract.kind)?rawContract.kind:'pro',
+  }:null;
+  const sanitizeStats=value=>({
+    matches:clamp(0,10000,finite(value?.matches,0)),starts:clamp(0,10000,finite(value?.starts,0)),minutes:clamp(0,1_000_000,finite(value?.minutes,0)),
+    goals:clamp(0,10000,finite(value?.goals,0)),assists:clamp(0,10000,finite(value?.assists,0)),totalRating:clamp(0,100000,finite(value?.totalRating,0)),titles:clamp(0,500,finite(value?.titles,0)),
+  });
+  const merged={
+    ...base,...raw,version:PLAYER_CAREER_VERSION,mode:'player',stage,clubId,matchApproach,trainingFocus,nationalTeamStatus,contract,
+    age:clamp(16,50,finite(raw.age,16)),week:clamp(0,38,finite(raw.week,0)),season:clamp(2026,2100,finite(raw.season,2026)),
+    player:{...base.player,...raw.player,name:safeName(raw.player.name),attributes:{...base.player.attributes,...Object.fromEntries(Object.entries(raw.player.attributes||{}).map(([key,value])=>[key,clamp(1,99,finite(value,base.player.attributes[key]||50))]))},condition:clamp(35,100,finite(raw.player.condition,100)),morale:clamp(0,100,finite(raw.player.morale,78)),coachTrust:clamp(0,100,finite(raw.player.coachTrust,42)),reputation:clamp(1,100,finite(raw.player.reputation,5)),contractSatisfaction:clamp(0,100,finite(raw.player.contractSatisfaction,70)),potential:clamp(45,99,finite(raw.player.potential,base.player.potential)),injuryHistory:clamp(0,100,finite(raw.player.injuryHistory,0)),face:{...base.player.face,...raw.player.face}},
+    careerStats:sanitizeStats(raw.careerStats),seasonStats:sanitizeStats(raw.seasonStats),
+    timeline:Array.isArray(raw.timeline)?raw.timeline.slice(0,120):base.timeline,news:Array.isArray(raw.news)?raw.news.slice(0,80):[],achievements:Array.isArray(raw.achievements)?raw.achievements.slice(0,80):[],awards:Array.isArray(raw.awards)?raw.awards.slice(0,60):[],
+    pendingOffer:raw.pendingOffer&&typeof raw.pendingOffer==='object'&&!Array.isArray(raw.pendingOffer)?{...raw.pendingOffer,clubId:String(raw.pendingOffer.clubId||'').slice(0,80),clubName:String(raw.pendingOffer.clubName||'').slice(0,100),salaryMonthly:clamp(0,100_000_000,finite(raw.pendingOffer.salaryMonthly,0)),years:clamp(1,5,finite(raw.pendingOffer.years,3)),expiresWeek:clamp(0,41,finite(raw.pendingOffer.expiresWeek,0))}:null,
+  };
   return merged;
 }
 export function serializePlayerCareer(career){return JSON.stringify({signature:'linha-de-frente-player-save',fileVersion:1,exportedAt:new Date().toISOString(),career});}
