@@ -3,7 +3,7 @@ import { applyConfidenceEvent } from './manager-confidence.js';
 import { applyMatchDynamics, applyTitleDynamics, managerMatchModifier } from './career-dynamics.js';
 import { applyWeeklyTraining, matchWeather, sanitizeTacticalState, setPieceAttackModifier, setTacticalPreset, tacticalMatchup, updateTacticalState } from './tactical-engine.js';
 import { advanceWorldManagers, processPlayerPromises, refreshJobOffers } from './career-life-engine.js';
-import { emitCareerEvent } from './event-engine.js';
+import { dispatchCareerEvent, emitCareerEvent } from './event-engine.js';
 import { LDF_ENGINE_VERSION, adaptiveAiDecision, combinedInjuryChance, contextScore, expectedGoals, fatigueConditionLoss, fatigueLoad, fitnessPenalty, formScore, individualInjuryRisk, injuryRecovery, logisticDominance, roleLoad, tacticalExecutionScore, teamStrength } from './ldf-engine.js';
 import { positionGroup } from './position-labels.js';
 import {
@@ -499,19 +499,27 @@ function applyWorldMatchFatigue(career,userClub,result){
 function applyUserWorldOutcome(next,before,game,comp,result,serieAClubs){
   const home=result.homeId===String(next.userClubId),gf=home?result.homeGoals:result.awayGoals,ga=home?result.awayGoals:result.homeGoals,won=gf>ga,draw=gf===ga,importance=competitionImportance(comp.id);
   next={...next,world:{...next.world,lastUserMatch:result}};
-  next=applyConfidenceEvent(next,{fans:(won?2.8:draw?.2:-3.4)*importance,board:(won?.9:draw?.1:-1.1)*importance,kind:'competition',reason:comp.name+' · '+game.stage+': '+(won?'vitória':draw?'empate':'derrota')+' por '+gf+' a '+ga+'.'});
-  const userClub=serieAClubs.find(c=>String(c.id)===String(next.userClubId));if(userClub){
-    next=applyWorldMatchFatigue(next,userClub,result);
-    for(const injury of(result.events||[]).filter(e=>e.type==='injury'&&String(e.clubId)===String(next.userClubId))){
-      const key=statusKey(next.userClubId,injury.playerId),status={...(next.playerStatus||{})},current={yellowCount:0,injuryThroughRound:0,suspensionThroughRound:0,...(status[key]||{})},medical=Number(next.facilities?.medical||1),condition=Number(next.conditions?.[key]??78),history=Number(current.injuryHistory||0),recovery=injuryRecovery({severity:Number(injury.injurySeverity||1),medicalLevel:medical,age:Number(injury.playerAge||27),fitness:condition,rehabQuality:medical>=4?1.12:1,injuryHistory:history}),duration=Math.max(Number(injury.severityMatches||1),recovery.matches);current.injuryThroughRound=Math.max(current.injuryThroughRound||0,(next.round||0)+duration);current.injuryLabel=injury.injuryLabel||'Lesão';current.injurySeverity=Number(injury.injurySeverity||1);current.injuryHistory=history+1;current.permanentLossRisk=Number(recovery.permanentLossRisk.toFixed(4));current.recoveryMatches=duration;status[key]=current;next={...next,playerStatus:status};
-    }
-    next=applyMatchDynamics(next,userClub,serieAClubs,result,{competition:comp.name,stage:game.stage});
-    next=processPlayerPromises(next,userClub,result);
-    next=applyWeeklyTraining(next,userClub);
-    next=refreshJobOffers(next,serieAClubs);
-    next=emitCareerEvent(next,{type:'MATCH_FINISHED',importance:competitionImportance(comp.id)>=1.2?4:3,payload:{competition:comp.name,stage:game.stage,homeId:result.homeId,awayId:result.awayId,homeGoals:result.homeGoals,awayGoals:result.awayGoals,xg:result.xg||null}});
+  const userClub=serieAClubs.find(c=>String(c.id)===String(next.userClubId));
+  if(userClub){
+    const matchEvent={type:'MATCH_FINISHED',importance:competitionImportance(comp.id)>=1.2?4:3,payload:{competition:comp.name,stage:game.stage,homeId:result.homeId,awayId:result.awayId,homeGoals:result.homeGoals,awayGoals:result.awayGoals,xg:result.xg||null}};
+    next=dispatchCareerEvent(next,matchEvent,[
+      state=>applyConfidenceEvent(state,{fans:(won?2.8:draw?.2:-3.4)*importance,board:(won?.9:draw?.1:-1.1)*importance,kind:'competition',reason:comp.name+' · '+game.stage+': '+(won?'vitória':draw?'empate':'derrota')+' por '+gf+' a '+ga+'.'}),
+      state=>applyWorldMatchFatigue(state,userClub,result),
+      state=>{
+        let reduced=state;
+        for(const injury of(result.events||[]).filter(e=>e.type==='injury'&&String(e.clubId)===String(reduced.userClubId))){
+          const key=statusKey(reduced.userClubId,injury.playerId),status={...(reduced.playerStatus||{})},current={yellowCount:0,injuryThroughRound:0,suspensionThroughRound:0,...(status[key]||{})},medical=Number(reduced.facilities?.medical||1),condition=Number(reduced.conditions?.[key]??78),history=Number(current.injuryHistory||0),recovery=injuryRecovery({severity:Number(injury.injurySeverity||1),medicalLevel:medical,age:Number(injury.playerAge||27),fitness:condition,rehabQuality:medical>=4?1.12:1,injuryHistory:history}),duration=Math.max(Number(injury.severityMatches||1),recovery.matches);
+          current.injuryThroughRound=Math.max(current.injuryThroughRound||0,(reduced.round||0)+duration);current.injuryLabel=injury.injuryLabel||'Lesão';current.injurySeverity=Number(injury.injurySeverity||1);current.injuryHistory=history+1;current.permanentLossRisk=Number(recovery.permanentLossRisk.toFixed(4));current.recoveryMatches=duration;status[key]=current;reduced={...reduced,playerStatus:status};
+        }
+        return reduced;
+      },
+      state=>applyMatchDynamics(state,userClub,serieAClubs,result,{competition:comp.name,stage:game.stage}),
+      state=>processPlayerPromises(state,userClub,result),
+      state=>applyWeeklyTraining(state,userClub),
+      state=>refreshJobOffers(state,serieAClubs),
+    ]);
     for(const injury of(result.events||[]).filter(event=>event.type==='injury'&&String(event.clubId)===String(next.userClubId)))next=emitCareerEvent(next,{type:'PLAYER_INJURED',playerId:injury.playerId,importance:Number(injury.injurySeverity||1)>=4?4:2,payload:{name:injury.player,label:injury.injuryLabel,duration:injury.severityMatches,severity:injury.injurySeverity||1}});
-  }
+  }else next=applyConfidenceEvent(next,{fans:(won?2.8:draw?.2:-3.4)*importance,board:(won?.9:draw?.1:-1.1)*importance,kind:'competition',reason:comp.name+' · '+game.stage+': '+(won?'vitória':draw?'empate':'derrota')+' por '+gf+' a '+ga+'.'});
   next=advanceWorldManagers(next,serieAClubs);
   const trophy=trophyFor(comp),userNowChampion=comp.championId===String(next.userClubId),already=(next.trophies||[]).some(t=>t.id===trophy.id&&Number(t.season)===Number(comp.edition));
   if(userNowChampion&&!already){
