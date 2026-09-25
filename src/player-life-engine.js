@@ -45,6 +45,14 @@ export const bootsDef=id=>byId(PLAYER_BOOTS,id);
 export const physioDef=id=>byId(PLAYER_PHYSIOS,id);
 export const homeDef=id=>byId(PLAYER_HOMES,id);
 
+export function enqueuePlayerMoment(career,moment){
+  if(!moment)return career;
+  const pending=career?.pendingMoment||null,queue=Array.isArray(career?.momentQueue)?career.momentQueue.slice(0,19):[];
+  if(!pending)return{...career,pendingMoment:moment,momentQueue:queue};
+  if(pending.id===moment.id||queue.some(item=>item.id===moment.id))return career;
+  return{...career,momentQueue:[...queue,moment].slice(0,20)};
+}
+
 export function createPlayerFinance(){
   return{cash:0,careerIncome:0,careerSpending:0,transactions:[],agentId:'self',bootsId:'academy',ownedBoots:['academy'],physioId:'club',homeId:'family',ownedHomes:['family'],sponsorship:null,sponsorOffers:[],lastSettlementDay:0};
 }
@@ -103,8 +111,8 @@ export function purchasePlayerLifeItem(career,type,id){
   if(type==='boots')nextFinance={...nextFinance,bootsId:id,ownedBoots:Array.from(new Set([...(nextFinance.ownedBoots||[]),id]))};
   if(type==='home')nextFinance={...nextFinance,homeId:id,ownedHomes:Array.from(new Set([...(nextFinance.ownedHomes||[]),id]))};
   let next={...career,finance:nextFinance};
-  if(type==='home'&&id!=='family')next={...next,player:{...next.player,morale:clamp(0,100,finite(next.player?.morale,75)+item.morale)},pendingMoment:next.pendingMoment||{id:'home-'+id,type:'home',title:'Novo patrimônio',subtitle:item.name,text:'A carreira fora de campo também começou a crescer.',season:career.season,day:career.dayOfSeason||0}};
-  if(type==='agent'&&id==='elite')next={...next,pendingMoment:next.pendingMoment||{id:'elite-agent',type:'agent',title:'Outro nível de representação',subtitle:item.name,text:'A nova equipe passa a negociar contratos, marcas e oportunidades com alcance maior.',season:career.season,day:career.dayOfSeason||0}};
+  if(type==='home'&&id!=='family')next=enqueuePlayerMoment({...next,player:{...next.player,morale:clamp(0,100,finite(next.player?.morale,75)+item.morale)}},{id:'home-'+id,type:'home',title:'Novo patrimônio',subtitle:item.name,text:'A carreira fora de campo também começou a crescer.',season:career.season,day:career.dayOfSeason||0});
+  if(type==='agent'&&id==='elite')next=enqueuePlayerMoment(next,{id:'elite-agent',type:'agent',title:'Outro nível de representação',subtitle:item.name,text:'A nova equipe passa a negociar contratos, marcas e oportunidades com alcance maior.',season:career.season,day:career.dayOfSeason||0});
   return{career:next,item};
 }
 export function refreshPlayerSponsorOffers(career){
@@ -122,7 +130,7 @@ export function acceptPlayerSponsor(career,offerId){
   const finance=sanitizePlayerFinance(career?.finance),offer=finance.sponsorOffers.find(item=>item.id===offerId);if(!offer)return{career,error:'Proposta de patrocínio indisponível.'};
   let nextFinance=transaction(finance,{amount:offer.signing,label:'Luvas de imagem · '+offer.name,type:'sponsor-signing',season:career.season,day:career.dayOfSeason||0});
   nextFinance={...nextFinance,sponsorship:{brandId:offer.brandId,name:offer.name,monthly:offer.monthly,monthsRemaining:offer.months,targetAverage:offer.targetAverage,performanceBonus:offer.performanceBonus},sponsorOffers:[]};
-  const next={...career,finance:nextFinance,player:{...career.player,reputation:clamp(1,100,finite(career.player?.reputation,5)+1.5)},pendingMoment:career.pendingMoment||{id:'sponsor-'+offer.brandId+'-'+career.season,type:'sponsor',title:'Primeiro contrato de imagem',subtitle:offer.name,text:'Seu desempenho virou valor de mercado também fora do campo.',season:career.season,day:career.dayOfSeason||0}};
+  const next=enqueuePlayerMoment({...career,finance:nextFinance,player:{...career.player,reputation:clamp(1,100,finite(career.player?.reputation,5)+1.5)}},{id:'sponsor-'+offer.brandId+'-'+career.season,type:'sponsor',title:'Primeiro contrato de imagem',subtitle:offer.name,text:'Seu desempenho virou valor de mercado também fora do campo.',season:career.season,day:career.dayOfSeason||0});
   return{career:next,offer};
 }
 export function declinePlayerSponsor(career,offerId){
@@ -146,6 +154,6 @@ export function settlePlayerMonth(career){
     const stress=clamp(1,6,1+Math.abs(finance.cash)/120000);
     next={...next,player:{...next.player,morale:clamp(0,100,finite(next.player?.morale,75)-stress)},news:[{id:'finance-stress-'+career.season+'-'+(career.dayOfSeason||0),title:'Finanças pessoais exigem atenção',text:'Custos de carreira superaram o saldo disponível. O estresse financeiro afetou a moral.',season:career.season,week:career.week,day:career.dayOfSeason||0},...(career.news||[])].slice(0,80)};
   }
-  if(finance.cash>=1_000_000&&!career.achievements?.includes('millionaire'))next={...next,achievements:['millionaire',...(career.achievements||[])],pendingMoment:career.pendingMoment||{id:'millionaire',type:'finance',title:'Primeiro milhão',subtitle:'Patrimônio pessoal',text:'O saldo da carreira ultrapassou R$ 1 milhão.',season:career.season,day:career.dayOfSeason||0}};
+  if(finance.cash>=1_000_000&&!career.achievements?.includes('millionaire'))next=enqueuePlayerMoment({...next,achievements:['millionaire',...(career.achievements||[])]},{id:'millionaire',type:'finance',title:'Primeiro milhão',subtitle:'Patrimônio pessoal',text:'O saldo da carreira ultrapassou R$ 1 milhão.',season:career.season,day:career.dayOfSeason||0});
   return next;
 }
