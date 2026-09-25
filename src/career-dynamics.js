@@ -146,7 +146,7 @@ function updateRivalry(career,info,result,clubs){
   map[id]=next;return{...career,careerMemory:{...memory,rivalries:map}};
 }
 function updatePlayerMood(career,club,result){
-  const room=career.dressingRoom||{morale:80,unity:75,leaders:[],hierarchy:squadHierarchyFor(club),playerMood:{}},hierarchy=room.hierarchy||squadHierarchyFor(club),mood={...(room.playerMood||{})},side=String(result.homeId)===String(club.id)?'home':'away',lineupIds=(side==='home'?result.homeLineup:result.awayLineup)||[];
+  const room=career.dressingRoom||{morale:80,unity:75,leaders:[],hierarchy:squadHierarchyFor(club),playerMood:{}},hierarchy=squadHierarchyFor(club),mood={...(room.playerMood||{})},side=String(result.homeId)===String(club.id)?'home':'away',lineupIds=(side==='home'?result.homeLineup:result.awayLineup)||[];
   if(!lineupIds.length)return career;
   const lineup=new Set(lineupIds.map(String)),ranked=(club.players||[]).slice().sort((a,b)=>playerGameStats(b).overall-playerGameStats(a).overall).slice(0,16);
   let unity=Number(room.unity??75);
