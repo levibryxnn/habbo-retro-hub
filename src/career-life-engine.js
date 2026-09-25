@@ -4,7 +4,7 @@ import { applyConfidenceEvent, createManagerConfidence } from './manager-confide
 import { initialCashForClub } from './finance-model.js';
 import { initialTransferBudget } from './economy-engine.js';
 import { emitCareerEvent } from './event-engine.js';
-import { salaryDemand } from './ldf-engine.js';
+import { jobInterestScore, salaryDemand } from './ldf-engine.js';
 
 const clamp=(min,max,n)=>Math.max(min,Math.min(max,n));
 function hashString(value){let h=2166136261;for(const ch of String(value)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return h>>>0;}
@@ -147,11 +147,11 @@ function clubAttractiveness(club){const w=getClubWorld(club.id);return clamp(1,1
 export function refreshJobOffers(career,clubs){
   const record=career.careerRecord||{},matches=Number(record.matches||0);if(matches<8||matches%6!==0)return career;
   const active=(career.jobOffers||[]).filter(item=>item.expiresAtMatch>matches&&item.status==='open');if(active.length)return career;
-  const current=clubs.find(c=>String(c.id)===String(career.userClubId)),currentLevel=current?clubAttractiveness(current):50,rep=Number(career.managerReputation||50),seed=career.season+'|'+matches+'|jobs';
+  const current=clubs.find(c=>String(c.id)===String(career.userClubId)),currentLevel=current?clubAttractiveness(current):50,rep=Number(career.managerReputation||50),seed=career.season+'|'+matches+'|jobs',recordWinRate=matches?Number(record.wins||0)/matches:.45,profile=String(career.managerProfile||'strategist');
   const candidates=(clubs||[]).filter(c=>String(c.id)!==String(career.userClubId)).map(club=>{
-    const target=clubAttractiveness(club),step=target-currentLevel,fit=rep-target*.58-step*.16+(roll(seed+'|'+club.id)-.5)*22;
+    const target=clubAttractiveness(club),step=target-currentLevel,world=getClubWorld(club.id),styleMatch=profile==='developer'?(career.facilities?.academy>=3?82:64):profile==='motivator'?76:72,recentResults=clamp(20,95,45+recordWinRate*48),availability=career.managerStatus==='active'?82:100,clubAmbition=clamp(25,98,45+target*.52),salaryCost=clamp(20,95,35+rep*.45),projectMismatch=clamp(0,85,Math.max(0,step-18)*2.2+(profile==='developer'&&world.gameBudgetM>70?8:0)),careerJump=clamp(0,100,Math.max(0,step)*2.4),variance=(roll(seed+'|'+club.id)-.5)*18,fit=jobInterestScore({managerReputation:rep,clubTargetLevel:target,styleMatch,recentResults,availability,clubAmbition,salaryCost,projectMismatch,careerJump,variance});
     return{club,score:fit,target,step};
-  }).filter(item=>item.score>6&&item.step<28).sort((a,b)=>b.score-a.score).slice(0,2);
+  }).filter(item=>item.score>=58&&item.step<30).sort((a,b)=>b.score-a.score).slice(0,2);
   if(!candidates.length)return career;
   let next={...career,jobOffers:candidates.map(item=>({id:'job-'+career.season+'-'+matches+'-'+item.club.id,clubId:String(item.club.id),clubName:item.club.name,score:Number(item.score.toFixed(1)),status:'open',createdAtMatch:matches,expiresAtMatch:matches+5,project:item.step>10?'Salto de carreira':item.step<-8?'Projeto de reconstrução':'Novo desafio'}))};
   for(const offer of next.jobOffers)next=emitCareerEvent(next,{type:'JOB_OFFERED',clubId:offer.clubId,importance:3,payload:{clubName:offer.clubName,project:offer.project}});
