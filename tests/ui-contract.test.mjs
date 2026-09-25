@@ -13,6 +13,7 @@ const competition=fs.readFileSync(new URL('../src/CompetitionHub.jsx',import.met
 const celebration=fs.readFileSync(new URL('../src/SeasonReviewModal.jsx',import.meta.url),'utf8');
 const trophy=fs.readFileSync(new URL('../src/Trophy3D.jsx',import.meta.url),'utf8');
 const worldCrest=fs.readFileSync(new URL('../src/WorldCrest.jsx',import.meta.url),'utf8');
+const crest=fs.readFileSync(new URL('../src/Crest.jsx',import.meta.url),'utf8');
 const playerCareer=fs.readFileSync(new URL('../src/PlayerCareer.jsx',import.meta.url),'utf8');
 const playerLife=fs.readFileSync(new URL('../src/player-life-engine.js',import.meta.url),'utf8');
 
@@ -85,7 +86,7 @@ test('club-specific colors are scoped to the club hero rather than the whole int
 test('V3 asks for a manager name when taking control of a club', function(){
   assert.ok(main.includes("Nome do técnico"));
   assert.ok(main.includes("managerName"));
-  assert.ok(main.includes("1.0 RC5"));
+  assert.ok(main.includes("1.0 RC6"));
   assert.ok(!main.includes("Protótipo de gestão"));
   assert.ok(!main.includes("ETAPA 2 ·"));
 });
@@ -128,7 +129,7 @@ test('app boots into the launch screen and then the canonical club selector', fu
   assert.ok(main.includes("if(landingOpen)return <LandingScreen"));
   assert.ok(main.includes("if(clubBrowserOpen){"));
   assert.ok(main.includes('<section className="club-selector-overlay" aria-label="Seletor de clubes">'));
-  assert.ok(main.includes('Qual história você quer conhecer?'));
+  assert.ok(main.includes('Escolha o clube que você quer comandar.'));
   assert.ok(main.includes('single-club-workspace'));
   assert.ok(!main.includes('<aside className="club-panel">'));
   assert.ok(!main.includes("useState(()=>!readSaved())"));
@@ -147,8 +148,8 @@ test('release UI exposes confidence tactical reading and season review', functio
 
 
 test('portable crest data URLs bypass the relative Vite base prefix', function(){
-  assert.ok(main.includes("if(/^(data:|blob:|https?:\\/\\/)/i.test(source))return source"));
-  assert.ok(main.includes("function assetUrl"));
+  assert.ok(crest.includes("if(/^(data:|blob:|https?:\\/\\/)/i.test(source))return source"));
+  assert.ok(crest.includes("function assetUrl"));
 });
 
 test('finished match UI does not keep presenting the previous round as live', function(){
@@ -262,7 +263,7 @@ test('RC5 player career exposes daily weekly simulation and separate life financ
   assert.ok(playerCareer.includes('Avançar 1 dia'));
   assert.ok(playerCareer.includes('Avançar 7 dias'));
   assert.ok(playerCareer.includes('Vida & finanças'));
-  assert.ok(playerCareer.includes('Saldo pessoal'));
+  assert.ok(playerCareer.includes('Saldo'));
   assert.ok(playerCareer.includes('Empresário'));
   assert.ok(playerCareer.includes('Chuteiras'));
   assert.ok(playerCareer.includes('Saúde & fisioterapia'));
@@ -283,4 +284,22 @@ test('RC5 player lifestyle visuals are local vector UI rather than fragile remot
 
 test('RC5 personal economy is connected to salary representation equipment health property and sponsors',function(){
   for(const token of ['PLAYER_AGENTS','PLAYER_BOOTS','PLAYER_PHYSIOS','PLAYER_HOMES','PLAYER_SPONSOR_BRANDS','settlePlayerMonth','purchasePlayerLifeItem','performanceBonus'])assert.ok(playerLife.includes(token),token+' missing from player-life engine');
+});
+
+
+test('RC6 player HUD exposes gameplay-critical information and position feedback',function(){
+  for(const text of ['Valor de mercado','Objetivos da temporada','PRÓXIMO JOGO','RENOVAÇÃO DE CONTRATO','Campanha do clube']){
+    assert.ok(playerCareer.includes(text),text+' is missing from player career UI');
+  }
+  assert.ok(playerCareer.includes('POSITION_METRIC_LABELS'));
+  assert.ok(playerCareer.includes('playerObjectiveSnapshot'));
+  assert.ok(playerCareer.includes('respondPlayerContractOffer'));
+});
+
+test('RC6 uses one crest renderer for local and world clubs with professional fallback',function(){
+  assert.ok(main.includes("import Crest from './Crest.jsx'"));
+  assert.ok(worldCrest.includes("import Crest from './Crest.jsx'"));
+  assert.ok(crest.includes('OPTICAL_CREST_SCALE'));
+  assert.ok(crest.includes('crest-fallback'));
+  assert.ok(crest.includes('onError'));
 });
