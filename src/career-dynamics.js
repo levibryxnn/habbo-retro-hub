@@ -149,9 +149,10 @@ function updateStreak(memory,outcome){
   return{...memory,streak:{type,count:old.type===type?old.count+1:1}};
 }
 function updateRivalry(career,info,result,clubs){
-  const memory=career.careerMemory||{},map={...(memory.rivalries||{})},id=String(info.opponentId),base=rivalryLevel(career.userClubId,id)*24,current=map[id]||{score:base,meetings:0,userWins:0,opponentWins:0,draws:0,lastSeason:career.season};
-  const knockout=/Final|Semifinal|Quartas|Oitavas|Playoff/i.test(result.stage||'')?8:0,redCount=(result.events||[]).filter(e=>e.type==='red').length;
-  const next={...current,score:clamp(0,100,current.score+3+knockout+redCount*2),meetings:current.meetings+1,userWins:current.userWins+(info.outcome==='win'?1:0),opponentWins:current.opponentWins+(info.outcome==='loss'?1:0),draws:current.draws+(info.outcome==='draw'?1:0),lastSeason:career.season};
+  const memory=career.careerMemory||{},map={...(memory.rivalries||{})},id=String(info.opponentId),historic=rivalryLevel(career.userClubId,id)*24,current=map[id]||{score:historic,meetings:0,userWins:0,opponentWins:0,draws:0,knockouts:0,finals:0,controversies:0,lastSeason:career.season};
+  const stage=String(result.stage||''),knockout=/Final|Semifinal|Quartas|Oitavas|Playoff/i.test(stage),final=/Final/i.test(stage),redCount=(result.events||[]).filter(e=>e.type==='red').length,meetings=current.meetings+1,knockouts=Number(current.knockouts||0)+(knockout?1:0),finals=Number(current.finals||0)+(final?1:0),controversies=Number(current.controversies||0)+Math.min(2,redCount);
+  const score=rivalryScore({historicBase:historic,matches:meetings,knockouts,finals,titleBattles:final?1:0,controversies,derbyFactor:rivalryLevel(career.userClubId,id)>=2?1:0});
+  const next={...current,score,meetings,knockouts,finals,controversies,userWins:current.userWins+(info.outcome==='win'?1:0),opponentWins:current.opponentWins+(info.outcome==='loss'?1:0),draws:current.draws+(info.outcome==='draw'?1:0),lastSeason:career.season};
   map[id]=next;return{...career,careerMemory:{...memory,rivalries:map}};
 }
 function updatePlayerMood(career,club,result){
@@ -188,7 +189,7 @@ export function applyMatchDynamics(career,club,clubs,result,{competition='Brasil
   const profile=managerProfile(next.managerProfile),room=next.dressingRoom||{},memory=updateStreak(next.careerMemory,info.outcome);
   let moraleDelta=info.outcome==='win'?3.2:info.outcome==='draw'?.4:-3.4;if(moraleDelta>0)moraleDelta*=profile.morale;else if(profile.id==='motivator')moraleDelta*=.72;
   const unityDelta=info.outcome==='win'?.7:info.outcome==='loss'?-.8:0;
-  next={...next,dressingRoom:{...room,morale:clamp(20,100,(room.morale??82)+moraleDelta),unity:clamp(20,100,(room.unity??78)+unityDelta)},careerMemory:memory,managerReputation:clamp(1,100,(next.managerReputation??50)+(info.outcome==='win'?.45:info.outcome==='loss'?-.25:.05))};
+  next={...next,dressingRoom:{...room,morale:clamp(20,100,(room.morale??82)+moraleDelta),unity:clamp(20,100,(room.unity??78)+unityDelta)},careerMemory:memory,managerReputation:clamp(1,100,(next.managerReputation??50)+(info.outcome==='win'?(.28+Math.max(0,72-Number(result.intelligence?.homeStrength||result.homePower||72))*.006):info.outcome==='loss'?-.22:.04))};
   next=updateRivalry(next,info,{...result,stage},clubs);
   next=updatePlayerMood(next,club,result);
   for(const mood of Object.values(next.dressingRoom?.playerMood||{}).filter(item=>item.wantsTransfer)){
@@ -196,7 +197,8 @@ export function applyMatchDynamics(career,club,clubs,result,{competition='Brasil
   }
   const opp=clubs.find(c=>String(c.id)===String(info.opponentId)),clubName=club.name,oppName=opp?.name||'adversário';
   const headline=info.outcome==='win'?pick([clubName+' confirma bom momento',clubName+' soma vitória importante',clubName+' faz valer o trabalho'],result.id+'w'):info.outcome==='loss'?pick([clubName+' deixa pontos pelo caminho',clubName+' terá de reagir',clubName+' sofre revés na temporada'],result.id+'l'):clubName+' empata com '+oppName;
-  next=addNews(next,{id:'news-match-'+result.id,season:next.season,round:next.round,type:'match',importance:/Final|Semifinal/i.test(stage)?4:2,title:headline,text:clubName+' '+(info.outcome==='win'?'venceu':info.outcome==='loss'?'perdeu':'empatou')+' com '+oppName+' por '+info.gf+' a '+info.ga+' em '+competition+(stage?' · '+stage:'')+'.',timestamp:String(next.season)+'-r'+String(next.round)});
+  const expectedGap=Math.abs(Number(result.intelligence?.homeStrength||result.homePower||0)-Number(result.intelligence?.awayStrength||result.awayPower||0)),underdogWin=info.outcome==='win'&&((info.home&&Number(result.intelligence?.homeStrength||0)<Number(result.intelligence?.awayStrength||0))||(!info.home&&Number(result.intelligence?.awayStrength||0)<Number(result.intelligence?.homeStrength||0))),rivalLevel=rivalryLevel(next.userClubId,info.opponentId),newsScore=newsworthiness({importance:/Final/i.test(stage)?5:/Semifinal/i.test(stage)?4:2,surprise:underdogWin?Math.min(1,expectedGap/20):0,rivalry:rivalLevel*25,streak:Number(memory.streak?.count||0),playerImpact:Math.abs(info.margin)>=3?1:0,historicalContext:/Final/i.test(stage)?1:0});
+  if(newsScore>=3.2)next=addNews(next,{id:'news-match-'+result.id,season:next.season,round:next.round,type:'match',importance:/Final|Semifinal/i.test(stage)?4:2,title:headline,text:clubName+' '+(info.outcome==='win'?'venceu':info.outcome==='loss'?'perdeu':'empatou')+' com '+oppName+' por '+info.gf+' a '+info.ga+' em '+competition+(stage?' · '+stage:'')+'.',timestamp:String(next.season)+'-r'+String(next.round),newsScore});
   const injuries=(result.events||[]).filter(e=>e.type==='injury'&&String(e.clubId)===String(next.userClubId));
   for(const injury of injuries)next=addNews(next,{id:'news-injury-'+result.id+'-'+injury.playerId,season:next.season,round:next.round,type:'injury',importance:injury.severityMatches>=3?4:2,title:injury.player+' vira preocupação no departamento médico',text:(injury.injuryLabel||'Lesão')+' pode tirá-lo de até '+(injury.severityMatches||1)+' partidas e reduzir seu rendimento durante a recuperação.',timestamp:String(next.season)+'-r'+String(next.round)});
   if(memory.streak.type==='wins'&&memory.streak.count>=3)next=addNews(next,{id:'news-streak-'+next.season+'-'+next.round,season:next.season,round:next.round,type:'form',importance:3,title:clubName+' embala '+memory.streak.count+' vitórias seguidas',text:'A sequência começa a mudar a percepção sobre o trabalho e aumenta a confiança ao redor do clube.',timestamp:String(next.season)+'-r'+String(next.round)});
