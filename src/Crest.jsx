@@ -1,20 +1,12 @@
 import React,{useEffect,useRef,useState} from 'react';
 import { getClubWorld } from './club-world.js';
+import { OPTICAL_CREST_SCALE, OPTICAL_CREST_SHIFT } from './crest-config.js';
 import './crest.css';
 
 const memory=new Map();
 let active=0;
 const queue=[];
 const CACHE_PREFIX='ldf.crest.v4.';
-export const OPTICAL_CREST_SCALE=Object.freeze({
-  '1936':.94,'2022':.96,'2026':.98,'2029':1.06,'2674':1.04,
-  '3445':1.02,'3454':.99,'3456':.94,'3457':1.01,'3458':1.10,
-  '4936':1.04,'6079':1.10,'6086':1.03,'6273':1.00,'7632':1.02,
-  '819':1.04,'874':1.08,'9169':1.03,'9318':1.08,'9967':1.00,
-});
-const OPTICAL_SHIFT=Object.freeze({
-  '2022':'0 1%','3458':'0 -1%','6079':'0 1%','7632':'0 1%','9967':'0 1%',
-});
 function drain(){if(active>=3||!queue.length)return;const job=queue.shift();active++;job().finally(()=>{active--;drain();});}
 function schedule(job){queue.push(job);drain();}
 function assetUrl(source){
@@ -53,7 +45,7 @@ export default function Crest({club,size='normal',large=false}){
     });
     return()=>{cancelled=true;};
   },[visible,key,wikiTitle,club?.external,local,src,failed]);
-  const meta=getClubWorld(club?.id),fallback=initials(club),scale=OPTICAL_CREST_SCALE[String(club?.id)]||1,shift=OPTICAL_SHIFT[String(club?.id)]||'0 0';
+  const meta=getClubWorld(club?.id),fallback=initials(club),scale=OPTICAL_CREST_SCALE[String(club?.id)]||1,shift=OPTICAL_CREST_SHIFT[String(club?.id)]||'0 0';
   const style={'--crest-optical-scale':scale,'--crest-optical-shift':shift,'--crest-primary':club?.primary||meta.primary||'#315f43','--crest-secondary':club?.secondary||meta.secondary||'#f4f5ef'};
   const hasImage=Boolean(src&&!failed);
   return <span ref={ref} style={style} className={'crest world-crest unified-crest '+resolvedSize+(hasImage?'':' fallback')} data-club-id={key}>
