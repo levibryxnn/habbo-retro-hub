@@ -332,7 +332,8 @@ export function dynamicRivalries(career,clubs){
   return Object.entries(career.careerMemory?.rivalries||{}).map(([clubId,data])=>({clubId,name:clubs.find(c=>String(c.id)===clubId)?.name||clubId,...data,label:data.score>=75?'Rivalidade intensa':data.score>=55?'Rivalidade recente':data.score>=35?'Confronto quente':'Histórico normal'})).sort((a,b)=>b.score-a.score);
 }
 export function difficultyProfile(career,club){
-  const w=getClubWorld(club.id),finance=transferBudgetSnapshot(career),pressure=(career.clubDNA?.titlePressure||1),squad=(club.players||[]).reduce((sum,p)=>sum+playerGameStats(p).overall,0)/Math.max(1,(club.players||[]).length);
-  const score=clamp(1,100,54+(70-squad)*1.15+(35-finance.budget/1_000_000)*.65+(pressure-1)*22-(w.fanIndex-.5)*8);
-  return{score:Math.round(score),label:score>=68?'Projeto difícil':score>=48?'Desafio equilibrado':'Estrutura forte'};
+  const w=getClubWorld(club.id),finance=transferBudgetSnapshot(career),squad=(club.players||[]).reduce((sum,p)=>sum+playerGameStats(p).overall,0)/Math.max(1,(club.players||[]).length),board=Number(career.managerConfidence?.board??70);
+  const squadGap=70-squad,budgetGap=32-finance.budget/1_000_000,boardPressure=(100-board)/9,competitionLevel=(career.world?.competitions&&Object.values(career.world.competitions).some(comp=>comp.teams?.includes?.(String(club.id)))?8:3),scheduleDensity=Math.min(10,Math.max(0,(career.world?.history||[]).filter(item=>String(item.homeId)===String(club.id)||String(item.awayId)===String(club.id)).slice(0,8).length)),clubExpectation=(Number(career.clubDNA?.titlePressure||1)-1)*18+(w.fanIndex-.5)*6;
+  const score=careerDifficultyScore({squadGap,budgetGap,boardPressure,competitionLevel,scheduleDensity,clubExpectation});
+  return{score:Math.round(score),label:score>=68?'Projeto difícil':score>=48?'Desafio equilibrado':'Estrutura forte',factors:{squadGap:Number(squadGap.toFixed(1)),budgetGap:Number(budgetGap.toFixed(1)),boardPressure:Number(boardPressure.toFixed(1)),competitionLevel,scheduleDensity,clubExpectation:Number(clubExpectation.toFixed(1))}};
 }
