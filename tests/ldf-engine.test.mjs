@@ -4,11 +4,13 @@ import fs from 'node:fs';
 import {
   TEAM_STRENGTH_WEIGHTS,
   adaptiveAiDecision,
+  boardTrustScore,
   developmentModel,
   fatigueConditionLoss,
   fatigueLoad,
   individualInjuryRisk,
   injuryRecovery,
+  jobInterestScore,
   effectiveOverall,
   scoutedPotentialRange,
   seededRandom,
@@ -126,4 +128,20 @@ test('LDF 1.1 seeded RNG scouting uncertainty and recovery are reproducible',fun
   const basic=injuryRecovery({severity:4,medicalLevel:1,age:33,fitness:55,injuryHistory:3});
   const elite=injuryRecovery({severity:4,medicalLevel:5,age:23,fitness:90,injuryHistory:0,rehabQuality:1.2});
   assert.ok(basic.matches>=elite.matches);
+});
+
+test('president profiles weight titles differently while keeping board trust bounded',function(){
+  const ambitiousWithTitles=boardTrustScore({results:70,titles:100,objectives:70,finance:70,transfers:70,youth:70,clubDNA:70,president:'ambitious'});
+  const ambitiousNoTitles=boardTrustScore({results:70,titles:30,objectives:70,finance:70,transfers:70,youth:70,clubDNA:70,president:'ambitious'});
+  const prudentWithTitles=boardTrustScore({results:70,titles:100,objectives:70,finance:70,transfers:70,youth:70,clubDNA:70,president:'prudent'});
+  const prudentNoTitles=boardTrustScore({results:70,titles:30,objectives:70,finance:70,transfers:70,youth:70,clubDNA:70,president:'prudent'});
+  assert.ok((ambitiousWithTitles-ambitiousNoTitles)>(prudentWithTitles-prudentNoTitles));
+  assert.ok(ambitiousWithTitles<=100&&ambitiousNoTitles>=0);
+});
+
+test('official job interest formula rewards fit results and ambition without deterministic acceptance',function(){
+  const strong=jobInterestScore({managerReputation:74,clubTargetLevel:72,styleMatch:86,recentResults:84,availability:100,clubAmbition:82,salaryCost:48,projectMismatch:8,careerJump:12,variance:2});
+  const weak=jobInterestScore({managerReputation:42,clubTargetLevel:82,styleMatch:35,recentResults:31,availability:80,clubAmbition:70,salaryCost:76,projectMismatch:65,careerJump:70,variance:-3});
+  assert.ok(strong>weak);
+  assert.ok(strong<=100&&weak>=0);
 });

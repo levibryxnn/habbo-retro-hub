@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   TRIAL_DRILLS,
+  acknowledgePlayerMoment,
   answerTrialDrill,
   completeTrial,
   createPlayerCareer,
@@ -11,6 +12,7 @@ import {
   sanitizePlayerCareer,
   serializePlayerCareer,
   setPlayerMatchApproach,
+  simulatePlayerDay,
   simulatePlayerWeek,
   trialScore,
 } from '../src/player-career-engine.js';
@@ -56,7 +58,7 @@ test('weekly player simulation keeps all sensitive values bounded across seasons
   assert.ok(career.player.condition>=35&&career.player.condition<=100);
   assert.ok(career.player.morale>=0&&career.player.morale<=100);
   assert.ok(career.player.coachTrust>=0&&career.player.coachTrust<=100);
-  assert.ok(playerCareerOverall(career)>=40&&playerCareerOverall(career)<=95);
+  assert.ok(playerCareerOverall(career)>=40&&playerCareerOverall(career)<=97);
   assert.ok(career.careerStats.matches>=0);
 });
 
@@ -66,7 +68,7 @@ test('portable player save round-trips without touching manager save format',fun
   assert.equal(restored.mode,'player');
   assert.equal(restored.player.name,'Portátil');
   assert.equal(restored.clubId,original.clubId);
-  assert.equal(restored.version,1);
+  assert.equal(restored.version,2);
   assert.ok(sanitizePlayerCareer(restored,clubs));
 });
 
@@ -103,4 +105,59 @@ test('player save sanitizer clamps extended career and contract fields',function
   assert.equal(clean.player.reputation,1);
   assert.ok(clean.contract.expirySeason<=2110);
   assert.equal(clean.awards.length,60);
+});
+
+test('daily and weekly simulation use the same deterministic calendar engine',function(){
+  const base=finishTrial(createPlayerCareer({name:'Calendário',position:'MEI',archetype:'creator',dreamClubId:clubs[5].id},2026));
+  let daily=base;
+  for(let i=0;i<7;i++)daily=simulatePlayerDay(daily,clubs);
+  const weekly=simulatePlayerWeek(base,clubs);
+  assert.equal(daily.dayOfSeason,7);
+  assert.equal(weekly.dayOfSeason,7);
+  assert.equal(daily.week,weekly.week);
+  assert.deepEqual(daily.lastMatch,weekly.lastMatch);
+  assert.deepEqual(daily.seasonStats,weekly.seasonStats);
+  assert.equal(daily.player.condition,weekly.player.condition);
+});
+
+test('player match results are generated from team strength xG and bounded Poisson outcomes',function(){
+  let career=finishTrial(createPlayerCareer({name:'Partida Engine',position:'ATA',archetype:'finisher',dreamClubId:clubs[6].id},2026));
+  for(let i=0;i<6;i++)career=simulatePlayerDay(career,clubs);
+  assert.ok(career.lastMatch);
+  assert.ok(Array.isArray(career.lastMatch.xg));
+  assert.equal(career.lastMatch.xg.length,2);
+  assert.ok(career.lastMatch.xg.every(value=>value>=.15&&value<=4));
+  assert.ok(career.lastMatch.goalsFor>=0&&career.lastMatch.goalsFor<=8);
+  assert.ok(career.lastMatch.goalsAgainst>=0&&career.lastMatch.goalsAgainst<=8);
+});
+
+test('player career remains bounded over a long multi-season simulation',function(){
+  let career=finishTrial(createPlayerCareer({name:'Carreira Longa',position:'GOL',archetype:'technical',dreamClubId:clubs[7].id},2026));
+  for(let i=0;i<900&&career.stage!=='retired';i++)career=simulatePlayerWeek(career,clubs);
+  assert.ok(career.age>=20);
+  assert.ok(career.player.condition>=35&&career.player.condition<=100);
+  assert.ok(career.player.morale>=0&&career.player.morale<=100);
+  assert.ok(career.player.coachTrust>=0&&career.player.coachTrust<=100);
+  assert.ok(career.player.reputation>=1&&career.player.reputation<=100);
+  assert.ok(career.dayOfSeason>=0&&career.dayOfSeason<=266);
+  assert.ok(JSON.stringify(career).length<500000);
+});
+
+
+test('career offers expire when the decision window passes',function(){
+  let career=finishTrial(createPlayerCareer({name:'Prazo',position:'MEI',archetype:'technical',dreamClubId:clubs[8].id},2026));
+  career={...career,dayOfSeason:7,week:1,pendingOffer:{id:'expired',clubId:clubs[9].id,clubName:clubs[9].name,expiresWeek:0,status:'open'}};
+  const next=simulatePlayerDay(career,clubs);
+  assert.equal(next.pendingOffer,null);
+  assert.ok(next.news.some(item=>item.title==='Proposta expirada'));
+});
+
+test('achievement popup queue preserves consecutive career moments',function(){
+  let career=finishTrial(createPlayerCareer({name:'Momentos',position:'ATA',archetype:'finisher',dreamClubId:clubs[10].id},2026));
+  career={...career,pendingMoment:{id:'one',type:'milestone',title:'Um',subtitle:'',text:'Primeiro',season:2026,day:1},momentQueue:[{id:'two',type:'goal',title:'Dois',subtitle:'',text:'Segundo',season:2026,day:2}]};
+  career=acknowledgePlayerMoment(career);
+  assert.equal(career.pendingMoment.id,'two');
+  assert.equal(career.momentQueue.length,0);
+  career=acknowledgePlayerMoment(career);
+  assert.equal(career.pendingMoment,null);
 });

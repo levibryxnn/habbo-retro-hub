@@ -13,6 +13,8 @@ const competition=fs.readFileSync(new URL('../src/CompetitionHub.jsx',import.met
 const celebration=fs.readFileSync(new URL('../src/SeasonReviewModal.jsx',import.meta.url),'utf8');
 const trophy=fs.readFileSync(new URL('../src/Trophy3D.jsx',import.meta.url),'utf8');
 const worldCrest=fs.readFileSync(new URL('../src/WorldCrest.jsx',import.meta.url),'utf8');
+const playerCareer=fs.readFileSync(new URL('../src/PlayerCareer.jsx',import.meta.url),'utf8');
+const playerLife=fs.readFileSync(new URL('../src/player-life-engine.js',import.meta.url),'utf8');
 
 test('every career area is present in navigation and has a renderer', function(){
   const tabs=['dashboard','central','competitions','match','roster','standings','transfers','trophies','sponsors','legacy'];
@@ -83,7 +85,7 @@ test('club-specific colors are scoped to the club hero rather than the whole int
 test('V3 asks for a manager name when taking control of a club', function(){
   assert.ok(main.includes("Nome do técnico"));
   assert.ok(main.includes("managerName"));
-  assert.ok(main.includes("1.0 RC4"));
+  assert.ok(main.includes("1.0 RC5"));
   assert.ok(!main.includes("Protótipo de gestão"));
   assert.ok(!main.includes("ETAPA 2 ·"));
 });
@@ -233,7 +235,7 @@ test('transfer UI separates market budget wage room and operating cash', functio
 });
 
 
-test('RC4 landing exposes separate manager and player careers without mixing saves', function(){
+test('RC5 landing exposes separate manager and player careers without mixing saves', function(){
   const landing=fs.readFileSync(new URL('../src/LandingScreen.jsx',import.meta.url),'utf8');
   const playerCareer=fs.readFileSync(new URL('../src/PlayerCareer.jsx',import.meta.url),'utf8');
   assert.ok(landing.includes('MODO CARREIRA TREINADOR'));
@@ -243,7 +245,7 @@ test('RC4 landing exposes separate manager and player careers without mixing sav
   assert.ok(main.includes("gameMode('manager')")||main.includes("setGameMode('manager')"));
 });
 
-test('RC4 exposes full tactical controls scouting promises hall and cinematics', function(){
+test('RC5 preserves full tactical controls scouting promises hall and cinematics', function(){
   const center=fs.readFileSync(new URL('../src/CareerCenter.jsx',import.meta.url),'utf8');
   const legacy=fs.readFileSync(new URL('../src/Legacy.jsx',import.meta.url),'utf8');
   assert.ok(center.includes('TACTICAL_DECISIONS'));
@@ -254,4 +256,31 @@ test('RC4 exposes full tactical controls scouting promises hall and cinematics',
   assert.ok(center.includes('PROMISE_TYPES'));
   assert.ok(legacy.includes('Temporadas comparáveis do save'));
   assert.ok(main.includes('<CareerMomentModal'));
+});
+
+test('RC5 player career exposes daily weekly simulation and separate life finance areas',function(){
+  assert.ok(playerCareer.includes('Avançar 1 dia'));
+  assert.ok(playerCareer.includes('Avançar 7 dias'));
+  assert.ok(playerCareer.includes('Vida & finanças'));
+  assert.ok(playerCareer.includes('Saldo pessoal'));
+  assert.ok(playerCareer.includes('Empresário'));
+  assert.ok(playerCareer.includes('Chuteiras'));
+  assert.ok(playerCareer.includes('Saúde & fisioterapia'));
+  assert.ok(playerCareer.includes('Casa & patrimônio'));
+  assert.ok(playerCareer.includes('Patrocínios pessoais'));
+  assert.ok(playerCareer.includes('<PlayerMomentModal'));
+  assert.ok(playerCareer.includes('<PlayerLifeVisual'));
+});
+
+test('RC5 player lifestyle visuals are local vector UI rather than fragile remote PNG dependencies',function(){
+  const visual=fs.readFileSync(new URL('../src/PlayerLifeVisual.jsx',import.meta.url),'utf8');
+  const moment=fs.readFileSync(new URL('../src/PlayerMomentModal.jsx',import.meta.url),'utf8');
+  assert.ok(visual.includes('pc-life-visual'));
+  assert.ok(moment.includes('pc-moment-art'));
+  assert.equal(/https?:\/\//.test(visual),false);
+  assert.equal(/https?:\/\//.test(moment),false);
+});
+
+test('RC5 personal economy is connected to salary representation equipment health property and sponsors',function(){
+  for(const token of ['PLAYER_AGENTS','PLAYER_BOOTS','PLAYER_PHYSIOS','PLAYER_HOMES','PLAYER_SPONSOR_BRANDS','settlePlayerMonth','purchasePlayerLifeItem','performanceBonus'])assert.ok(playerLife.includes(token),token+' missing from player-life engine');
 });
