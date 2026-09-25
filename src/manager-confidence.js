@@ -13,6 +13,8 @@ export function sanitizeManagerConfidence(raw){
     board:clamp(0,100,Number.isFinite(Number(raw.board))?Number(raw.board):100),
     lastFanDelta:Number(raw.lastFanDelta)||0,
     lastBoardDelta:Number(raw.lastBoardDelta)||0,
+    structuralBoardTarget:Number.isFinite(Number(raw.structuralBoardTarget))?Number(raw.structuralBoardTarget):null,
+    structuralInputs:raw.structuralInputs&&typeof raw.structuralInputs==='object'?raw.structuralInputs:null,
     events:Array.isArray(raw.events)?raw.events.slice(0,40):[],
   };
 }
@@ -61,6 +63,8 @@ export function applyConfidenceEvent(career,event){
       board,
       lastFanDelta:fanDelta,
       lastBoardDelta:boardDelta,
+      structuralBoardTarget:current.structuralBoardTarget,
+      structuralInputs:current.structuralInputs,
       events:[record,...(current.events||[])].slice(0,40),
     },
   };
