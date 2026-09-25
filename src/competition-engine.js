@@ -536,9 +536,9 @@ export function startWorldFixture(career,serieAClubs,mode='normal'){
   const selected=['normal','fast','instant'].includes(mode)?mode:'normal';
   return{...career,preferredSimulationMode:selected,pendingWorldMatch:{id:'world-'+preview.result.fixtureId,fixtureId:preview.result.fixtureId,competitionKey:preview.event.competitionKey,competitionId:preview.event.competitionId,competitionName:preview.event.competitionName,stage:preview.event.stage,date:preview.event.date,mode:selected,result:preview.result}};
 }
-export function changePendingWorldTactic(career,presetId,second=0){
-  if(!career.pendingWorldMatch)return setTacticalPreset(career,presetId);
-  const oldTactic=sanitizeTacticalState(career.tacticalState),base=setTacticalPreset(career,presetId),newTactic=sanitizeTacticalState(base.tacticalState),pending=career.pendingWorldMatch,result={...(pending.result||{})},userHome=String(result.homeId)===String(career.userClubId),aggression=((newTactic.mentality-oldTactic.mentality)+(newTactic.risk-oldTactic.risk)+(newTactic.pressing-oldTactic.pressing))/300,progress=clamp(0,1,Number(second||0)/(90*60)),seed=pending.fixtureId+'|tactic|'+Math.floor(second)+'|'+presetId;
+function applyPendingWorldTacticalState(career,base,changeId,second=0){
+  if(!career.pendingWorldMatch)return base;
+  const oldTactic=sanitizeTacticalState(career.tacticalState),newTactic=sanitizeTacticalState(base.tacticalState),pending=career.pendingWorldMatch,result={...(pending.result||{})},userHome=String(result.homeId)===String(career.userClubId),aggression=((newTactic.mentality-oldTactic.mentality)+(newTactic.risk-oldTactic.risk)+(newTactic.pressing-oldTactic.pressing))/300,progress=clamp(0,1,Number(second||0)/(90*60)),seed=pending.fixtureId+'|tactic|'+Math.floor(second)+'|'+changeId;
   let homeGoals=Number(result.homeGoals||0),awayGoals=Number(result.awayGoals||0);
   if(progress<.96){
     if(aggression>.05){
@@ -550,9 +550,15 @@ export function changePendingWorldTactic(career,presetId,second=0){
       if(roll(seed+'|block')<block){if(userHome&&awayGoals>0)awayGoals--;else if(!userHome&&homeGoals>0)homeGoals--;}
     }
   }
-  const updated={...result,homeGoals:clamp(0,8,homeGoals),awayGoals:clamp(0,8,awayGoals),tacticalChanges:[...(result.tacticalChanges||[]),{second:Math.max(0,Number(second)||0),preset:presetId,aggression:Number(aggression.toFixed(3))}]};
+  const updated={...result,homeGoals:clamp(0,8,homeGoals),awayGoals:clamp(0,8,awayGoals),tacticalChanges:[...(result.tacticalChanges||[]),{second:Math.max(0,Number(second)||0),preset:newTactic.preset,changeId,aggression:Number(aggression.toFixed(3)),state:{mentality:newTactic.mentality,pressing:newTactic.pressing,defensiveLine:newTactic.defensiveLine,tempo:newTactic.tempo,width:newTactic.width,directness:newTactic.directness,risk:newTactic.risk,counterAttack:newTactic.counterAttack,attackingFocus:newTactic.attackingFocus}}]};
   let next={...base,pendingWorldMatch:{...pending,result:updated}};
-  return emitCareerEvent(next,{type:'TACTIC_CHANGED',importance:2,payload:{competition:pending.competitionName,preset:presetId,second:Math.floor(second),aggression:Number(aggression.toFixed(2))}});
+  return emitCareerEvent(next,{type:'TACTIC_CHANGED',importance:2,payload:{competition:pending.competitionName,preset:newTactic.preset,changeId,second:Math.floor(second),aggression:Number(aggression.toFixed(2))}});
+}
+export function changePendingWorldTactic(career,presetId,second=0){
+  return applyPendingWorldTacticalState(career,setTacticalPreset(career,presetId),'preset:'+presetId,second);
+}
+export function changePendingWorldTacticalState(career,patch,second=0){
+  return applyPendingWorldTacticalState(career,updateTacticalState(career,patch||{}),'advanced:'+Object.keys(patch||{}).sort().join(','),second);
 }
 
 export function finishPendingWorldFixture(career,serieAClubs){
