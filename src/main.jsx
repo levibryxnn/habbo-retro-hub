@@ -173,7 +173,15 @@ function App() {
     selectClub(picked.id);
   }
   function saveCareer(nextCareer) {
-    setCareers(current=>({...current,[club.id]:nextCareer}));
+    const targetId=String(nextCareer?.userClubId||club.id),currentId=String(club.id);
+    setCareers(current=>{
+      if(targetId===currentId)return{...current,[currentId]:nextCareer};
+      const moved={...current};delete moved[currentId];moved[targetId]=nextCareer;return moved;
+    });
+    if(targetId!==currentId){
+      setSaved(targetId);setSelected(targetId);setClubBrowserOpen(false);setMobileSquad(true);setTab('dashboard');
+      try{localStorage.setItem('ldf.club',targetId);}catch{}
+    }
   }
   function openClubSetup() {
     setManagerNameInput(String(career.managerName||''));
