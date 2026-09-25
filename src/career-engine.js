@@ -612,13 +612,13 @@ export function fixtureForUser(career){
 }
 export function updateCareerTactics(career,patch){return updateTacticalState(career,patch);}
 export function setCareerTacticalPreset(career,presetId){return setTacticalPreset(career,presetId);}
-export function changeUserMatchTactic(career,clubs,presetId,second=0){
-  const base=setTacticalPreset(career,presetId);
+function applyUserTacticalStateChange(career,clubs,base,changeId,second=0){
+
   if(!career.pendingRound)return base;
   const matches=career.pendingRound.matches.slice(),index=matches.findIndex(match=>match.homeId===career.userClubId||match.awayId===career.userClubId);if(index<0)return base;
   let match={...matches[index],events:[...(matches[index].events||[])],tacticalChanges:[...(matches[index].tacticalChanges||[])]};
   const oldTactic=sanitizeTacticalState(career.tacticalState),newTactic=sanitizeTacticalState(base.tacticalState),aggression=((newTactic.mentality-oldTactic.mentality)+(newTactic.risk-oldTactic.risk)+(newTactic.pressing-oldTactic.pressing))/300;
-  const userSide=String(match.homeId)===String(career.userClubId)?'home':'away',oppSide=userSide==='home'?'away':'home',userClub=clubs.find(c=>String(c.id)===String(career.userClubId)),oppClub=clubs.find(c=>String(c.id)===String(userSide==='home'?match.awayId:match.homeId)),seed=match.id+'|tactic|'+Math.floor(second)+'|'+presetId,rng=rngFrom(seed),used=new Set(match.events.map(e=>e.second));
+  const userSide=String(match.homeId)===String(career.userClubId)?'home':'away',oppSide=userSide==='home'?'away':'home',userClub=clubs.find(c=>String(c.id)===String(career.userClubId)),oppClub=clubs.find(c=>String(c.id)===String(userSide==='home'?match.awayId:match.homeId)),seed=match.id+'|tactic|'+Math.floor(second)+'|'+changeId,rng=rngFrom(seed),used=new Set(match.events.map(e=>e.second));
   if(userClub&&oppClub&&second<match.durationSecond-180){
     if(aggression>.05){
       const attackChance=clamp(.05,.34,.09+aggression*.48),counterChance=clamp(.03,.28,.05+aggression*.36);
@@ -640,11 +640,18 @@ export function changeUserMatchTactic(career,clubs,presetId,second=0){
       }
     }
   }
-  match.tacticalChanges.push({second:Math.max(0,Number(second)||0),preset:presetId,aggression:Number(aggression.toFixed(3))});
+  match.tacticalChanges.push({second:Math.max(0,Number(second)||0),preset:newTactic.preset,changeId,aggression:Number(aggression.toFixed(3)),state:{mentality:newTactic.mentality,pressing:newTactic.pressing,defensiveLine:newTactic.defensiveLine,tempo:newTactic.tempo,width:newTactic.width,directness:newTactic.directness,risk:newTactic.risk,counterAttack:newTactic.counterAttack,attackingFocus:newTactic.attackingFocus}});
   match=recalcScore({...match,events:match.events.sort((a,b)=>a.second-b.second)});
   matches[index]=match;
   let next={...base,pendingRound:{...career.pendingRound,matches}};
-  return emitCareerEvent(next,{type:'TACTIC_CHANGED',importance:2,payload:{preset:presetId,second:Math.floor(second),aggression:Number(aggression.toFixed(2))}});
+  return emitCareerEvent(next,{type:'TACTIC_CHANGED',importance:2,payload:{preset:newTactic.preset,changeId,second:Math.floor(second),aggression:Number(aggression.toFixed(2))}});
+}
+export function changeUserMatchTactic(career,clubs,presetId,second=0){
+  return applyUserTacticalStateChange(career,clubs,setTacticalPreset(career,presetId),'preset:'+presetId,second);
+}
+export function changeUserMatchTacticalState(career,clubs,patch,second=0){
+  const base=updateTacticalState(career,patch||{}),keys=Object.keys(patch||{}).sort().join(',');
+  return applyUserTacticalStateChange(career,clubs,base,'advanced:'+keys,second);
 }
 export function userLineupForNextMatch(career,club){
   const roundNumber=career.round+1;
