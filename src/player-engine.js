@@ -1,5 +1,5 @@
 import { positionGroup } from './position-labels.js';
-import { fatigueLoad, fitnessPenalty, roleLoad } from './ldf-engine.js';
+import { effectiveOverall, fatigueLoad, fitnessPenalty, roleLoad } from './ldf-engine.js';
 
 function hashString(value){
   let h=2166136261;
@@ -191,11 +191,19 @@ export function currentBench(result,side,second){
   const usedIn=new Set(changes.map(s=>String(s.inPlayerId)));
   return bench.filter(id=>!usedIn.has(id));
 }
+function playerFormValue(player,career,clubId){
+  const key=statusKey(clubId,player.id),perf=career?.seasonPerformance?.[key]||career?.seasonPerformance?.[String(player.id)];
+  if(!perf?.appearances)return 0;
+  const avg=Number(perf.totalRating||0)/Math.max(1,Number(perf.appearances||0));
+  return clamp(-2,2,(avg-6.5)/.65);
+}
+export function playerEffectiveOverall(player,career,clubId,minute=0,isSubstitute=false,intensity=1){
+  const base=playerGameStats(player).overall,condition=playerCondition(career,clubId,player.id),stats=playerGameStats(player),age=Number(player?._careerAge??player?.age??27),injuryPenalty=injuryOverallPenalty(career,clubId,player.id),key=statusKey(clubId,player.id),morale=Number(career?.dressingRoom?.playerMood?.[key]?.morale??career?.dressingRoom?.morale??78),form=playerFormValue(player,career,clubId);
+  const minutesPlayed=isSubstitute?Math.max(0,Number(minute||0)-60):Math.max(0,Number(minute)||0),load=fatigueLoad({minutes:minutesPlayed,intensity,roleLoad:roleLoad(positionGroup(player?.position)),fitnessPenalty:fitnessPenalty({stamina:stats.stamina,condition,age})});
+  return effectiveOverall({baseOverall:base,condition,injuryPenalty,form,morale,minute,fatigue:load});
+}
 export function effectivePlayerRating(player,career,clubId,minute,isSubstitute){
-  const overall=careerPlayerOverall(player,career,clubId),condition=playerCondition(career,clubId,player.id),stats=playerGameStats(player),age=Number(player?._careerAge??player?.age??27);
-  const minutesPlayed=isSubstitute?0:Math.max(0,Number(minute)||0);
-  const load=fatigueLoad({minutes:minutesPlayed,intensity:1,roleLoad:roleLoad(positionGroup(player?.position)),fitnessPenalty:fitnessPenalty({stamina:stats.stamina,condition,age})});
-  return overall*(.7+condition/100*.3)-load*.035;
+  return playerEffectiveOverall(player,career,clubId,minute,isSubstitute,1);
 }
 
 
