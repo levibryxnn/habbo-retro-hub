@@ -2,6 +2,7 @@ import { getClubWorld, rivalryLevel } from './club-world.js';
 import { playerGameStats } from './player-engine.js';
 import { applyConfidenceEvent } from './manager-confidence.js';
 import { initialTransferBudget, resetSeasonTransferBudget, transferBudgetSnapshot } from './economy-engine.js';
+import { emitCareerEvent } from './event-engine.js';
 
 const clamp=(min,max,n)=>Math.max(min,Math.min(max,n));
 const hash=value=>{let h=2166136261;for(const ch of String(value)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return h>>>0;};
@@ -202,7 +203,8 @@ export function resolvePressConference(career,choiceId){
   if(choiceId==='protect'){next={...next,dressingRoom:{...next.dressingRoom,morale:clamp(20,100,(next.dressingRoom?.morale??80)+3),unity:clamp(20,100,(next.dressingRoom?.unity??75)+2)}};next=applyConfidenceEvent(next,{fans:.7,board:-.2,kind:'press',reason:'Você protegeu o elenco publicamente.'});}
   if(choiceId==='demand'){next={...next,dressingRoom:{...next.dressingRoom,morale:clamp(20,100,(next.dressingRoom?.morale??80)-2),unity:clamp(20,100,(next.dressingRoom?.unity??75)-1)}};next=applyConfidenceEvent(next,{fans:.2,board:1,kind:'press',reason:'Você aumentou a cobrança pública por desempenho.'});}
   if(choiceId==='calm')next=applyConfidenceEvent(next,{fans:.2,board:.2,kind:'press',reason:'Você evitou alimentar a pressão externa.'});
-  return next;
+  return emitCareerEvent(next,{type:'PRESS_CONFERENCE',importance:2,payload:{choice:choiceId}});
+
 }
 export function managerMatchModifier(career){
   const p=managerProfile(career?.managerProfile),morale=Number(career?.dressingRoom?.morale??80),unity=Number(career?.dressingRoom?.unity??75);
@@ -226,7 +228,8 @@ export function promoteAcademyProspect(career,club,prospectId){
   if(managerProfile(career.managerProfile).id==='developer')next=applyConfidenceEvent(next,{board:.6,fans:.3,kind:'academy',reason:'O perfil formador do treinador reforçou o compromisso do clube com a base.'});
   const promotedCount=(next.regens||[]).filter(p=>String(p._originClubId)===String(club.id)&&String(p.id||'').startsWith('youth-')).length;
   if(promotedCount===1)next=applyMilestone(next,{id:'first-youth-promotion',title:'Primeiro talento promovido da base',text:prospect.name+' foi o primeiro jogador da base promovido pelo treinador neste save.',importance:3,type:'academy'});
-  return next;
+  return emitCareerEvent(next,{type:'YOUTH_PROMOTED',playerId:id,importance:3,payload:{name:prospect.name,overall:prospect.overall,potential:prospect.potential}});
+
 }
 export function applyTransferDynamics(career,{type,playerName,amount=0,marketValue=0,fromUser=false,toUser=false}={}){
   let next=career,room=next.dressingRoom||{morale:80,unity:75,leaders:[]},profile=managerProfile(next.managerProfile);
@@ -242,6 +245,7 @@ export function applyTitleDynamics(career,trophy){
   let next={...career,fanCredit:clamp(0,30,(career.fanCredit||0)+8),managerReputation:clamp(1,100,(career.managerReputation??50)+5)};
   next=addMoment(next,{id:'title-'+trophy.id+'-'+career.season,season:career.season,round:career.round,type:'title',title:'Campeão: '+trophy.name,text:'Título conquistado na temporada '+career.season+'.'});
   next=addNews(next,{id:'news-title-'+trophy.id+'-'+career.season,season:career.season,round:career.round,type:'title',importance:5,title:(career.managerName||'Treinador')+' coloca o clube no topo',text:'O título de '+trophy.name+' entra para a história do save e amplia o crédito do treinador com torcida e diretoria.',timestamp:String(career.season)+'-r'+String(career.round)});
+  next=emitCareerEvent(next,{type:'TITLE_WON',importance:5,payload:{id:trophy.id,name:trophy.name}});
   return updateCareerMilestones(next);
 }
 export function applySeasonDynamics(career,club,previousReview=career.seasonReview){
@@ -262,9 +266,23 @@ export function managerCareerSummary(career){
   const allTitles=[...(career.managerTrophies||[]),...(career.trophies||[])],clubsManaged=Math.max(1,(career.managerClubHistory||[]).length);
   return{seasons:Math.max(1,(career.seasons||[]).length+(career.round>0?1:0)),matches:wins+draws+losses,wins,draws,losses,titles:allTitles.length,clubsManaged,reputation:Math.round(career.managerReputation??50),biggest,biggestBuy:buys.sort((a,b)=>b.amount-a.amount)[0]||null,biggestSale:sales.sort((a,b)=>b.amount-a.amount)[0]||null};
 }
+function eventNewsItem(event){
+  const p=event.payload||{},base={id:'event-news-'+event.id,season:event.season,round:event.round,timestamp:event.timestamp,importance:event.importance||2,type:'career'};
+  if(event.type==='PROMISE_BROKEN')return{...base,type:'dressing-room',title:'Promessa quebrada com '+(p.name||'jogador'),text:'O compromisso de '+(p.promise||'gestão do elenco')+' não foi cumprido e o vestiário registrou a decisão.'};
+  if(event.type==='PROMISE_FULFILLED')return{...base,type:'dressing-room',title:'Compromisso cumprido com '+(p.name||'jogador'),text:'A relação com o atleta melhorou após o treinador cumprir o que havia prometido.'};
+  if(event.type==='FACILITY_UPGRADED')return{...base,type:'club',title:'Clube investe na estrutura',text:'A área de '+p.type+' avançou para o nível '+p.level+' após investimento de '+Math.round(Number(p.cost||0)/1e6)+' milhões de reais.'};
+  if(event.type==='CONTRACT_RENEWED')return{...base,type:'contract',title:(p.name||'Jogador')+' renova contrato',text:'O novo vínculo foi acertado por '+(p.years||3)+' temporadas.'};
+  if(event.type==='JOB_OFFERED')return{...base,type:'manager',title:(p.clubName||'Outro clube')+' procura o treinador',text:'A reputação do trabalho abriu uma possibilidade de '+String(p.project||'novo projeto').toLowerCase()+'.'};
+  if(event.type==='MANAGER_CHANGED_CLUB')return{...base,type:'manager',importance:5,title:'Novo capítulo: '+(p.clubName||'novo clube'),text:'O treinador aceitou mudar de projeto e a linha do tempo da carreira foi atualizada.'};
+  if(event.type==='PROJECT_OBJECTIVE_COMPLETED')return{...base,type:'board',title:'Meta de projeto cumprida',text:p.label||'A diretoria reconheceu o avanço do projeto.'};
+  if(event.type==='PROJECT_OBJECTIVE_MISSED')return{...base,type:'board',title:'Meta de projeto fica pendente',text:p.label||'A diretoria registrou uma meta não cumprida.'};
+  if(event.type==='CHALLENGE_COMPLETED'||event.type==='CHALLENGE_MISSED')return{...base,type:'challenge',title:p.label||'Desafio de carreira atualizado',text:'O modo de carreira registrou o desempenho no desafio escolhido.'};
+  if(event.type==='YOUTH_PROMOTED')return{...base,type:'academy',title:(p.name||'Jovem')+' ganha espaço no profissional',text:'A promoção da base entrou para o histórico do projeto.'};
+  return null;
+}
 export function careerNews(career){
-  const universe=(career.universeNotes||[]).map(item=>({...item,importance:item.importance||2,round:item.round||0,timestamp:item.date||item.timestamp||String(item.season),type:item.type||'universe'}));
-  const merged=[...(career.newsFeed||[]),...universe],seen=new Set();
+  const universe=(career.universeNotes||[]).map(item=>({...item,importance:item.importance||2,round:item.round||0,timestamp:item.date||item.timestamp||String(item.season),type:item.type||'universe'})),events=(career.eventLedger||[]).map(eventNewsItem).filter(Boolean);
+  const merged=[...(career.newsFeed||[]),...events,...universe],seen=new Set();
   return merged.filter(item=>{if(!item?.id||seen.has(item.id))return false;seen.add(item.id);return true;}).sort((a,b)=>Number(b.season)-Number(a.season)||Number(b.round||0)-Number(a.round||0));
 }
 export function dynamicRivalries(career,clubs){
