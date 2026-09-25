@@ -17,14 +17,14 @@ import {
   sanitizeLineup,
   statusKey,
 } from './player-engine.js';
-import { applyConfidenceEvent, createManagerConfidence, sanitizeManagerConfidence } from './manager-confidence.js';
+import { applyConfidenceEvent, createManagerConfidence, reconcileStructuralBoardTrust, sanitizeManagerConfidence } from './manager-confidence.js';
 import { advancePlayerLifecycle } from './development-engine.js';
 import { brasileiraoDateForRound, createWorldState, finishPendingWorldFixture, nextCareerEvent, pendingSeasonFixtures, playNextWorldFixture, rollWorldToNextSeason, sanitizeWorldState, syncWorldToDate } from './competition-engine.js';
 import { applyMatchDynamics, applySeasonDynamics, applyTitleDynamics, initializeCareerSystems, managerMatchModifier } from './career-dynamics.js';
 import { applyWeeklyTraining, matchWeather, sanitizeTacticalState, setPieceAttackModifier, setTacticalPreset, tacticalMatchup, trainingMatchModifier, updateTacticalState } from './tactical-engine.js';
 import { advanceWorldManagers, evaluateProjectObjectives, expirePlayerContracts, initializeCareerLife, processPlayerPromises, refreshJobOffers } from './career-life-engine.js';
-import { emitCareerEvent } from './event-engine.js';
-import { LDF_ENGINE_VERSION, adaptiveAiDecision, combinedInjuryChance, contextScore, expectedGoals, fatigueConditionLoss, fatigueLoad, fitnessPenalty, formScore, individualInjuryRisk, logisticDominance, roleLoad, tacticalExecutionScore, teamStrength } from './ldf-engine.js';
+import { dispatchCareerEvent, emitCareerEvent } from './event-engine.js';
+import { LDF_ENGINE_VERSION, adaptiveAiDecision, combinedInjuryChance, contextScore, expectedGoals, fatigueConditionLoss, fatigueLoad, fitnessPenalty, formRegression, formScore, individualInjuryRisk, injuryRecovery, logisticDominance, roleLoad, tacticalExecutionScore, teamStrength } from './ldf-engine.js';
 import { challengeSeasonResult } from './challenge-engine.js';
 
 export const CAREER_KEY='ldf.career.v2';
@@ -94,6 +94,18 @@ function bestPenaltyTaker(club,lineupIds){
     const sa=playerGameStats(a),sb=playerGameStats(b);
     return(sb.penalties*0.68+sb.composure*0.32)-(sa.penalties*0.68+sa.composure*0.32);
   })[0]||null;
+}
+function assignedSetPiecePlayer(career,club,lineupIds,key){
+  if(String(club?.id)!==String(career?.userClubId))return null;
+  const id=career?.tacticalState?.setPieces?.[key];
+  return id&&lineupPlayers(club,lineupIds).find(p=>String(p.id)===String(id))||null;
+}
+function setPiecePersonnelBonus(career,club,lineupIds){
+  if(String(club?.id)!==String(career?.userClubId))return 0;
+  const corner=assignedSetPiecePlayer(career,club,lineupIds,'cornerTakerId'),target=assignedSetPiecePlayer(career,club,lineupIds,'aerialTargetId');
+  const cStats=corner?playerGameStats(corner):null,tStats=target?playerGameStats(target):null;
+  const delivery=cStats?(cStats.passing*.62+cStats.composure*.38-65)/700:0,aerial=tStats?(tStats.physical*.55+tStats.composure*.25+tStats.defending*.20-65)/800:0;
+  return clamp(-.025,.055,delivery+aerial);
 }
 function goalkeeperOnField(club,lineupIds){
   return lineupPlayers(club,lineupIds).find(p=>positionGroup(p.position)==='GOL')||lineupPlayers(club,lineupIds)[0]||null;
@@ -205,7 +217,7 @@ function autoResolvePenaltyEvent(result,event,home,away){
   const club=side==='home'?home:away,opponent=side==='home'?away:home;
   const lineup=currentLineup(result,side,event.second);
   const oppLineup=currentLineup(result,side==='home'?'away':'home',event.second);
-  const taker=bestPenaltyTaker(club,lineup);
+  const taker=playerById(club,event.playerId)||bestPenaltyTaker(club,lineup);
   const keeper=goalkeeperOnField(opponent,oppLineup);
   if(!taker||!keeper)return result;
   return resolvePenaltyOnResult(result,event,taker,keeper,result.id+'|penalty|'+event.id+'|'+taker.id);
@@ -258,7 +270,7 @@ function generateDisciplineAndInjuries(result,home,away,rng,used,career,interact
     const severity=severityRoll<.48?1:severityRoll<.74?2:severityRoll<.90?3:severityRoll<.975?4:5;
     const duration=severity===1?1:severity===2?2:severity===3?3+Math.floor(rng()*2):severity===4?5+Math.floor(rng()*3):8+Math.floor(rng()*5);
     const label=severity===1?'Pancada / desconforto':severity===2?'Lesão muscular leve':severity===3?'Entorse moderada':severity===4?'Lesão muscular importante':'Lesão ligamentar grave';
-    events.push(makeEvent(side,'injury',second,club,player,eventIndex++,{severityMatches:duration,injurySeverity:severity,injuryLabel:label,requiresAttention:club.id===interactiveClubId,injuryRisk:Number(chosen.risk.toFixed(4)),fatigueLoad:Number(load.toFixed(1))}));
+    events.push(makeEvent(side,'injury',second,club,player,eventIndex++,{severityMatches:duration,injurySeverity:severity,injuryLabel:label,requiresAttention:club.id===interactiveClubId,injuryRisk:Number(chosen.risk.toFixed(4)),fatigueLoad:Number(load.toFixed(1)),playerAge:age}));
   }
   return{...result,events:events.sort((a,b)=>a.second-b.second)};
 }
@@ -397,7 +409,7 @@ export function simulateMatch(home,away,seed,context){
   const managerEdge=managerMatchModifier(career),homeUser=String(home.id)===String(career.userClubId),awayUser=String(away.id)===String(career.userClubId),homeManager=homeUser?managerEdge:0,awayManager=awayUser?managerEdge:0;
   const neutralTactic={attackBoost:0,defenseBoost:0,possession:0,tempo:1,fatigueMultiplier:1,injuryMultiplier:1,counterRisk:0,setPiece:0,label:'CPU'};
   const homeTactic=homeUser?tacticalMatchup(career,awayPlan,{isHome:true}):neutralTactic,awayTactic=awayUser?tacticalMatchup(career,homePlan,{isHome:false}):neutralTactic;
-  const weather=matchWeather(seed),homeSetPiece=homeUser?setPieceAttackModifier(career):0,awaySetPiece=awayUser?setPieceAttackModifier(career):0;
+  const weather=matchWeather(seed),homeSetPiece=homeUser?setPieceAttackModifier(career)+setPiecePersonnelBonus(career,home,homeLineup):0,awaySetPiece=awayUser?setPieceAttackModifier(career)+setPiecePersonnelBonus(career,away,awayLineup):0;
   const homeTacticalSource=homeUser?homeTactic:homePlan,awayTacticalSource=awayUser?awayTactic:awayPlan;
   const homeTacticalScore=tacticalExecutionScore(homeTacticalSource),awayTacticalScore=tacticalExecutionScore(awayTacticalSource);
   const userMorale=clamp(20,100,Number(career.dressingRoom?.morale??78));
@@ -440,7 +452,7 @@ export function simulateMatch(home,away,seed,context){
   const penaltyBase=.30+(homeSetPiece+awaySetPiece)*.18;
   if(rng()<penaltyBase){
     const side=rng()<.5?'home':'away',club=side==='home'?home:away,lineup=side==='home'?homeLineup:awayLineup;
-    const penalty=makeEvent(side,'penalty',uniqueEventSecond(rng,used,durationSecond,12*60),club,bestPenaltyTaker(club,lineup)||weightedPlayer(club,lineup,rng),eventIndex++,{
+    const assignedPenalty=assignedSetPiecePlayer(career,club,lineup,'penaltyTakerId'),penalty=makeEvent(side,'penalty',uniqueEventSecond(rng,used,durationSecond,12*60),club,assignedPenalty||bestPenaltyTaker(club,lineup)||weightedPlayer(club,lineup,rng),eventIndex++,{
       requiresDecision:club.id===ctx.interactiveClubId&&ctx.mode!=='instant',
       resolved:false,
     });
@@ -543,6 +555,7 @@ function applyRoundConfidence(career,clubs,userResult,roundNumber){
     kind:'round',
     reason:'Rodada '+roundNumber+': '+resultText+' e '+position+'º lugar na tabela.',
   });
+  next=reconcileStructuralBoardTrust(next,{weight:roundNumber<=5?.045:.075});
   const confidence=sanitizeManagerConfidence(next.managerConfidence);
   let pressure=Number(next.boardPressureStreak)||0;
   if(confidence.board<20)pressure+=1;
@@ -573,6 +586,15 @@ function addSeasonPerformance(map,club,result,userClubId){
   }
   return next;
 }
+function updatePlayerFormMap(map,club,result,userClubId){
+  const next={...(map||{})};if(!club||!result)return next;
+  const side=String(result.homeId)===String(userClubId)?'home':String(result.awayId)===String(userClubId)?'away':null;if(!side)return next;
+  for(const row of matchPlayerPerformances(club,result,side,result.durationSecond||FULL_TIME_SECOND)){
+    const key=statusKey(club.id,row.playerId),recent=clamp(-3,3,(Number(row.rating||6.5)-6.5)/.65),old=Number(next[key]??0);
+    next[key]=Number(formRegression(old,recent).toFixed(3));
+  }
+  return next;
+}
 function deriveSeasonPerformance(results,club,userClubId){
   let aggregate={};
   for(const result of results||[])aggregate=addSeasonPerformance(aggregate,club,result,userClubId);
@@ -585,7 +607,7 @@ function seasonBestPerformer(career){
 export function createCareer(clubs,userClubId,season){
   const userClub=clubs.find(c=>c.id===userClubId);
   const initialCash=initialCashForClub(userClubId);
-  let base={version:12,simulationEngineVersion:LDF_ENGINE_VERSION,userClubId,managerName:'',season:season||2026,round:0,schedule:buildSchedule(clubs),results:[],scorers:{},allTimeScorers:{},cash:initialCash,openingCash:initialCash,transactions:[],sponsors:[],trophies:[],messages:[],seasons:[],history:[],pendingRound:null,pendingWorldMatch:null,lastRoundResults:[],lastUserMatch:null,preferredSimulationMode:'normal',playerStatus:{},conditions:defaultConditions(clubs),lineup:[],ownership:{},loans:[],transferHistory:[],transferContracts:[],seasonPerformance:{},playerDevelopment:{},retiredPlayers:{},regens:[],pendingRetirements:[],managerConfidence:createManagerConfidence(),seasonReview:null,pendingCelebration:null,boardPressureStreak:0,boardWarning:null,managerStatus:'active',dismissal:null,world:null,eventLedger:[],tacticalState:sanitizeTacticalState(null),trainingState:{focus:'balanced',sessions:0},careerChallenge:'normal',challengeStartSeason:season||2026,challengeHistory:[]};
+  let base={version:12,simulationEngineVersion:LDF_ENGINE_VERSION,userClubId,managerName:'',season:season||2026,round:0,schedule:buildSchedule(clubs),results:[],scorers:{},allTimeScorers:{},cash:initialCash,openingCash:initialCash,transactions:[],sponsors:[],trophies:[],messages:[],seasons:[],history:[],pendingRound:null,pendingWorldMatch:null,lastRoundResults:[],lastUserMatch:null,preferredSimulationMode:'normal',playerStatus:{},conditions:defaultConditions(clubs),lineup:[],ownership:{},loans:[],transferHistory:[],transferContracts:[],seasonPerformance:{},playerForm:{},playerDevelopment:{},retiredPlayers:{},regens:[],pendingRetirements:[],managerConfidence:createManagerConfidence(),seasonReview:null,pendingCelebration:null,pendingCinematic:null,boardPressureStreak:0,boardWarning:null,managerStatus:'active',dismissal:null,world:null,eventLedger:[],tacticalState:sanitizeTacticalState(null),trainingState:{focus:'balanced',sessions:0},careerChallenge:'normal',challengeStartSeason:season||2026,challengeHistory:[]};
   base=initializeCareerSystems(base,userClub||{id:userClubId,name:'Clube',players:[]},clubs);
   base=initializeCareerLife(base,userClub||{id:userClubId,name:'Clube',players:[]},clubs);
   base.lineup=userClub?autoLineup(userClub,base,1):[];
@@ -598,7 +620,7 @@ export function sanitizeCareer(raw,clubs,userClubId){
   const pending=raw.pendingRound&&Array.isArray(raw.pendingRound.matches)?{...raw.pendingRound,matches:normalizeResults(raw.pendingRound.matches,season)}:null;
   const roundNumber=(raw.round||0)+1,seasonPerformance=raw.seasonPerformance&&typeof raw.seasonPerformance==='object'?raw.seasonPerformance:deriveSeasonPerformance(fullResults,club,userClubId);
   const migratedCash=Number(raw.version||0)<5&&(raw.round||0)===0&&!(raw.transactions||[]).length&&Number(raw.cash||0)===20000000?base.cash:raw.cash;
-  const merged={...base,...raw,cash:Number.isFinite(migratedCash)?migratedCash:base.cash,openingCash:Number.isFinite(Number(raw.openingCash))?Number(raw.openingCash):base.cash,version:12,simulationEngineVersion:LDF_ENGINE_VERSION,managerName:String(raw.managerName||''),schedule:Array.isArray(raw.schedule)&&raw.schedule.length===38?raw.schedule:buildSchedule(clubs),results,scorers:raw.scorers&&typeof raw.scorers==='object'?raw.scorers:{},allTimeScorers:raw.allTimeScorers&&typeof raw.allTimeScorers==='object'?raw.allTimeScorers:{},sponsors:Array.isArray(raw.sponsors)?raw.sponsors:[],trophies:Array.isArray(raw.trophies)?raw.trophies:[],transactions:Array.isArray(raw.transactions)?raw.transactions:[],messages:Array.isArray(raw.messages)?raw.messages:[],seasons:Array.isArray(raw.seasons)?raw.seasons:[],history,pendingRound:pending,pendingWorldMatch:raw.pendingWorldMatch&&typeof raw.pendingWorldMatch==='object'?raw.pendingWorldMatch:null,lastRoundResults:Array.isArray(raw.lastRoundResults)?normalizeResults(raw.lastRoundResults,season):[],preferredSimulationMode:SIMULATION_MODES[raw.preferredSimulationMode]?raw.preferredSimulationMode:'normal',playerStatus:raw.playerStatus&&typeof raw.playerStatus==='object'?raw.playerStatus:{},conditions:{...base.conditions,...(raw.conditions||{})},ownership:raw.ownership&&typeof raw.ownership==='object'?raw.ownership:{},loans:Array.isArray(raw.loans)?raw.loans:[],transferHistory:Array.isArray(raw.transferHistory)?raw.transferHistory:[],transferContracts:Array.isArray(raw.transferContracts)?raw.transferContracts:[],seasonPerformance,playerDevelopment:raw.playerDevelopment&&typeof raw.playerDevelopment==='object'?raw.playerDevelopment:{},retiredPlayers:raw.retiredPlayers&&typeof raw.retiredPlayers==='object'?raw.retiredPlayers:{},regens:Array.isArray(raw.regens)?raw.regens:[],pendingRetirements:Array.isArray(raw.pendingRetirements)?raw.pendingRetirements:[],managerConfidence:sanitizeManagerConfidence(raw.managerConfidence),seasonReview:raw.seasonReview&&typeof raw.seasonReview==='object'?raw.seasonReview:null,pendingCelebration:raw.pendingCelebration&&typeof raw.pendingCelebration==='object'?raw.pendingCelebration:null,boardPressureStreak:Number(raw.boardPressureStreak)||0,boardWarning:raw.boardWarning&&typeof raw.boardWarning==='object'?raw.boardWarning:null,managerStatus:raw.managerStatus==='dismissed'?'dismissed':'active',dismissal:raw.dismissal&&typeof raw.dismissal==='object'?raw.dismissal:null,eventLedger:Array.isArray(raw.eventLedger)?raw.eventLedger:[],tacticalState:sanitizeTacticalState(raw.tacticalState),trainingState:raw.trainingState&&typeof raw.trainingState==='object'?raw.trainingState:{focus:'balanced',sessions:0},careerChallenge:String(raw.careerChallenge||'normal'),challengeStartSeason:Number(raw.challengeStartSeason||season),challengeHistory:Array.isArray(raw.challengeHistory)?raw.challengeHistory:[]};
+  const merged={...base,...raw,cash:Number.isFinite(migratedCash)?migratedCash:base.cash,openingCash:Number.isFinite(Number(raw.openingCash))?Number(raw.openingCash):base.cash,version:12,simulationEngineVersion:LDF_ENGINE_VERSION,managerName:String(raw.managerName||''),schedule:Array.isArray(raw.schedule)&&raw.schedule.length===38?raw.schedule:buildSchedule(clubs),results,scorers:raw.scorers&&typeof raw.scorers==='object'?raw.scorers:{},allTimeScorers:raw.allTimeScorers&&typeof raw.allTimeScorers==='object'?raw.allTimeScorers:{},sponsors:Array.isArray(raw.sponsors)?raw.sponsors:[],trophies:Array.isArray(raw.trophies)?raw.trophies:[],transactions:Array.isArray(raw.transactions)?raw.transactions:[],messages:Array.isArray(raw.messages)?raw.messages:[],seasons:Array.isArray(raw.seasons)?raw.seasons:[],history,pendingRound:pending,pendingWorldMatch:raw.pendingWorldMatch&&typeof raw.pendingWorldMatch==='object'?raw.pendingWorldMatch:null,lastRoundResults:Array.isArray(raw.lastRoundResults)?normalizeResults(raw.lastRoundResults,season):[],preferredSimulationMode:SIMULATION_MODES[raw.preferredSimulationMode]?raw.preferredSimulationMode:'normal',playerStatus:raw.playerStatus&&typeof raw.playerStatus==='object'?raw.playerStatus:{},conditions:{...base.conditions,...(raw.conditions||{})},ownership:raw.ownership&&typeof raw.ownership==='object'?raw.ownership:{},loans:Array.isArray(raw.loans)?raw.loans:[],transferHistory:Array.isArray(raw.transferHistory)?raw.transferHistory:[],transferContracts:Array.isArray(raw.transferContracts)?raw.transferContracts:[],seasonPerformance,playerForm:raw.playerForm&&typeof raw.playerForm==='object'?raw.playerForm:{},playerDevelopment:raw.playerDevelopment&&typeof raw.playerDevelopment==='object'?raw.playerDevelopment:{},retiredPlayers:raw.retiredPlayers&&typeof raw.retiredPlayers==='object'?raw.retiredPlayers:{},regens:Array.isArray(raw.regens)?raw.regens:[],pendingRetirements:Array.isArray(raw.pendingRetirements)?raw.pendingRetirements:[],managerConfidence:sanitizeManagerConfidence(raw.managerConfidence),seasonReview:raw.seasonReview&&typeof raw.seasonReview==='object'?raw.seasonReview:null,pendingCelebration:raw.pendingCelebration&&typeof raw.pendingCelebration==='object'?raw.pendingCelebration:null,pendingCinematic:raw.pendingCinematic&&typeof raw.pendingCinematic==='object'?raw.pendingCinematic:null,boardPressureStreak:Number(raw.boardPressureStreak)||0,boardWarning:raw.boardWarning&&typeof raw.boardWarning==='object'?raw.boardWarning:null,managerStatus:raw.managerStatus==='dismissed'?'dismissed':'active',dismissal:raw.dismissal&&typeof raw.dismissal==='object'?raw.dismissal:null,eventLedger:Array.isArray(raw.eventLedger)?raw.eventLedger:[],tacticalState:sanitizeTacticalState(raw.tacticalState),trainingState:raw.trainingState&&typeof raw.trainingState==='object'?raw.trainingState:{focus:'balanced',sessions:0},careerChallenge:String(raw.careerChallenge||'normal'),challengeStartSeason:Number(raw.challengeStartSeason||season),challengeHistory:Array.isArray(raw.challengeHistory)?raw.challengeHistory:[]};
   merged.world=sanitizeWorldState(raw.world,merged,clubs);
   let integrated=initializeCareerSystems(merged,club||{id:userClubId,name:'Clube',players:[]},clubs);
   integrated=initializeCareerLife(integrated,club||{id:userClubId,name:'Clube',players:[]},clubs);
@@ -612,13 +634,13 @@ export function fixtureForUser(career){
 }
 export function updateCareerTactics(career,patch){return updateTacticalState(career,patch);}
 export function setCareerTacticalPreset(career,presetId){return setTacticalPreset(career,presetId);}
-export function changeUserMatchTactic(career,clubs,presetId,second=0){
-  const base=setTacticalPreset(career,presetId);
+function applyUserTacticalStateChange(career,clubs,base,changeId,second=0){
+
   if(!career.pendingRound)return base;
   const matches=career.pendingRound.matches.slice(),index=matches.findIndex(match=>match.homeId===career.userClubId||match.awayId===career.userClubId);if(index<0)return base;
   let match={...matches[index],events:[...(matches[index].events||[])],tacticalChanges:[...(matches[index].tacticalChanges||[])]};
   const oldTactic=sanitizeTacticalState(career.tacticalState),newTactic=sanitizeTacticalState(base.tacticalState),aggression=((newTactic.mentality-oldTactic.mentality)+(newTactic.risk-oldTactic.risk)+(newTactic.pressing-oldTactic.pressing))/300;
-  const userSide=String(match.homeId)===String(career.userClubId)?'home':'away',oppSide=userSide==='home'?'away':'home',userClub=clubs.find(c=>String(c.id)===String(career.userClubId)),oppClub=clubs.find(c=>String(c.id)===String(userSide==='home'?match.awayId:match.homeId)),seed=match.id+'|tactic|'+Math.floor(second)+'|'+presetId,rng=rngFrom(seed),used=new Set(match.events.map(e=>e.second));
+  const userSide=String(match.homeId)===String(career.userClubId)?'home':'away',oppSide=userSide==='home'?'away':'home',userClub=clubs.find(c=>String(c.id)===String(career.userClubId)),oppClub=clubs.find(c=>String(c.id)===String(userSide==='home'?match.awayId:match.homeId)),seed=match.id+'|tactic|'+Math.floor(second)+'|'+changeId,rng=rngFrom(seed),used=new Set(match.events.map(e=>e.second));
   if(userClub&&oppClub&&second<match.durationSecond-180){
     if(aggression>.05){
       const attackChance=clamp(.05,.34,.09+aggression*.48),counterChance=clamp(.03,.28,.05+aggression*.36);
@@ -640,11 +662,18 @@ export function changeUserMatchTactic(career,clubs,presetId,second=0){
       }
     }
   }
-  match.tacticalChanges.push({second:Math.max(0,Number(second)||0),preset:presetId,aggression:Number(aggression.toFixed(3))});
+  match.tacticalChanges.push({second:Math.max(0,Number(second)||0),preset:newTactic.preset,changeId,aggression:Number(aggression.toFixed(3)),state:{mentality:newTactic.mentality,pressing:newTactic.pressing,defensiveLine:newTactic.defensiveLine,tempo:newTactic.tempo,width:newTactic.width,directness:newTactic.directness,risk:newTactic.risk,counterAttack:newTactic.counterAttack,attackingFocus:newTactic.attackingFocus}});
   match=recalcScore({...match,events:match.events.sort((a,b)=>a.second-b.second)});
   matches[index]=match;
   let next={...base,pendingRound:{...career.pendingRound,matches}};
-  return emitCareerEvent(next,{type:'TACTIC_CHANGED',importance:2,payload:{preset:presetId,second:Math.floor(second),aggression:Number(aggression.toFixed(2))}});
+  return emitCareerEvent(next,{type:'TACTIC_CHANGED',importance:2,payload:{preset:newTactic.preset,changeId,second:Math.floor(second),aggression:Number(aggression.toFixed(2))}});
+}
+export function changeUserMatchTactic(career,clubs,presetId,second=0){
+  return applyUserTacticalStateChange(career,clubs,setTacticalPreset(career,presetId),'preset:'+presetId,second);
+}
+export function changeUserMatchTacticalState(career,clubs,patch,second=0){
+  const base=updateTacticalState(career,patch||{}),keys=Object.keys(patch||{}).sort().join(',');
+  return applyUserTacticalStateChange(career,clubs,base,'advanced:'+keys,second);
 }
 export function userLineupForNextMatch(career,club){
   const roundNumber=career.round+1;
@@ -675,8 +704,16 @@ function applyDisciplineAndInjuries(career,roundResults,roundNumber){
         current.suspensionReason=event.reason==='second-yellow'?'Expulsão por segundo amarelo':'Cartão vermelho';
       }
       if(event.type==='injury'){
-        current.injuryThroughRound=Math.max(current.injuryThroughRound||0,roundNumber+(event.severityMatches||1));
+        const clubId=String(event.clubId),club=roundResults.length?null:null,medical=String(clubId)===String(career.userClubId)?Number(career.facilities?.medical||1):2,condition=Number(career.conditions?.[key]??78),age=Number(event.playerAge||27),history=Number(current.injuryHistory||0),recovery=injuryRecovery({severity:Number(event.injurySeverity||1),medicalLevel:medical,age,fitness:condition,rehabQuality:medical>=4?1.12:1,injuryHistory:history});
+        const duration=Math.max(Number(event.severityMatches||1),recovery.matches);
+        current.injuryThroughRound=Math.max(current.injuryThroughRound||0,roundNumber+duration);
         current.injuryLabel=event.injuryLabel||'Lesão';
+        current.injurySeverity=Number(event.injurySeverity||1);
+        current.injuryHistory=history+1;
+        current.lastInjurySeason=career.season;
+        current.lastInjuryRound=roundNumber;
+        current.permanentLossRisk=Number(recovery.permanentLossRisk.toFixed(4));
+        current.recoveryMatches=duration;
       }
       status[key]=current;
     }
@@ -733,7 +770,9 @@ function autoResolveOutstandingUserPenalties(career,clubs){
 }
 function finalizeSeason(career,clubs){
   const table=standingsFromResults(career.results,clubs),champion=table[0],leaders=topScorers(career.scorers,1),userRow=table.find(item=>item.clubId===career.userClubId);
-  let next={...career,seasons:[...(career.seasons||[]),{season:career.season,championId:champion?.clubId,topScorer:leaders[0]||null}]};
+  const best=seasonBestPerformer(career),snapshot={season:career.season,championId:champion?.clubId,topScorer:leaders[0]||null,userClubId:String(career.userClubId),position:userRow?.position||20,points:userRow?.points||0,wins:userRow?.wins||0,draws:userRow?.draws||0,losses:userRow?.losses||0,goalsFor:userRow?.goalsFor||0,goalsAgainst:userRow?.goalsAgainst||0,goalDifference:userRow?.goalDifference||0,clubTopScorer:clubTopScorer(career),bestPlayer:best,cash:Number(career.cash||0),fanConfidence:Math.round(career.managerConfidence?.fans||0),boardConfidence:Math.round(career.managerConfidence?.board||0)};
+  const previousSeasons=(career.seasons||[]).filter(item=>Number(item.season)!==Number(career.season));
+  let next={...career,seasons:[...previousSeasons,snapshot]};
   let newTitle=null;
   if(champion?.clubId===career.userClubId){
     const club=clubs.find(c=>c.id===career.userClubId);
@@ -833,20 +872,22 @@ export function finishPendingRound(career,clubs){
   let scorers={...prepared.scorers},allTime={...prepared.allTimeScorers};
   for(const result of roundResults){scorers=addScorers(scorers,result);allTime=addScorers(allTime,result);}
   const userResult=roundResults.find(r=>r.homeId===prepared.userClubId||r.awayId===prepared.userClubId),entry=userResult?historyEntry(userResult,prepared.userClubId):null,userClub=clubs.find(c=>c.id===prepared.userClubId);
-  const seasonPerformance=userResult&&userClub?addSeasonPerformance(prepared.seasonPerformance,userClub,userResult,prepared.userClubId):(prepared.seasonPerformance||{});
-  let next={...prepared,round:roundNumber,results:[...prepared.results,...roundResults.map(compactStoredResult)],scorers,allTimeScorers:allTime,seasonPerformance,history:entry?[...(prepared.history||[]),entry]:(prepared.history||[]),lastRoundResults:roundResults,lastUserMatch:userResult||prepared.lastUserMatch,pendingRound:null};
+  const seasonPerformance=userResult&&userClub?addSeasonPerformance(prepared.seasonPerformance,userClub,userResult,prepared.userClubId):(prepared.seasonPerformance||{}),playerForm=userResult&&userClub?updatePlayerFormMap(prepared.playerForm,userClub,userResult,prepared.userClubId):(prepared.playerForm||{});
+  let next={...prepared,round:roundNumber,results:[...prepared.results,...roundResults.map(compactStoredResult)],scorers,allTimeScorers:allTime,seasonPerformance,playerForm,history:entry?[...(prepared.history||[]),entry]:(prepared.history||[]),lastRoundResults:roundResults,lastUserMatch:userResult||prepared.lastUserMatch,pendingRound:null};
   next=applyDisciplineAndInjuries(next,roundResults,roundNumber);next=updateConditions(next,roundResults,clubs);
   if(userClub)next={...next,lineup:sanitizeLineup(userClub,next,roundNumber+1,next.lineup)};
   if(userResult){next=applySponsorPayments(next,roundNumber,userOutcome(userResult,prepared.userClubId));next=applyMatchdayIncome(next,userResult);} next=applyTransferPayroll(next,clubs,roundNumber);
-  next=applyRoundConfidence(next,clubs,userResult,roundNumber);
   if(userResult&&userClub){
-    next=applyMatchDynamics(next,userClub,clubs,userResult,{competition:'Brasileirão Série A',stage:'Rodada '+roundNumber});
-    next=processPlayerPromises(next,userClub,userResult);
-    next=emitCareerEvent(next,{type:'MATCH_FINISHED',importance:2,payload:{competition:'Brasileirão Série A',stage:'Rodada '+roundNumber,homeId:userResult.homeId,awayId:userResult.awayId,homeGoals:userResult.homeGoals,awayGoals:userResult.awayGoals,xg:userResult.xg||null}});
+    const matchEvent={type:'MATCH_FINISHED',importance:2,payload:{competition:'Brasileirão Série A',stage:'Rodada '+roundNumber,homeId:userResult.homeId,awayId:userResult.awayId,homeGoals:userResult.homeGoals,awayGoals:userResult.awayGoals,xg:userResult.xg||null}};
+    next=dispatchCareerEvent(next,matchEvent,[
+      state=>applyRoundConfidence(state,clubs,userResult,roundNumber),
+      state=>applyMatchDynamics(state,userClub,clubs,userResult,{competition:'Brasileirão Série A',stage:'Rodada '+roundNumber}),
+      state=>processPlayerPromises(state,userClub,userResult),
+      state=>applyWeeklyTraining(state,userClub),
+      state=>refreshJobOffers(state,clubs),
+    ]);
     for(const injury of(userResult.events||[]).filter(event=>event.type==='injury'&&String(event.clubId)===String(next.userClubId)))next=emitCareerEvent(next,{type:'PLAYER_INJURED',playerId:injury.playerId,importance:Number(injury.injurySeverity||1)>=4?4:2,payload:{name:injury.player,label:injury.injuryLabel,duration:injury.severityMatches,severity:injury.injurySeverity||1}});
-    next=applyWeeklyTraining(next,userClub);
-    next=refreshJobOffers(next,clubs);
-  }
+  }else next=applyRoundConfidence(next,clubs,userResult,roundNumber);
   next=advanceWorldManagers(next,clubs);
   next=syncWorldToDate(next,clubs,brasileiraoDateForRound(roundNumber,next.season));
   if(roundNumber===prepared.schedule.length)next=finalizeSeason(next,clubs);
@@ -875,8 +916,8 @@ export function startNextSeason(career,clubs){
   if(pendingSeasonFixtures(career,clubs).length)return career;
   const challenge=challengeSeasonResult(career,career.seasonReview),withChallenge=challenge?emitCareerEvent({...career,challengeHistory:[{...challenge,season:career.season},...(career.challengeHistory||[])].slice(0,30)},{type:challenge.success?'CHALLENGE_COMPLETED':'CHALLENGE_MISSED',importance:challenge.success?4:3,payload:{challenge:career.careerChallenge,label:challenge.label,score:challenge.score}}):career,newSeason=career.season+1,currentClub=clubs.find(c=>String(c.id)===String(career.userClubId)),contracted=currentClub?expirePlayerContracts(withChallenge,currentClub,newSeason):withChallenge,evaluated=evaluateProjectObjectives(contracted,career.seasonReview),developed=advancePlayerLifecycle(evaluated,clubs,newSeason),userClub=clubs.find(c=>c.id===career.userClubId);
   const transitioned=userClub?applySeasonDynamics({...developed,season:newSeason},userClub,career.seasonReview):{...developed,season:newSeason};
-  const cleanStatus={};for(const[key,value]of Object.entries(transitioned.playerStatus||{}))cleanStatus[key]={...value,yellowCount:0,suspensionThroughRound:0,injuryThroughRound:0,injuryLabel:null};
-  let next={...transitioned,round:0,schedule:buildSchedule(clubs),results:[],scorers:{},seasonPerformance:{},lastRoundResults:[],lastUserMatch:null,pendingRound:null,pendingWorldMatch:null,playerStatus:cleanStatus,conditions:defaultConditions(clubs),sponsors:(transitioned.sponsors||[]).map(contract=>({...contract,active:false})),openingCash:transitioned.cash,seasonReview:null,pendingCelebration:null,boardPressureStreak:0,boardWarning:null,managerStatus:'active',dismissal:null};
+  const cleanStatus={};for(const[key,value]of Object.entries(transitioned.playerStatus||{}))cleanStatus[key]={...value,yellowCount:0,suspensionThroughRound:0,injuryThroughRound:Math.max(0,Number(value.injuryThroughRound||0)-38),injuryLabel:Number(value.injuryThroughRound||0)>38?value.injuryLabel:null};
+  let next={...transitioned,round:0,schedule:buildSchedule(clubs),results:[],scorers:{},seasonPerformance:{},lastRoundResults:[],lastUserMatch:null,pendingRound:null,pendingWorldMatch:null,playerStatus:cleanStatus,conditions:defaultConditions(clubs),sponsors:(transitioned.sponsors||[]).map(contract=>({...contract,active:false})),openingCash:transitioned.cash,seasonReview:null,pendingCelebration:null,pendingCinematic:null,boardPressureStreak:0,boardWarning:null,managerStatus:'active',dismissal:null};
   next.world=rollWorldToNextSeason(transitioned,clubs,newSeason);
   return userClub?{...next,lineup:autoLineup(userClub,next,1)}:next;
 }

@@ -83,7 +83,7 @@ test('club-specific colors are scoped to the club hero rather than the whole int
 test('V3 asks for a manager name when taking control of a club', function(){
   assert.ok(main.includes("Nome do técnico"));
   assert.ok(main.includes("managerName"));
-  assert.ok(main.includes("1.0 RC2"));
+  assert.ok(main.includes("1.0 RC4"));
   assert.ok(!main.includes("Protótipo de gestão"));
   assert.ok(!main.includes("ETAPA 2 ·"));
 });
@@ -217,7 +217,10 @@ test('release candidate exposes landing central portable saves and manager ident
   assert.ok(main.includes("<CareerCenter"));
   assert.ok(main.includes("MANAGER_PROFILES"));
   assert.ok(main.includes("managerProfileInput"));
-  assert.ok(main.includes("onImport={importCareerPayload}"));
+  assert.ok(main.includes("importCareerPayload"));
+  assert.ok(main.includes("onManager="));
+  assert.ok(main.includes("onPlayer="));
+  assert.ok(main.includes("<PlayerCareer"));
 });
 
 test('transfer UI separates market budget wage room and operating cash', function(){
@@ -227,4 +230,28 @@ test('transfer UI separates market budget wage room and operating cash', functio
   assert.ok(transfer.includes("scoutRange"));
   assert.ok(transfer.includes("Observar"));
   assert.ok(!transfer.includes("ai-response"));
+});
+
+
+test('RC4 landing exposes separate manager and player careers without mixing saves', function(){
+  const landing=fs.readFileSync(new URL('../src/LandingScreen.jsx',import.meta.url),'utf8');
+  const playerCareer=fs.readFileSync(new URL('../src/PlayerCareer.jsx',import.meta.url),'utf8');
+  assert.ok(landing.includes('MODO CARREIRA TREINADOR'));
+  assert.ok(landing.includes('MODO CARREIRA JOGADOR'));
+  assert.ok(playerCareer.includes('PLAYER_CAREER_KEY'));
+  assert.ok(main.includes("gameMode==='player'"));
+  assert.ok(main.includes("gameMode('manager')")||main.includes("setGameMode('manager')"));
+});
+
+test('RC4 exposes full tactical controls scouting promises hall and cinematics', function(){
+  const center=fs.readFileSync(new URL('../src/CareerCenter.jsx',import.meta.url),'utf8');
+  const legacy=fs.readFileSync(new URL('../src/Legacy.jsx',import.meta.url),'utf8');
+  assert.ok(center.includes('TACTICAL_DECISIONS'));
+  assert.ok(center.includes('counterAttack'));
+  assert.ok(center.includes('penaltyTakerId'));
+  assert.ok(match.includes('opponentScoutingReport'));
+  assert.ok(match.includes('changeUserMatchTacticalState'));
+  assert.ok(center.includes('PROMISE_TYPES'));
+  assert.ok(legacy.includes('Temporadas comparáveis do save'));
+  assert.ok(main.includes('<CareerMomentModal'));
 });

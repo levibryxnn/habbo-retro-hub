@@ -16,3 +16,14 @@ export function recentCareerEvents(career,limit=30,type=null){
 }
 export function eventImportance(event){return clamp(1,5,Number(event?.importance)||2);}
 export function eventSurprise({expected=.5,actual=.5}={}){return clamp(0,1,Math.abs(Number(actual)-Number(expected)));}
+
+export function dispatchCareerEvent(career,event,handlers=[]){
+  let next=emitCareerEvent(career,event);
+  const queue=Array.isArray(handlers)?handlers:[handlers];
+  for(const handler of queue){
+    if(typeof handler!=='function')continue;
+    const reduced=handler(next,event);
+    if(reduced&&typeof reduced==='object')next=reduced;
+  }
+  return next;
+}

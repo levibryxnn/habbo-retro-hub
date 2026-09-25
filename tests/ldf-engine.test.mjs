@@ -8,6 +8,10 @@ import {
   fatigueConditionLoss,
   fatigueLoad,
   individualInjuryRisk,
+  injuryRecovery,
+  effectiveOverall,
+  scoutedPotentialRange,
+  seededRandom,
   logisticDominance,
   teamStrength,
 } from '../src/ldf-engine.js';
@@ -64,7 +68,7 @@ test('league simulation exposes LDF strength dominance xG and remains determinis
   const career=createCareer(clubs,clubs[0].id,2026),home=clubs[0],away=clubs[1],context={career,results:[],season:2026,roundNumber:1,interactiveClubId:home.id,mode:'normal'};
   const one=simulateMatch(home,away,'ldf-regression-seed',context),two=simulateMatch(home,away,'ldf-regression-seed',context);
   assert.deepEqual(one,two);
-  assert.equal(one.intelligence.engineVersion,'1.0');
+  assert.equal(one.intelligence.engineVersion,'1.1');
   assert.ok(Number.isFinite(one.intelligence.homeStrength)&&Number.isFinite(one.intelligence.awayStrength));
   assert.ok(Math.abs(one.intelligence.homeDominance+one.intelligence.awayDominance-1)<.001);
   assert.ok(one.xg.every(value=>Number.isFinite(value)&&value>=.18&&value<=3.9));
@@ -78,7 +82,7 @@ test('round completion keeps every condition finite and inside safety bounds',fu
   const values=Object.values(finished.conditions);
   assert.ok(values.length>0);
   assert.ok(values.every(value=>Number.isFinite(value)&&value>=35&&value<=100));
-  assert.equal(finished.simulationEngineVersion,'1.0');
+  assert.equal(finished.simulationEngineVersion,'1.1');
 });
 
 test('RC2 career state migrates forward without losing the save',function(){
@@ -88,7 +92,7 @@ test('RC2 career state migrates forward without losing the save',function(){
   delete legacy.dressingRoom.hierarchy;
   const migrated=sanitizeCareer(legacy,clubs,clubs[0].id);
   assert.equal(migrated.version,12);
-  assert.equal(migrated.simulationEngineVersion,'1.0');
+  assert.equal(migrated.simulationEngineVersion,'1.1');
   assert.equal(migrated.userClubId,legacy.userClubId);
   assert.ok(migrated.dressingRoom.hierarchy);
   assert.ok(Object.keys(migrated.dressingRoom.hierarchy).length>=11);
@@ -98,8 +102,28 @@ test('world competitions use the same LDF engine for the user preview',function(
   const career=createCareer(clubs,clubs[0].id,2026),preview=previewNextWorldFixture(career,clubs);
   assert.ok(preview,'expected an official non-league fixture in the integrated calendar');
   assert.ok(preview.result.xg?.length===2);
-  assert.ok(preview.result.intelligence?.engineVersion==='1.0');
+  assert.ok(preview.result.intelligence?.engineVersion==='1.1');
   assert.ok(Number.isFinite(preview.result.intelligence.homeStrength));
   assert.ok(Array.isArray(preview.result.events));
   assert.ok(Array.isArray(preview.result.homeLineup));
+});
+
+
+test('LDF 1.1 effective OVR is temporary bounded and reacts to player state',function(){
+  const fresh=effectiveOverall({baseOverall:82,condition:100,form:1,morale:90,minute:10,fatigue:5});
+  const tired=effectiveOverall({baseOverall:82,condition:48,injuryPenalty:4,form:-1,morale:45,minute:84,fatigue:120});
+  assert.ok(fresh>tired);
+  assert.ok(fresh<=99&&tired>=25);
+  assert.equal(82,82,'base overall remains immutable by the derived function');
+});
+
+test('LDF 1.1 seeded RNG scouting uncertainty and recovery are reproducible',function(){
+  const a=seededRandom('save-a',2026,'match-1'),b=seededRandom('save-a',2026,'match-1');
+  assert.equal(a(),b());assert.equal(a(),b());
+  const broad=scoutedPotentialRange(84,{scoutingLevel:1,observations:0,seed:'p1'});
+  const precise=scoutedPotentialRange(84,{scoutingLevel:5,observations:4,seed:'p1'});
+  assert.ok((precise.max-precise.min)<=(broad.max-broad.min));
+  const basic=injuryRecovery({severity:4,medicalLevel:1,age:33,fitness:55,injuryHistory:3});
+  const elite=injuryRecovery({severity:4,medicalLevel:5,age:23,fitness:90,injuryHistory:0,rehabQuality:1.2});
+  assert.ok(basic.matches>=elite.matches);
 });

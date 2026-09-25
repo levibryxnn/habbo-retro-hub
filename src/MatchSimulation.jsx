@@ -4,6 +4,7 @@ import {
   HALF_TIME_SECOND,
   MAX_SUBSTITUTIONS,
   changeUserMatchTactic,
+  changeUserMatchTacticalState,
   finishPendingRound,
   fixtureForUser,
   liveRoundMatches,
@@ -16,6 +17,7 @@ import {
   startNextSeason,
   startRound,
   setCareerTacticalPreset,
+  updateCareerTactics,
   updateUserLineup,
   userLineupForNextMatch,
 } from './career-engine';
@@ -31,8 +33,9 @@ import {
 } from './player-engine';
 import { getClubWorld } from './club-world.js';
 import { positionGroup, translatePosition } from './position-labels.js';
-import { changePendingWorldTactic, finishPendingWorldFixture, nextCareerEvent, pendingSeasonFixtures, startWorldFixture, unifiedUserMatchHistory, worldClub } from './competition-engine.js';
-import { TACTICAL_PRESETS, sanitizeTacticalState } from './tactical-engine.js';
+import { changePendingWorldTactic, changePendingWorldTacticalState, finishPendingWorldFixture, nextCareerEvent, pendingSeasonFixtures, startWorldFixture, unifiedUserMatchHistory, worldClub } from './competition-engine.js';
+import { TACTICAL_DECISIONS, TACTICAL_PRESETS, sanitizeTacticalState, tacticalTradeoffSummary } from './tactical-engine.js';
+import { opponentScoutingReport } from './scouting-engine.js';
 import WorldCrest from './WorldCrest.jsx';
 import './match.css';
 
@@ -88,9 +91,13 @@ function worldImportance(id,stage=''){
   if(/semi|quartas|oitavas|playoff/i.test(stage))return'Alta';
   return'Média';
 }
-function MatchTacticStrip({career,onSelect,live=false,disabled=false}){
-  const tactic=sanitizeTacticalState(career?.tacticalState),current=TACTICAL_PRESETS.find(item=>item.id===tactic.preset)||TACTICAL_PRESETS[1];
-  return <section className={'match-tactic-strip '+(live?'live':'')}><div className="match-tactic-copy"><Gauge size={16}/><span><small>{live?'AJUSTE DURANTE O JOGO':'PLANO DE JOGO'}</small><strong>{current.name}</strong><em>{live?'Mais risco pode criar chances e também abrir contra-ataques.':current.description}</em></span></div><div className="match-tactic-options">{TACTICAL_PRESETS.map(item=><button key={item.id} disabled={disabled} className={tactic.preset===item.id?'active':''} onClick={()=>onSelect(item.id)}>{item.name}</button>)}</div></section>;
+function MatchTacticStrip({career,onSelect,onPatch,live=false,disabled=false}){
+  const [advanced,setAdvanced]=useState(false),tactic=sanitizeTacticalState(career?.tacticalState),current=TACTICAL_PRESETS.find(item=>item.id===tactic.preset)||TACTICAL_PRESETS[1],effects=tacticalTradeoffSummary(career,{id:'balanced'});
+  return <section className={'match-tactic-strip '+(live?'live':'')}>
+    <div className="match-tactic-copy"><Gauge size={16}/><span><small>{live?'AJUSTE DURANTE O JOGO':'PLANO DE JOGO'}</small><strong>{current.name}</strong><em>{live?'Buscar o resultado aumenta chance ofensiva, fadiga e espaço para o rival.':current.description}</em></span><button type="button" className="advanced-tactic-toggle" onClick={()=>setAdvanced(v=>!v)}>{advanced?'Fechar ajustes':'Ajustes finos'}</button></div>
+    <div className="match-tactic-options">{TACTICAL_PRESETS.map(item=><button key={item.id} disabled={disabled} className={tactic.preset===item.id?'active':''} onClick={()=>onSelect(item.id)}>{item.name}</button>)}</div>
+    {advanced&&<div className="live-tactic-advanced"><div className="live-tactic-effects"><span>Ataque <b>{effects.attack>0?'+':''}{effects.attack}%</b></span><span>Fadiga <b>{effects.fatigue>0?'+':''}{effects.fatigue}%</b></span><span>Risco contra <b>{effects.counterRisk>0?'+':''}{effects.counterRisk}%</b></span></div><div className="live-tactic-sliders">{TACTICAL_DECISIONS.map(item=><label key={item.key}><span>{item.label}<b>{Math.round(tactic[item.key])}</b></span><input disabled={disabled} type="range" min="0" max="100" value={tactic[item.key]} onChange={e=>onPatch?.({[item.key]:Number(e.target.value)})}/></label>)}</div><div className="live-tactic-toggles"><button disabled={disabled} className={tactic.counterAttack?'active':''} onClick={()=>onPatch?.({counterAttack:!tactic.counterAttack})}>Contra-ataque {tactic.counterAttack?'ON':'OFF'}</button>{[['mixed','Misto'],['left','Esquerda'],['center','Centro'],['right','Direita']].map(([id,label])=><button disabled={disabled} key={id} className={tactic.attackingFocus===id?'active':''} onClick={()=>onPatch?.({attackingFocus:id})}>{label}</button>)}</div></div>}
+  </section>;
 }
 function MatchContextStrip({result,career}){
   const weather=result?.environment?.weather,info=result?.intelligence;
@@ -98,15 +105,13 @@ function MatchContextStrip({result,career}){
 }
 function OpponentBrief({career,club,opponent,roundNumber}){
   if(!opponent)return null;
-  const top=(opponent.players||[]).slice().sort((a,b)=>playerGameStats(b).overall-playerGameStats(a).overall)[0],avg=(opponent.players||[]).slice().sort((a,b)=>playerGameStats(b).overall-playerGameStats(a).overall).slice(0,14).reduce((sum,p)=>sum+playerGameStats(p).overall,0)/Math.max(1,Math.min(14,(opponent.players||[]).length));
-  const recent=(career.results||[]).filter(result=>result.homeId===opponent.id||result.awayId===opponent.id).slice(-5).map(result=>{const home=result.homeId===opponent.id,gf=home?result.homeGoals:result.awayGoals,ga=home?result.awayGoals:result.homeGoals;return gf>ga?'V':gf===ga?'E':'D';});
-  const unavailable=(opponent.players||[]).filter(player=>!playerAvailability(career,opponent.id,player.id,roundNumber||career.round+1).available).length;
-  return <section className="opponent-brief"><div><Target size={17}/><span><small>LEITURA DO ADVERSÁRIO</small><strong>{opponent.name}</strong></span></div><dl><div><dt>Força do núcleo</dt><dd>{Math.round(avg||0)}</dd></div><div><dt>Destaque</dt><dd>{top?.name||'—'} <small>OVR {top?playerGameStats(top).overall:'—'}</small></dd></div><div><dt>Forma recente</dt><dd className="brief-form">{recent.length?recent.map((item,index)=><i key={index} className={item}>{item}</i>):<small>sem amostra</small>}</dd></div><div><dt>Desfalques</dt><dd>{unavailable}</dd></div></dl></section>;
+  const report=opponentScoutingReport(career,opponent,roundNumber||career.round+1),top=(opponent.players||[]).slice().sort((a,b)=>playerGameStats(b).overall-playerGameStats(a).overall)[0],avg=(opponent.players||[]).slice().sort((a,b)=>playerGameStats(b).overall-playerGameStats(a).overall).slice(0,14).reduce((sum,p)=>sum+playerGameStats(p).overall,0)/Math.max(1,Math.min(14,(opponent.players||[]).length));
+  return <section className="opponent-brief detailed"><div className="opponent-brief-head"><div><Target size={17}/><span><small>LEITURA DO ADVERSÁRIO</small><strong>{opponent.name}</strong></span></div><em>Relatório tático</em></div><dl><div><dt>Força do núcleo</dt><dd>{Math.round(avg||0)}</dd></div><div><dt>Destaque</dt><dd>{top?.name||'—'} <small>OVR {top?playerGameStats(top).overall:'—'}</small></dd></div><div><dt>Forma recente</dt><dd className="brief-form">{report?.form?.length?report.form.map((item,index)=><i key={index} className={item}>{item}</i>):<small>sem amostra</small>}</dd></div><div><dt>Desfalques</dt><dd>{report?.unavailable?.length||0}</dd></div></dl><div className="scout-reading-grid"><div><small>PONTOS A EXPLORAR</small>{report?.weaknesses?.length?report.weaknesses.slice(0,4).map((text,index)=><p key={index}>↗ {text}</p>):<p>Nenhuma fraqueza clara na amostra atual.</p>}</div><div><small>AMEAÇAS</small>{report?.strengths?.length?report.strengths.slice(0,4).map((text,index)=><p key={index}>⚠ {text}</p>):<p>Sem tendência forte detectada.</p>}</div></div>{report?.suggestions?.length>0&&<div className="scout-tactic-suggestions">{report.suggestions.slice(0,3).map(item=><span key={item.key}><b>{item.label}</b>{item.action}</span>)}</div>}</section>;
 }
 function PostMatchSummary({career,club,clubs,result}){
   if(!result?.events)return null;
-  const side=result.homeId===club.id?'home':'away',opp=clubs.find(item=>item.id===(side==='home'?result.awayId:result.homeId)),score=side==='home'?[result.homeGoals,result.awayGoals]:[result.awayGoals,result.homeGoals],performance=bestMatchPlayer(club,result,side,result.durationSecond||FULL_TIME),confidence=career.managerConfidence||{},gross=result.matchday?.grossRevenue||0;
-  return <section className="post-match-summary"><div className="post-match-head"><span><small>PÓS-JOGO</small><strong>{score[0]>score[1]?'Vitória':score[0]===score[1]?'Empate':'Derrota'} contra {opp?.name||'adversário'}</strong></span><b>{score[0]} × {score[1]}</b></div><div className="post-match-facts"><span><small>Melhor do time</small><strong>{performance?.name||'—'}{performance?<em>{performance.rating.toFixed(1)}</em>:null}</strong></span><span><small>Torcida</small><strong>{confidence.lastFanDelta>0?'+':''}{Number(confidence.lastFanDelta||0).toFixed(1)} <em>{Math.round(confidence.fans||0)}%</em></strong></span><span><small>Diretoria</small><strong>{confidence.lastBoardDelta>0?'+':''}{Number(confidence.lastBoardDelta||0).toFixed(1)} <em>{Math.round(confidence.board||0)}%</em></strong></span><span><small>Receita do jogo</small><strong>{gross?new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',notation:'compact',maximumFractionDigits:1}).format(gross):'—'}</strong></span><span><small>xG</small><strong>{result.xg?result.xg[0].toFixed(2)+' × '+result.xg[1].toFixed(2):'—'}</strong></span></div></section>;
+  const side=result.homeId===club.id?'home':'away',opp=clubs.find(item=>item.id===(side==='home'?result.awayId:result.homeId)),score=side==='home'?[result.homeGoals,result.awayGoals]:[result.awayGoals,result.homeGoals],performance=bestMatchPlayer(club,result,side,result.durationSecond||FULL_TIME),confidence=career.managerConfidence||{},gross=result.matchday?.grossRevenue||0,row=standingsFromResults(career.results,clubs).find(item=>String(item.clubId)===String(club.id)),tone=score[0]>score[1]?(confidence.fans>=75?'A arquibancada saiu empolgada com o momento.':'A vitória alivia a pressão e aproxima a torcida.'):score[0]===score[1]?'A reação é dividida: o próximo jogo ganhou peso.':confidence.board<30?'A diretoria aumentou a cobrança depois do resultado.':'A derrota incomodou, mas o projeto ainda tem margem para reagir.';
+  return <section className="post-match-summary"><div className="post-match-head"><span><small>PÓS-JOGO</small><strong>{score[0]>score[1]?'Vitória':score[0]===score[1]?'Empate':'Derrota'} contra {opp?.name||'adversário'}</strong><em>{tone}</em></span><b>{score[0]} × {score[1]}</b></div><div className="post-match-facts"><span><small>Melhor do time</small><strong>{performance?.name||'—'}{performance?<em>{performance.rating.toFixed(1)}</em>:null}</strong></span><span><small>Classificação</small><strong>{row?row.position+'º':'—'} <em>{row?row.points+' pts':''}</em></strong></span><span><small>Torcida</small><strong>{confidence.lastFanDelta>0?'+':''}{Number(confidence.lastFanDelta||0).toFixed(1)} <em>{Math.round(confidence.fans||0)}%</em></strong></span><span><small>Diretoria</small><strong>{confidence.lastBoardDelta>0?'+':''}{Number(confidence.lastBoardDelta||0).toFixed(1)} <em>{Math.round(confidence.board||0)}%</em></strong></span><span><small>Receita do jogo</small><strong>{gross?new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',notation:'compact',maximumFractionDigits:1}).format(gross):'—'}</strong></span><span><small>xG</small><strong>{result.xg?result.xg[0].toFixed(2)+' × '+result.xg[1].toFixed(2):'—'}</strong></span></div></section>;
 }
 const latestFor=(events,side,second)=>[...(events||[])].reverse().find(e=>e.side===side&&e.second<=second)||null;
 function PlayerHighlight({club,result,side,second}) {
@@ -278,10 +283,12 @@ export default function MatchSimulation({club,clubs,Crest,career,onCareerChange,
     const next=activeRound?changeUserMatchTactic(career,clubs,id,second):setCareerTacticalPreset(career,id);
     onCareerChange(next);
   }
+  function patchLeagueTactic(patch){onCareerChange(activeRound?changeUserMatchTacticalState(career,clubs,patch,second):updateCareerTactics(career,patch));}
   function chooseWorldTactic(id){
     const next=activeWorld?changePendingWorldTactic(career,id,second):setCareerTacticalPreset(career,id);
     onCareerChange(next);
   }
+  function patchWorldTactic(patch){onCareerChange(activeWorld?changePendingWorldTacticalState(career,patch,second):updateCareerTactics(career,patch));}
   function runRound(){
     if(!canManage||activeRound||completed||blockedByCompetition)return;
     if(selectedMode==='instant'){const started=startRound(career,clubs,'instant'),finished=finishPendingRound(started,clubs);onCareerChange(finished);setSecond(finished.lastUserMatch?.durationSecond||FULL_TIME);setRealElapsed(0);setPaused(true);return;}
@@ -302,7 +309,7 @@ export default function MatchSimulation({club,clubs,Crest,career,onCareerChange,
       <div className="match-heading"><div><div className="eyebrow">CALENDÁRIO INTEGRADO</div><h2>{event?.competitionName||result?.competitionName||'Competição'}</h2><p>{event?.stage||result?.stage||'Partida oficial'} · as três velocidades usam a mesma engine e o resultado permanece no save.</p></div><span className="stage-two-badge"><Trophy size={13}/> {event?.stage||result?.stage}</span></div>
       {!canManage&&<div className="choose-notice"><Target size={18}/><p>Escolha o {club.name} para administrar esta partida.</p><button onClick={onChoose}>Escolher clube</button></div>}
       <div className="match-meta"><span><CalendarDays size={15}/> {event?.date||result?.date}</span><span><Trophy size={15}/> {event?.competitionName||result?.competitionName}</span><span><Timer size={15}/> {finished?'Partida encerrada':playing?'Partida em andamento':'Pré-jogo'}</span></div>
-      {!finished&&canManage&&<MatchTacticStrip career={career} onSelect={chooseWorldTactic} live={playing}/>}
+      {!finished&&canManage&&<MatchTacticStrip career={career} onSelect={chooseWorldTactic} onPatch={patchWorldTactic} live={playing}/>}
       <MatchContextStrip result={result} career={career}/>
       {!playing&&!finished&&<section className="pregame-insights"><article><small>PESO DO JOGO</small><strong>{worldImportance(event?.competitionId,event?.stage)}</strong><span>{event?.stage}</span></article><article><small>TORCIDA</small><strong>{Math.round(career.managerConfidence?.fans??100)}%</strong><span>confiança atual</span></article><article><small>DIRETORIA</small><strong>{Math.round(career.managerConfidence?.board??100)}%</strong><span>segurança do trabalho</span></article><article><small>FORÇA PROJETADA</small><strong>{Math.round(result?.homePower||0)} × {Math.round(result?.awayPower||0)}</strong><span>{result?.homePower>result?.awayPower?(homeWorld?.abbreviation||'Mandante')+' chega mais forte':result?.awayPower>result?.homePower?(awayWorld?.abbreviation||'Visitante')+' chega mais forte':'equilíbrio técnico'}</span></article></section>}
       <section className="match-stage world-match-stage" aria-label={(homeWorld?.name||'Mandante')+' contra '+(awayWorld?.name||'Visitante')}><SidelineField/><div className="match-score-layer"><div className="match-team home"><WorldCrest club={homeWorld} size="large"/><h3>{homeWorld?.name||'Mandante'}</h3></div><div className="score-center"><span className="match-period">{finished?'FIM DE JOGO':playing?(virtualSecond<45*60?'1º TEMPO':'2º TEMPO'):'PRÉ-JOGO'}</span><span className="match-clock">{playing?Math.min(90,Math.floor(virtualSecond/60))+"'":finished?"90'":"00:00"}</span><strong>{worldScore.home}<i>–</i>{worldScore.away}</strong><small>{finished?'RESULTADO OFICIAL':playing?paused?'JOGO PAUSADO':'PARTIDA EM ANDAMENTO':'AGUARDANDO SIMULAÇÃO'}</small><div className="match-venue"><strong>{event?.competitionName||result?.competitionName}</strong><span>{event?.stage||result?.stage}</span></div></div><div className="match-team away"><WorldCrest club={awayWorld} size="large"/><h3>{awayWorld?.name||'Visitante'}</h3></div></div></section>
@@ -318,7 +325,7 @@ export default function MatchSimulation({club,clubs,Crest,career,onCareerChange,
     {!canManage&&<div className="choose-notice"><Target size={18}/><p>Escolha o {club.name} para iniciar uma carreira e simular as rodadas.</p><button onClick={onChoose}>Escolher clube</button></div>}
     {canManage&&blockedByCompetition&&<div className="competition-gate"><CalendarDays size={18}/><span><strong>{careerEvent.competitionName} vem antes da próxima rodada.</strong><small>{careerEvent.stage} · o calendário não permite pular este compromisso.</small></span><button onClick={()=>onNavigate?.('competitions')}>Ir para Competições</button></div>}
     <div className="match-meta"><span><Timer size={15}/> Brasileirão Série A · {completed?'Temporada encerrada':activeRound?'Rodada '+activeRound.roundNumber+' em andamento':'Próxima: rodada '+(career.round+1)}</span><span><Trophy size={15}/> {userRow?.points||0} pts oficiais · {userRow?.position||20}º lugar</span><span><ShieldAlert size={15}/> {matchYellows} amarelo(s) · {matchReds} vermelho(s)</span></div>
-    {!completed&&!blockedByCompetition&&canManage&&<MatchTacticStrip career={career} onSelect={chooseLeagueTactic} live={Boolean(activeRound)}/>}
+    {!completed&&!blockedByCompetition&&canManage&&<MatchTacticStrip career={career} onSelect={chooseLeagueTactic} onPatch={patchLeagueTactic} live={Boolean(activeRound)}/>}
     <MatchContextStrip result={displayMatch?.events?displayMatch:null} career={career}/>
 
     {!activeRound&&!completed&&!blockedByCompetition&&fixture&&<OpponentBrief career={career} club={club} opponent={clubs.find(item=>item.id===(fixture.homeId===club.id?fixture.awayId:fixture.homeId))} roundNumber={career.round+1}/>}

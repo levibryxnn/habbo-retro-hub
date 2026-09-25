@@ -2,7 +2,7 @@ const clamp=(min,max,n)=>Math.max(min,Math.min(max,n));
 function hashString(value){let h=2166136261;for(const ch of String(value)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return h>>>0;}
 const roll=seed=>(hashString(seed)%1000000)/1000000;
 
-export const DEFAULT_TACTIC={preset:'balanced',mentality:50,pressing:52,defensiveLine:50,tempo:52,width:50,directness:48,risk:48,setPieces:{corners:'mixed',freeKicks:'best',penalties:'best'}};
+export const DEFAULT_TACTIC={preset:'balanced',mentality:50,pressing:52,defensiveLine:50,tempo:52,width:50,directness:48,risk:48,counterAttack:false,attackingFocus:'mixed',setPieces:{corners:'mixed',freeKicks:'best',penalties:'best',cornerTakerId:null,freeKickTakerId:null,penaltyTakerId:null,aerialTargetId:null}};
 export const TACTICAL_PRESETS=[
   {id:'compact',name:'Bloco compacto',description:'Menos espaço, ritmo baixo e transição segura.',values:{mentality:36,pressing:42,defensiveLine:38,tempo:42,width:46,directness:55,risk:31}},
   {id:'balanced',name:'Equilibrado',description:'Sem exageros: controla risco e escolhe quando acelerar.',values:{mentality:50,pressing:52,defensiveLine:50,tempo:52,width:50,directness:48,risk:48}},
@@ -27,7 +27,9 @@ export function trainingFocus(id){return TRAINING_FOCUS.find(item=>item.id===id)
 export function sanitizeTacticalState(raw){
   const base={...DEFAULT_TACTIC,...(raw&&typeof raw==='object'?raw:{})},preset=tacticalPreset(base.preset);
   const state={...DEFAULT_TACTIC,...preset.values,...base,preset:base.preset||preset.id,setPieces:{...DEFAULT_TACTIC.setPieces,...(base.setPieces||{})}};
-  for(const key of['mentality','pressing','defensiveLine','tempo','width','directness','risk'])state[key]=clamp(0,100,Number(state[key])||DEFAULT_TACTIC[key]);
+  for(const key of['mentality','pressing','defensiveLine','tempo','width','directness','risk']){const value=Number(state[key]);state[key]=clamp(0,100,Number.isFinite(value)?value:DEFAULT_TACTIC[key]);}
+  state.counterAttack=Boolean(base.counterAttack);
+  state.attackingFocus=['mixed','left','center','right'].includes(String(base.attackingFocus))?String(base.attackingFocus):'mixed';
   return state;
 }
 export function setTacticalPreset(career,id){
@@ -61,16 +63,19 @@ export function aiPlanVector(plan){
   return{pressing:52,defensiveLine:50,tempo:52,width:50,directness:50,risk:48,buildUp:55};
 }
 export function tacticVector(career){const t=sanitizeTacticalState(career?.tacticalState);return{...t,buildUp:clamp(20,85,72-t.directness*.45+t.tempo*.12)};}
-export function tacticalMatchup(career,opponentPlan,{isHome=false}={}){
+export function tacticalMatchup(career,opponentPlan,{isHome=false,attackerPaceFactor=1}={}){
   const own=tacticVector(career),opp=aiPlanVector(opponentPlan),training=trainingMatchModifier(career);
   const pressure=(own.pressing-opp.buildUp)/100,lineSpace=(own.defensiveLine-opp.directness)/100,counterRisk=clamp(-.18,.30,(own.risk+own.defensiveLine-105)/180+(opp.directness-50)/240),control=(own.width-50)/250+(55-own.directness)/260;
-  const attackBoost=clamp(-.20,.30,(own.mentality-50)/190+pressure*.12+training.attack-counterRisk*.12);
-  const defenseBoost=clamp(-.20,.24,(50-own.risk)/250-lineSpace*.07+training.defense);
-  const possession=clamp(-7,8,control*12+pressure*3+(own.tempo<50?1.5:0));
+  const transitionSpeed=clamp(.72,1.35,.72+own.directness/220+own.tempo/500),spaceBehind=clamp(0,1,(opp.defensiveLine+opp.risk-85)/115),opponentRisk=clamp(0,1,(opp.risk-25)/75);
+  const counterEffect=own.counterAttack?clamp(0,.22,opponentRisk*transitionSpeed*spaceBehind*clamp(.75,1.25,attackerPaceFactor)*.22):0;
+  const focusRisk=own.attackingFocus==='mixed'?0:.012;
+  const attackBoost=clamp(-.20,.30,(own.mentality-50)/190+pressure*.12+training.attack-counterRisk*.12+counterEffect);
+  const defenseBoost=clamp(-.20,.24,(50-own.risk)/250-lineSpace*.07+training.defense-focusRisk);
+  const possession=clamp(-7,8,control*12+pressure*.36+(own.tempo<50?1.5:0)-(own.counterAttack?1.1:0));
   const tempo=clamp(.82,1.25,.82+own.tempo/235);
-  const fatigueMultiplier=clamp(.82,1.30,.72+own.pressing/300+own.tempo/650+own.risk/900);
-  const injuryMultiplier=clamp(.72,1.42,training.injury*(.72+fatigueMultiplier*.28));
-  return{attackBoost,defenseBoost,possession,tempo,fatigueMultiplier,injuryMultiplier,counterRisk,setPiece:training.setPiece||0,label:tacticalPreset(own.preset).name};
+  const fatigueMultiplier=clamp(.82,1.34,.82+own.pressing/230+own.tempo/520+own.risk/650);
+  const injuryMultiplier=clamp(.72,1.48,training.injury*(.88+fatigueMultiplier*.18));
+  return{attackBoost,defenseBoost,possession,tempo,fatigueMultiplier,injuryMultiplier,counterRisk,counterEffect,setPiece:training.setPiece||0,label:tacticalPreset(own.preset).name,pressureAdvantage:pressure,transitionSpeed};
 }
 export function matchWeather(seed){
   const r=roll(seed+'|weather'),r2=roll(seed+'|temperature'),pitchRoll=roll(seed+'|pitch'),pitch=pitchRoll<.08?'Gramado pesado':pitchRoll<.18?'Gramado irregular':pitchRoll>.88?'Gramado rápido':'Gramado bom',pitchPassing=pitch==='Gramado pesado'?-.025:pitch==='Gramado irregular'?-.035:pitch==='Gramado rápido'?.012:0;
@@ -87,4 +92,27 @@ export function setPieceAttackModifier(career){
 export function matchPreparationSummary(career,opponentPlan,seed){
   const matchup=tacticalMatchup(career,opponentPlan),weather=matchWeather(seed),training=trainingMatchModifier(career);
   return{tactic:matchup.label,training:training.label,weather,attackBoost:matchup.attackBoost,defenseBoost:matchup.defenseBoost,fatigueMultiplier:matchup.fatigueMultiplier};
+}
+
+export const TACTICAL_DECISIONS=[
+  {key:'mentality',label:'Mentalidade',low:'Cautela',high:'Ataque'},
+  {key:'pressing',label:'Pressão',low:'Baixa',high:'Total'},
+  {key:'defensiveLine',label:'Linha defensiva',low:'Baixa',high:'Alta'},
+  {key:'tempo',label:'Ritmo',low:'Cadenciado',high:'Acelerado'},
+  {key:'width',label:'Largura',low:'Estreito',high:'Aberto'},
+  {key:'directness',label:'Transição',low:'Curta',high:'Direta'},
+  {key:'risk',label:'Risco',low:'Seguro',high:'Agressivo'},
+];
+export function tacticalTradeoffSummary(career,opponentPlan){
+  const state=sanitizeTacticalState(career?.tacticalState),match=tacticalMatchup(career,opponentPlan);
+  return{
+    attack:Math.round(match.attackBoost*100),
+    defense:Math.round(match.defenseBoost*100),
+    possession:Math.round(match.possession),
+    fatigue:Math.round((match.fatigueMultiplier-1)*100),
+    injury:Math.round((match.injuryMultiplier-1)*100),
+    counterRisk:Math.round(match.counterRisk*100),
+    counterEffect:Math.round(match.counterEffect*100),
+    mentality:state.mentality,
+  };
 }
