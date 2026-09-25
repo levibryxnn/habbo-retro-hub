@@ -233,16 +233,17 @@ function generateDisciplineAndInjuries(result,home,away,rng,used,career,interact
       events.push(makeEvent(side,'red',second,club,player,eventIndex++,{reason:'direct'}));
     }
   }
-  const avgCondition=[...result.homeLineup.map(id=>playerCondition(career,home.id,id)),...result.awayLineup.map(id=>playerCondition(career,away.id,id))].reduce((a,b)=>a+b,0)/22;
-  const injuryChance=clamp(.16,.46,.22+(82-avgCondition)*.009);
+  const homeCondition=result.homeLineup.map(id=>playerCondition(career,home.id,id)).reduce((a,b)=>a+b,0)/Math.max(1,result.homeLineup.length),awayCondition=result.awayLineup.map(id=>playerCondition(career,away.id,id)).reduce((a,b)=>a+b,0)/Math.max(1,result.awayLineup.length);
+  const homeRisk=clamp(.55,1.8,(result.intelligence?.homeInjuryMultiplier||1)*(1+(82-homeCondition)*.012)),awayRisk=clamp(.55,1.8,(result.intelligence?.awayInjuryMultiplier||1)*(1+(82-awayCondition)*.012)),injuryChance=clamp(.13,.55,.19*((homeRisk+awayRisk)/2));
   if(rng()<injuryChance){
-    const side=rng()<.5?'home':'away',club=side==='home'?home:away,lineup=side==='home'?result.homeLineup:result.awayLineup;
+    const side=rng()<homeRisk/(homeRisk+awayRisk)?'home':'away',club=side==='home'?home:away,lineup=side==='home'?result.homeLineup:result.awayLineup;
     const players=lineupPlayers(club,lineup);
     if(players.length){
-      const player=players[Math.floor(rng()*players.length)],second=uniqueEventSecond(rng,used,result.durationSecond,10*60);
-      const roll=rng(),severity=roll<.55?1:roll<.82?2:roll<.95?3:4;
-      const label=severity===1?'Desconforto muscular':severity===2?'Lesão muscular leve':severity===3?'Entorse moderada':'Lesão muscular importante';
-      events.push(makeEvent(side,'injury',second,club,player,eventIndex++,{severityMatches:severity,injuryLabel:label,requiresAttention:club.id===interactiveClubId}));
+      const player=players[Math.floor(rng()*players.length)],second=uniqueEventSecond(rng,used,result.durationSecond,10*60),age=Number(player._careerAge??player.age??27),medical=String(club.id)===String(career.userClubId)?Number(career.facilities?.medical||1):2;
+      const severityRoll=rng()+Math.max(0,age-31)*.008-medical*.025,severity=severityRoll<.48?1:severityRoll<.74?2:severityRoll<.90?3:severityRoll<.975?4:5;
+      const duration=severity===1?1:severity===2?2:severity===3?3+Math.floor(rng()*2):severity===4?5+Math.floor(rng()*3):8+Math.floor(rng()*5);
+      const label=severity===1?'Pancada / desconforto':severity===2?'Lesão muscular leve':severity===3?'Entorse moderada':severity===4?'Lesão muscular importante':'Lesão ligamentar grave';
+      events.push(makeEvent(side,'injury',second,club,player,eventIndex++,{severityMatches:duration,injurySeverity:severity,injuryLabel:label,requiresAttention:club.id===interactiveClubId}));
     }
   }
   return{...result,events:events.sort((a,b)=>a.second-b.second)};
@@ -600,8 +601,9 @@ function updateConditions(career,roundResults,clubs){
     for(const side of['home','away']){
       const clubId=side==='home'?result.homeId:result.awayId;
       const starters=side==='home'?result.homeLineup:result.awayLineup;
+      const fatigue=Number(side==='home'?result.intelligence?.homeFatigue:result.intelligence?.awayFatigue)||1;
       for(const id of starters||[]){
-        const key=statusKey(clubId,id);conditions[key]=clamp(35,100,(conditions[key]??100)-14);
+        const key=statusKey(clubId,id);conditions[key]=clamp(35,100,(conditions[key]??100)-Math.round(13*fatigue));
       }
       for(const sub of(result.substitutions||[]).filter(s=>s.side===side)){
         const key=statusKey(clubId,sub.inPlayerId);conditions[key]=clamp(35,100,(conditions[key]??100)+7-7);
@@ -734,7 +736,14 @@ export function finishPendingRound(career,clubs){
   if(userClub)next={...next,lineup:sanitizeLineup(userClub,next,roundNumber+1,next.lineup)};
   if(userResult){next=applySponsorPayments(next,roundNumber,userOutcome(userResult,prepared.userClubId));next=applyMatchdayIncome(next,userResult);} next=applyTransferPayroll(next,clubs,roundNumber);
   next=applyRoundConfidence(next,clubs,userResult,roundNumber);
-  if(userResult&&userClub)next=applyMatchDynamics(next,userClub,clubs,userResult,{competition:'Brasileirão Série A',stage:'Rodada '+roundNumber});
+  if(userResult&&userClub){
+    next=applyMatchDynamics(next,userClub,clubs,userResult,{competition:'Brasileirão Série A',stage:'Rodada '+roundNumber});
+    next=processPlayerPromises(next,userClub,userResult);
+    next=emitCareerEvent(next,{type:'MATCH_FINISHED',importance:2,payload:{competition:'Brasileirão Série A',stage:'Rodada '+roundNumber,homeId:userResult.homeId,awayId:userResult.awayId,homeGoals:userResult.homeGoals,awayGoals:userResult.awayGoals,xg:userResult.xg||null}});
+    next=applyWeeklyTraining(next,userClub);
+    next=refreshJobOffers(next,clubs);
+  }
+  next=advanceWorldManagers(next,clubs);
   next=syncWorldToDate(next,clubs,brasileiraoDateForRound(roundNumber,next.season));
   if(roundNumber===prepared.schedule.length)next=finalizeSeason(next,clubs);
   return next;
@@ -760,7 +769,7 @@ export function simulateRound(career,clubs){
 export function startNextSeason(career,clubs){
   if(career.pendingRound||career.pendingWorldMatch||career.round<career.schedule.length)return career;
   if(pendingSeasonFixtures(career,clubs).length)return career;
-  const newSeason=career.season+1,developed=advancePlayerLifecycle(career,clubs,newSeason),userClub=clubs.find(c=>c.id===career.userClubId);
+  const evaluated=evaluateProjectObjectives(career,career.seasonReview),newSeason=career.season+1,developed=advancePlayerLifecycle(evaluated,clubs,newSeason),userClub=clubs.find(c=>c.id===career.userClubId);
   const transitioned=userClub?applySeasonDynamics({...developed,season:newSeason},userClub,career.seasonReview):{...developed,season:newSeason};
   const cleanStatus={};for(const[key,value]of Object.entries(transitioned.playerStatus||{}))cleanStatus[key]={...value,yellowCount:0,suspensionThroughRound:0,injuryThroughRound:0,injuryLabel:null};
   let next={...transitioned,round:0,schedule:buildSchedule(clubs),results:[],scorers:{},seasonPerformance:{},lastRoundResults:[],lastUserMatch:null,pendingRound:null,pendingWorldMatch:null,playerStatus:cleanStatus,conditions:defaultConditions(clubs),sponsors:(transitioned.sponsors||[]).map(contract=>({...contract,active:false})),openingCash:transitioned.cash,seasonReview:null,pendingCelebration:null,boardPressureStreak:0,boardWarning:null,managerStatus:'active',dismissal:null};
