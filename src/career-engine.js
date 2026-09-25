@@ -95,6 +95,18 @@ function bestPenaltyTaker(club,lineupIds){
     return(sb.penalties*0.68+sb.composure*0.32)-(sa.penalties*0.68+sa.composure*0.32);
   })[0]||null;
 }
+function assignedSetPiecePlayer(career,club,lineupIds,key){
+  if(String(club?.id)!==String(career?.userClubId))return null;
+  const id=career?.tacticalState?.setPieces?.[key];
+  return id&&lineupPlayers(club,lineupIds).find(p=>String(p.id)===String(id))||null;
+}
+function setPiecePersonnelBonus(career,club,lineupIds){
+  if(String(club?.id)!==String(career?.userClubId))return 0;
+  const corner=assignedSetPiecePlayer(career,club,lineupIds,'cornerTakerId'),target=assignedSetPiecePlayer(career,club,lineupIds,'aerialTargetId');
+  const cStats=corner?playerGameStats(corner):null,tStats=target?playerGameStats(target):null;
+  const delivery=cStats?(cStats.passing*.62+cStats.composure*.38-65)/700:0,aerial=tStats?(tStats.physical*.55+tStats.composure*.25+tStats.defending*.20-65)/800:0;
+  return clamp(-.025,.055,delivery+aerial);
+}
 function goalkeeperOnField(club,lineupIds){
   return lineupPlayers(club,lineupIds).find(p=>positionGroup(p.position)==='GOL')||lineupPlayers(club,lineupIds)[0]||null;
 }
@@ -205,7 +217,7 @@ function autoResolvePenaltyEvent(result,event,home,away){
   const club=side==='home'?home:away,opponent=side==='home'?away:home;
   const lineup=currentLineup(result,side,event.second);
   const oppLineup=currentLineup(result,side==='home'?'away':'home',event.second);
-  const taker=bestPenaltyTaker(club,lineup);
+  const taker=playerById(club,event.playerId)||bestPenaltyTaker(club,lineup);
   const keeper=goalkeeperOnField(opponent,oppLineup);
   if(!taker||!keeper)return result;
   return resolvePenaltyOnResult(result,event,taker,keeper,result.id+'|penalty|'+event.id+'|'+taker.id);
@@ -397,7 +409,7 @@ export function simulateMatch(home,away,seed,context){
   const managerEdge=managerMatchModifier(career),homeUser=String(home.id)===String(career.userClubId),awayUser=String(away.id)===String(career.userClubId),homeManager=homeUser?managerEdge:0,awayManager=awayUser?managerEdge:0;
   const neutralTactic={attackBoost:0,defenseBoost:0,possession:0,tempo:1,fatigueMultiplier:1,injuryMultiplier:1,counterRisk:0,setPiece:0,label:'CPU'};
   const homeTactic=homeUser?tacticalMatchup(career,awayPlan,{isHome:true}):neutralTactic,awayTactic=awayUser?tacticalMatchup(career,homePlan,{isHome:false}):neutralTactic;
-  const weather=matchWeather(seed),homeSetPiece=homeUser?setPieceAttackModifier(career):0,awaySetPiece=awayUser?setPieceAttackModifier(career):0;
+  const weather=matchWeather(seed),homeSetPiece=homeUser?setPieceAttackModifier(career)+setPiecePersonnelBonus(career,home,homeLineup):0,awaySetPiece=awayUser?setPieceAttackModifier(career)+setPiecePersonnelBonus(career,away,awayLineup):0;
   const homeTacticalSource=homeUser?homeTactic:homePlan,awayTacticalSource=awayUser?awayTactic:awayPlan;
   const homeTacticalScore=tacticalExecutionScore(homeTacticalSource),awayTacticalScore=tacticalExecutionScore(awayTacticalSource);
   const userMorale=clamp(20,100,Number(career.dressingRoom?.morale??78));
@@ -440,7 +452,7 @@ export function simulateMatch(home,away,seed,context){
   const penaltyBase=.30+(homeSetPiece+awaySetPiece)*.18;
   if(rng()<penaltyBase){
     const side=rng()<.5?'home':'away',club=side==='home'?home:away,lineup=side==='home'?homeLineup:awayLineup;
-    const penalty=makeEvent(side,'penalty',uniqueEventSecond(rng,used,durationSecond,12*60),club,bestPenaltyTaker(club,lineup)||weightedPlayer(club,lineup,rng),eventIndex++,{
+    const assignedPenalty=assignedSetPiecePlayer(career,club,lineup,'penaltyTakerId'),penalty=makeEvent(side,'penalty',uniqueEventSecond(rng,used,durationSecond,12*60),club,assignedPenalty||bestPenaltyTaker(club,lineup)||weightedPlayer(club,lineup,rng),eventIndex++,{
       requiresDecision:club.id===ctx.interactiveClubId&&ctx.mode!=='instant',
       resolved:false,
     });
