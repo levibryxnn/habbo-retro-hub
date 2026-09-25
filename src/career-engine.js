@@ -23,7 +23,7 @@ import { brasileiraoDateForRound, createWorldState, finishPendingWorldFixture, n
 import { applyMatchDynamics, applySeasonDynamics, applyTitleDynamics, initializeCareerSystems, managerMatchModifier } from './career-dynamics.js';
 import { applyWeeklyTraining, matchWeather, sanitizeTacticalState, setPieceAttackModifier, setTacticalPreset, tacticalMatchup, trainingMatchModifier, updateTacticalState } from './tactical-engine.js';
 import { advanceWorldManagers, evaluateProjectObjectives, expirePlayerContracts, initializeCareerLife, processPlayerPromises, refreshJobOffers } from './career-life-engine.js';
-import { emitCareerEvent } from './event-engine.js';
+import { dispatchCareerEvent, emitCareerEvent } from './event-engine.js';
 import { LDF_ENGINE_VERSION, adaptiveAiDecision, combinedInjuryChance, contextScore, expectedGoals, fatigueConditionLoss, fatigueLoad, fitnessPenalty, formScore, individualInjuryRisk, injuryRecovery, logisticDominance, roleLoad, tacticalExecutionScore, teamStrength } from './ldf-engine.js';
 import { challengeSeasonResult } from './challenge-engine.js';
 
@@ -868,15 +868,17 @@ export function finishPendingRound(career,clubs){
   next=applyDisciplineAndInjuries(next,roundResults,roundNumber);next=updateConditions(next,roundResults,clubs);
   if(userClub)next={...next,lineup:sanitizeLineup(userClub,next,roundNumber+1,next.lineup)};
   if(userResult){next=applySponsorPayments(next,roundNumber,userOutcome(userResult,prepared.userClubId));next=applyMatchdayIncome(next,userResult);} next=applyTransferPayroll(next,clubs,roundNumber);
-  next=applyRoundConfidence(next,clubs,userResult,roundNumber);
   if(userResult&&userClub){
-    next=applyMatchDynamics(next,userClub,clubs,userResult,{competition:'Brasileirão Série A',stage:'Rodada '+roundNumber});
-    next=processPlayerPromises(next,userClub,userResult);
-    next=emitCareerEvent(next,{type:'MATCH_FINISHED',importance:2,payload:{competition:'Brasileirão Série A',stage:'Rodada '+roundNumber,homeId:userResult.homeId,awayId:userResult.awayId,homeGoals:userResult.homeGoals,awayGoals:userResult.awayGoals,xg:userResult.xg||null}});
+    const matchEvent={type:'MATCH_FINISHED',importance:2,payload:{competition:'Brasileirão Série A',stage:'Rodada '+roundNumber,homeId:userResult.homeId,awayId:userResult.awayId,homeGoals:userResult.homeGoals,awayGoals:userResult.awayGoals,xg:userResult.xg||null}};
+    next=dispatchCareerEvent(next,matchEvent,[
+      state=>applyRoundConfidence(state,clubs,userResult,roundNumber),
+      state=>applyMatchDynamics(state,userClub,clubs,userResult,{competition:'Brasileirão Série A',stage:'Rodada '+roundNumber}),
+      state=>processPlayerPromises(state,userClub,userResult),
+      state=>applyWeeklyTraining(state,userClub),
+      state=>refreshJobOffers(state,clubs),
+    ]);
     for(const injury of(userResult.events||[]).filter(event=>event.type==='injury'&&String(event.clubId)===String(next.userClubId)))next=emitCareerEvent(next,{type:'PLAYER_INJURED',playerId:injury.playerId,importance:Number(injury.injurySeverity||1)>=4?4:2,payload:{name:injury.player,label:injury.injuryLabel,duration:injury.severityMatches,severity:injury.injurySeverity||1}});
-    next=applyWeeklyTraining(next,userClub);
-    next=refreshJobOffers(next,clubs);
-  }
+  }else next=applyRoundConfidence(next,clubs,userResult,roundNumber);
   next=advanceWorldManagers(next,clubs);
   next=syncWorldToDate(next,clubs,brasileiraoDateForRound(roundNumber,next.season));
   if(roundNumber===prepared.schedule.length)next=finalizeSeason(next,clubs);
