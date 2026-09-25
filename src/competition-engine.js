@@ -4,7 +4,7 @@ import { applyMatchDynamics, applyTitleDynamics, managerMatchModifier } from './
 import { applyWeeklyTraining, matchWeather, sanitizeTacticalState, setPieceAttackModifier, setTacticalPreset, tacticalMatchup } from './tactical-engine.js';
 import { advanceWorldManagers, processPlayerPromises, refreshJobOffers } from './career-life-engine.js';
 import { emitCareerEvent } from './event-engine.js';
-import { combinedInjuryChance, contextScore, expectedGoals, fatigueConditionLoss, fatigueLoad, fitnessPenalty, formScore, individualInjuryRisk, logisticDominance, roleLoad, tacticalExecutionScore, teamStrength } from './ldf-engine.js';
+import { LDF_ENGINE_VERSION, adaptiveAiDecision, combinedInjuryChance, contextScore, expectedGoals, fatigueConditionLoss, fatigueLoad, fitnessPenalty, formScore, individualInjuryRisk, logisticDominance, roleLoad, tacticalExecutionScore, teamStrength } from './ldf-engine.js';
 import { positionGroup } from './position-labels.js';
 import {
   COPA_DO_BRASIL_QUALIFIERS,
@@ -385,7 +385,16 @@ function simulateScore(world,career,serieAClubs,game){
   const homeStrength=teamStrength({quality:clamp(35,100,hp),form:formScore(homeForm),morale:homeUser?userMorale:76, tactics:homeTacticalScore,condition:homeCondition,coach:clamp(45,90,68+homeManager*180),home:game.neutral?50:100,context:homeContext});
   const awayStrength=teamStrength({quality:clamp(35,100,ap),form:formScore(awayForm),morale:awayUser?userMorale:76,tactics:awayTacticalScore,condition:awayCondition,coach:clamp(45,90,68+awayManager*180),home:game.neutral?50:45,context:awayContext});
   const dominance=logisticDominance(homeStrength,awayStrength),homeXg=expectedGoals({dominance,base:game.neutral?1.10:1.18,attackVsDefense:(hp-ap)*.5,tacticalEdge:(homeTactic.attackBoost||0)-(awayTactic.defenseBoost||0),setPiece:homeSet,weatherPassing:weather.passing,tempoEdge:(homeTactic.tempo||1)-(awayTactic.tempo||1),min:.18,max:3.9}),awayXg=expectedGoals({dominance:1-dominance,base:1.07,attackVsDefense:(ap-hp)*.5,tacticalEdge:(awayTactic.attackBoost||0)-(homeTactic.defenseBoost||0),setPiece:awaySet,weatherPassing:weather.passing,tempoEdge:(awayTactic.tempo||1)-(homeTactic.tempo||1),min:.18,max:3.7});
-  const hg=poisson(homeXg,game.id+'|h'),ag=poisson(awayXg,game.id+'|a'),events=[],userClub=homeUser?homeClub:awayUser?awayClub:null,userLineup=homeUser?homeLineup:awayLineup,userTactic=homeUser?homeTactic:awayUser?awayTactic:null;
+  const earlyShare=.72;
+  let hg=poisson(homeXg*earlyShare,game.id+'|h-early'),ag=poisson(awayXg*earlyShare,game.id+'|a-early');
+  const homeAdaptive=homeUser?{id:String(career.tacticalState?.preset||'balanced'),aggression:0,reason:'decisão do usuário'}:adaptiveAiDecision({scoreDiff:hg-ag,minute:65,condition:homeCondition,basePlan:homeCpu.id});
+  const awayAdaptive=awayUser?{id:String(career.tacticalState?.preset||'balanced'),aggression:0,reason:'decisão do usuário'}:adaptiveAiDecision({scoreDiff:ag-hg,minute:65,condition:awayCondition,basePlan:awayCpu.id});
+  const homeAgg=Number(homeAdaptive.aggression||0),awayAgg=Number(awayAdaptive.aggression||0);
+  const homeLateMultiplier=clamp(.68,1.58,1+Math.max(0,homeAgg)*.28-Math.max(0,-homeAgg)*.08+Math.max(0,awayAgg)*.14-Math.max(0,-awayAgg)*.14);
+  const awayLateMultiplier=clamp(.68,1.58,1+Math.max(0,awayAgg)*.28-Math.max(0,-awayAgg)*.08+Math.max(0,homeAgg)*.14-Math.max(0,-homeAgg)*.14);
+  const adjustedHomeXg=homeXg*earlyShare+homeXg*(1-earlyShare)*homeLateMultiplier,adjustedAwayXg=awayXg*earlyShare+awayXg*(1-earlyShare)*awayLateMultiplier;
+  hg=clamp(0,8,hg+poisson(homeXg*(1-earlyShare)*homeLateMultiplier,game.id+'|h-late'));ag=clamp(0,8,ag+poisson(awayXg*(1-earlyShare)*awayLateMultiplier,game.id+'|a-late'));
+  const events=[],userClub=homeUser?homeClub:awayUser?awayClub:null,userLineup=homeUser?homeLineup:awayLineup,userTactic=homeUser?homeTactic:awayUser?awayTactic:null;
   if(userClub&&userLineup.length){
     const pitchMultiplier=/pesado/i.test(String(weather.pitch||''))?1.12:/irregular/i.test(String(weather.pitch||''))?1.08:1,medical=Number(career.facilities?.medical||1),intensity=Number(userTactic?.fatigueMultiplier)||1,risks=[];
     for(const playerId of userLineup){
@@ -399,7 +408,7 @@ function simulateScore(world,career,serieAClubs,game){
       events.push({id:'world-injury-'+game.id+'-'+player.id,type:'injury',side:homeUser?'home':'away',clubId:String(userClub.id),playerId:String(player.id),player:player.name,minute:25+Math.floor(roll(game.id+'|injury-minute')*55),second:1500+Math.floor(roll(game.id+'|injury-second')*3300),severityMatches:duration,injurySeverity:severity,injuryLabel:label,injuryRisk:Number(chosen.risk.toFixed(4)),fatigueLoad:Number(load.toFixed(1))});
     }
   }
-  return{homeGoals:hg,awayGoals:ag,homePower:Number(hp.toFixed(1)),awayPower:Number(ap.toFixed(1)),homeLineup,awayLineup,substitutions:[],events,xg:[Number(homeXg.toFixed(2)),Number(awayXg.toFixed(2))],environment:{weather},intelligence:{engineVersion:'1.0',homeStrength:Number(homeStrength.toFixed(2)),awayStrength:Number(awayStrength.toFixed(2)),homeDominance:Number(dominance.toFixed(4)),awayDominance:Number((1-dominance).toFixed(4)),homeCondition:Math.round(homeCondition),awayCondition:Math.round(awayCondition),homePlan:homeTactic.label||homeCpu.label,awayPlan:awayTactic.label||awayCpu.label,homeIntensity:Number(homeTactic.fatigueMultiplier)||1,awayIntensity:Number(awayTactic.fatigueMultiplier)||1,weather:weather.label}};
+  return{homeGoals:hg,awayGoals:ag,homePower:Number(hp.toFixed(1)),awayPower:Number(ap.toFixed(1)),homeLineup,awayLineup,substitutions:[],events,xg:[Number(adjustedHomeXg.toFixed(2)),Number(adjustedAwayXg.toFixed(2))],environment:{weather},intelligence:{engineVersion:LDF_ENGINE_VERSION,homeStrength:Number(homeStrength.toFixed(2)),awayStrength:Number(awayStrength.toFixed(2)),homeDominance:Number(dominance.toFixed(4)),awayDominance:Number((1-dominance).toFixed(4)),homeCondition:Math.round(homeCondition),awayCondition:Math.round(awayCondition),homePlan:homeTactic.label||homeCpu.label,awayPlan:awayTactic.label||awayCpu.label,homeAdaptivePlan:homeAdaptive.id,awayAdaptivePlan:awayAdaptive.id,homeAdaptiveReason:homeAdaptive.reason,awayAdaptiveReason:awayAdaptive.reason,homeIntensity:Number(homeTactic.fatigueMultiplier)||1,awayIntensity:Number(awayTactic.fatigueMultiplier)||1,weather:weather.label}};
 }
 function updateRatings(world,result){
   const hp=Number(world.ratings?.[result.homeId]||0),ap=Number(world.ratings?.[result.awayId]||0),expected=1/(1+Math.pow(10,(ap-hp)/14)),actual=result.homeGoals>result.awayGoals?1:result.homeGoals===result.awayGoals?.5:0,k=1.5,delta=k*(actual-expected);
