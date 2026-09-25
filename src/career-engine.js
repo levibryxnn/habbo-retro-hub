@@ -353,6 +353,37 @@ function applyAiManagement(result,home,away,career,interactiveClubId,rng){
   return recalcScore(next);
 }
 
+function applyAdaptiveAiTactics(result,home,away,career,interactiveClubId,rng){
+  let next={...result,events:[...(result.events||[])],tacticalChanges:[...(result.tacticalChanges||[])],stats:{...(result.stats||{}),shots:[...(result.stats?.shots||[0,0])],onTarget:[...(result.stats?.onTarget||[0,0])]}};
+  const checkpoint=Math.min(next.durationSecond-8*60,65*60);
+  if(checkpoint<48*60)return next;
+  for(const side of['home','away']){
+    const club=side==='home'?home:away;
+    if(String(club.id)===String(interactiveClubId))continue;
+    const score=scoreAtSecond(next,checkpoint),gf=side==='home'?score.home:score.away,ga=side==='home'?score.away:score.home;
+    const condition=Number(side==='home'?next.intelligence?.homeCondition:next.intelligence?.awayCondition)||78;
+    const basePlan=String(side==='home'?next.intelligence?.homePlanId:next.intelligence?.awayPlanId)||'balanced';
+    const decision=adaptiveAiDecision({scoreDiff:gf-ga,minute:Math.floor(checkpoint/60),condition,basePlan});
+    if(Math.abs(decision.aggression)<.01)continue;
+    next.tacticalChanges.push({side,second:checkpoint,preset:decision.id,aggression:Number(decision.aggression.toFixed(3)),adaptiveAi:true,reason:decision.reason});
+    next.intelligence={...(next.intelligence||{}),[side+'Plan']:decision.id,[side+'AdaptiveReason']:decision.reason};
+    const opportunityChance=decision.aggression>0?clamp(.10,.42,.14+decision.aggression*.24):clamp(.04,.20,.06+Math.abs(decision.aggression)*.10);
+    if(rng()<opportunityChance){
+      const at=Math.min(next.durationSecond-20,checkpoint+120+Math.floor(rng()*Math.max(180,next.durationSecond-checkpoint-180)));
+      const lineup=currentLineup(next,side,at),player=weightedPlayer(club,lineup,rng),index=side==='home'?0:1;
+      const goalChance=decision.aggression>0?clamp(.08,.27,.10+decision.aggression*.14):.075;
+      next.stats.shots[index]=(next.stats.shots[index]||0)+1;
+      if(rng()<goalChance){
+        next.events.push(makeGoalEvent(side,at,club,lineup,player,'adaptive-'+side+'-'+Math.floor(checkpoint),rng,{adaptiveAi:true,tacticalReason:decision.reason}));
+        next.stats.onTarget[index]=(next.stats.onTarget[index]||0)+1;
+      }else{
+        next.events.push(makeEvent(side,'big-chance',at,club,player,'adaptive-'+side+'-'+Math.floor(checkpoint),{adaptiveAi:true,tacticalReason:decision.reason}));
+      }
+    }
+  }
+  return recalcScore({...next,events:next.events.sort((a,b)=>a.second-b.second)});
+}
+
 export function simulateMatch(home,away,seed,context){
   const ctx=context||{},rng=rngFrom(seed),career=ctx.career||{};
   const homeLineup=(ctx.homeLineup||autoLineup(home,career,ctx.roundNumber||1)).map(String);
@@ -361,20 +392,31 @@ export function simulateMatch(home,away,seed,context){
   const awayBench=(ctx.awayBench||matchBench(away,career,ctx.roundNumber||1,awayLineup)).map(String);
   const hp=lineupProfile(home,homeLineup,career),ap=lineupProfile(away,awayLineup,career);
   const homeForm=recentForm(ctx.results||[],home.id),awayForm=recentForm(ctx.results||[],away.id),homePlan=aiTeamPlan(hp,homeForm),awayPlan=aiTeamPlan(ap,awayForm);
-  const midfieldEdge=(hp.midfield-ap.midfield)/18,homeAttackEdge=(hp.attack-ap.defense)/15,awayAttackEdge=(ap.attack-hp.defense)/15,homeMomentum=(homeForm-awayForm)/7;
+  const homeAttackEdge=hp.attack-ap.defense,awayAttackEdge=ap.attack-hp.defense;
   const managerEdge=managerMatchModifier(career),homeUser=String(home.id)===String(career.userClubId),awayUser=String(away.id)===String(career.userClubId),homeManager=homeUser?managerEdge:0,awayManager=awayUser?managerEdge:0;
   const neutralTactic={attackBoost:0,defenseBoost:0,possession:0,tempo:1,fatigueMultiplier:1,injuryMultiplier:1,counterRisk:0,setPiece:0,label:'CPU'};
   const homeTactic=homeUser?tacticalMatchup(career,awayPlan,{isHome:true}):neutralTactic,awayTactic=awayUser?tacticalMatchup(career,homePlan,{isHome:false}):neutralTactic;
   const weather=matchWeather(seed),homeSetPiece=homeUser?setPieceAttackModifier(career):0,awaySetPiece=awayUser?setPieceAttackModifier(career):0;
-  const homeXg=clamp(.26,3.75,1.16+homeAttackEdge+midfieldEdge*.25+homeMomentum*.18+.20+homePlan.attackBoost-awayPlan.defenseBoost*.55+homeManager-awayManager*.35+homeTactic.attackBoost-awayTactic.defenseBoost*.72+homeSetPiece+weather.passing*.45);
-  const awayXg=clamp(.24,3.55,.98+awayAttackEdge-midfieldEdge*.2-homeMomentum*.12+awayPlan.attackBoost-homePlan.defenseBoost*.55+awayManager-homeManager*.35+awayTactic.attackBoost-homeTactic.defenseBoost*.72+awaySetPiece+weather.passing*.45);
+  const homeTacticalSource=homeUser?homeTactic:homePlan,awayTacticalSource=awayUser?awayTactic:awayPlan;
+  const homeTacticalScore=tacticalExecutionScore(homeTacticalSource),awayTacticalScore=tacticalExecutionScore(awayTacticalSource);
+  const userMorale=clamp(20,100,Number(career.dressingRoom?.morale??78));
+  const homeMorale=homeUser?userMorale:clamp(48,86,76+homeForm*1.4),awayMorale=awayUser?userMorale:clamp(48,86,76+awayForm*1.4);
+  const homeCoach=clamp(45,90,68+homeManager*180+homeForm*.8),awayCoach=clamp(45,90,68+awayManager*180+awayForm*.8);
+  const boardPressure=Math.max(0,45-Number(career.managerConfidence?.board??55))*.12;
+  const homeContext=contextScore(weather,{importance:1,pressure:homeUser?boardPressure:0}),awayContext=contextScore(weather,{importance:1,pressure:awayUser?boardPressure:0});
+  const homeStrength=teamStrength({quality:hp.overall,form:formScore(homeForm),morale:homeMorale,tactics:homeTacticalScore,condition:hp.condition,coach:homeCoach,home:100,context:homeContext});
+  const awayStrength=teamStrength({quality:ap.overall,form:formScore(awayForm),morale:awayMorale,tactics:awayTacticalScore,condition:ap.condition,coach:awayCoach,home:45,context:awayContext});
+  const homeDominance=logisticDominance(homeStrength,awayStrength),awayDominance=1-homeDominance;
+  const homeTacticalEdge=(homeTacticalSource.attackBoost||0)-(awayTacticalSource.defenseBoost||0),awayTacticalEdge=(awayTacticalSource.attackBoost||0)-(homeTacticalSource.defenseBoost||0);
+  const homeXg=expectedGoals({dominance:homeDominance,base:1.20,attackVsDefense:homeAttackEdge,tacticalEdge:homeTacticalEdge,setPiece:homeSetPiece,weatherPassing:weather.passing,tempoEdge:(homeTacticalSource.tempo||1)-(awayTacticalSource.tempo||1),min:.22,max:3.85});
+  const awayXg=expectedGoals({dominance:awayDominance,base:1.06,attackVsDefense:awayAttackEdge,tacticalEdge:awayTacticalEdge,setPiece:awaySetPiece,weatherPassing:weather.passing,tempoEdge:(awayTacticalSource.tempo||1)-(homeTacticalSource.tempo||1),min:.20,max:3.65});
   const homeGoals=clamp(0,7,poisson(homeXg,rng)),awayGoals=clamp(0,7,poisson(awayXg,rng));
   const durationSecond=FULL_TIME_SECOND+(1+Math.floor(rng()*5))*60,events=[],used=new Set();let eventIndex=0;
   for(let i=0;i<homeGoals;i++){const scorer=weightedPlayer(home,homeLineup,rng);events.push(makeGoalEvent('home',uniqueEventSecond(rng,used,durationSecond),home,homeLineup,scorer,eventIndex++,rng,{xg:Number((homeXg/Math.max(1,homeGoals)).toFixed(2))}));}
   for(let i=0;i<awayGoals;i++){const scorer=weightedPlayer(away,awayLineup,rng);events.push(makeGoalEvent('away',uniqueEventSecond(rng,used,durationSecond),away,awayLineup,scorer,eventIndex++,rng,{xg:Number((awayXg/Math.max(1,awayGoals)).toFixed(2))}));}
   const tempoFactor=Math.round((8+Math.floor(rng()*5))*((homePlan.tempo*homeTactic.tempo+awayPlan.tempo*awayTactic.tempo)/2)*Math.max(.82,1+weather.tempo)),types=['shot','shot','big-chance','foul','corner'];
   for(let i=0;i<tempoFactor;i++){
-    const tacticalPossession=(homeTactic.possession-awayTactic.possession)/100,homeChance=.5+clamp(-.16,.16,(hp.midfield+hp.attack-ap.midfield-ap.attack)/120+tacticalPossession),side=rng()<homeChance?'home':'away',club=side==='home'?home:away,lineup=side==='home'?homeLineup:awayLineup;
+    const tacticalPossession=(homeTactic.possession-awayTactic.possession)/100,homeChance=clamp(.24,.76,homeDominance+tacticalPossession*.22),side=rng()<homeChance?'home':'away',club=side==='home'?home:away,lineup=side==='home'?homeLineup:awayLineup;
     events.push(makeEvent(side,types[Math.floor(rng()*types.length)],uniqueEventSecond(rng,used,durationSecond),club,weightedPlayer(club,lineup,rng),eventIndex++));
   }
   const baseHomeShots=5+Math.floor(rng()*6)+homeGoals+Math.max(0,Math.round((hp.attack-ap.defense)/8))+Math.round(homeTactic.attackBoost*8);
@@ -384,12 +426,13 @@ export function simulateMatch(home,away,seed,context){
     matchday:matchdayProjection(home.id,away.id,ctx.roundNumber||1,seed),
     homeId:home.id,awayId:away.id,homeLineup,awayLineup,homeBench,awayBench,substitutions:[],durationSecond,simulationMode:ctx.mode||'normal',events:events.sort((a,b)=>a.second-b.second),
     homeGoals,awayGoals,xg:[Number(homeXg.toFixed(2)),Number(awayXg.toFixed(2))],environment:{weather},
-    stats:{possession:[clamp(33,70,Math.round(50+(hp.midfield-ap.midfield)*.55+homePlan.possession-awayPlan.possession+homeTactic.possession-awayTactic.possession+(rng()-.5)*6)),0],shots:[Math.max(homeGoals,baseHomeShots+Math.round((homePlan.tempo*homeTactic.tempo-1)*5)),Math.max(awayGoals,baseAwayShots+Math.round((awayPlan.tempo*awayTactic.tempo-1)*5))],onTarget:[0,0],corners:[Math.max(0,Math.floor(rng()*7)+Math.round(homeSetPiece*12)),Math.max(0,Math.floor(rng()*7)+Math.round(awaySetPiece*12))],fouls:[7+Math.floor(rng()*10),7+Math.floor(rng()*10)]},
-    intelligence:{homeOverall:Math.round(hp.overall),awayOverall:Math.round(ap.overall),homeCondition:Math.round(hp.condition),awayCondition:Math.round(ap.condition),homeForm:Number(homeForm.toFixed(2)),awayForm:Number(awayForm.toFixed(2)),homePlan:homeUser?homeTactic.label:homePlan.label,awayPlan:awayUser?awayTactic.label:awayPlan.label,homeFatigue:homeTactic.fatigueMultiplier,awayFatigue:awayTactic.fatigueMultiplier,homeInjuryMultiplier:homeTactic.injuryMultiplier*weather.injury,awayInjuryMultiplier:awayTactic.injuryMultiplier*weather.injury,weather:weather.label,temperature:weather.temperature,training:trainingMatchModifier(career).label},
+    stats:{possession:[clamp(31,72,Math.round(50+(homeDominance-.5)*34+homePlan.possession-awayPlan.possession+homeTactic.possession-awayTactic.possession+(rng()-.5)*5)),0],shots:[Math.max(homeGoals,baseHomeShots+Math.round((homePlan.tempo*homeTactic.tempo-1)*5)),Math.max(awayGoals,baseAwayShots+Math.round((awayPlan.tempo*awayTactic.tempo-1)*5))],onTarget:[0,0],corners:[Math.max(0,Math.floor(rng()*7)+Math.round(homeSetPiece*12)),Math.max(0,Math.floor(rng()*7)+Math.round(awaySetPiece*12))],fouls:[7+Math.floor(rng()*10),7+Math.floor(rng()*10)]},
+    intelligence:{engineVersion:LDF_ENGINE_VERSION,homeOverall:Math.round(hp.overall),awayOverall:Math.round(ap.overall),homeStrength:Number(homeStrength.toFixed(2)),awayStrength:Number(awayStrength.toFixed(2)),homeDominance:Number(homeDominance.toFixed(4)),awayDominance:Number(awayDominance.toFixed(4)),homeCondition:Math.round(hp.condition),awayCondition:Math.round(ap.condition),homeForm:Number(homeForm.toFixed(2)),awayForm:Number(awayForm.toFixed(2)),homePlan:homeUser?homeTactic.label:homePlan.label,awayPlan:awayUser?awayTactic.label:awayPlan.label,homePlanId:homeUser?String(career.tacticalState?.preset||'balanced'):homePlan.id,awayPlanId:awayUser?String(career.tacticalState?.preset||'balanced'):awayPlan.id,homeTacticalScore:Number(homeTacticalScore.toFixed(1)),awayTacticalScore:Number(awayTacticalScore.toFixed(1)),homeFatigue:homeTactic.fatigueMultiplier,awayFatigue:awayTactic.fatigueMultiplier,homeIntensity:homeUser?homeTactic.fatigueMultiplier:clamp(.78,1.32,.86+homePlan.tempo*.15),awayIntensity:awayUser?awayTactic.fatigueMultiplier:clamp(.78,1.32,.86+awayPlan.tempo*.15),homeTacticalInjury:homeTactic.injuryMultiplier,awayTacticalInjury:awayTactic.injuryMultiplier,homeInjuryMultiplier:homeTactic.injuryMultiplier*weather.injury,awayInjuryMultiplier:awayTactic.injuryMultiplier*weather.injury,weather:weather.label,temperature:weather.temperature,training:trainingMatchModifier(career).label},
     homeClubStub:{id:home.id,name:home.name,abbreviation:home.abbreviation},awayClubStub:{id:away.id,name:away.name,abbreviation:away.abbreviation},
   };
   result.stats.possession[1]=100-result.stats.possession[0];
   result.stats.onTarget=[Math.max(homeGoals,Math.round(result.stats.shots[0]*(.34+rng()*.17))),Math.max(awayGoals,Math.round(result.stats.shots[1]*(.34+rng()*.17)))];
+  result=applyAdaptiveAiTactics(result,home,away,career,ctx.interactiveClubId,rng);
   result=generateDisciplineAndInjuries(result,home,away,rng,used,career,ctx.interactiveClubId);
   result=applyDismissalConsequences(result,home,away,rng);
   result=applyAiManagement(result,home,away,career,ctx.interactiveClubId,rng);
@@ -541,7 +584,7 @@ function seasonBestPerformer(career){
 export function createCareer(clubs,userClubId,season){
   const userClub=clubs.find(c=>c.id===userClubId);
   const initialCash=initialCashForClub(userClubId);
-  let base={version:12,userClubId,managerName:'',season:season||2026,round:0,schedule:buildSchedule(clubs),results:[],scorers:{},allTimeScorers:{},cash:initialCash,openingCash:initialCash,transactions:[],sponsors:[],trophies:[],messages:[],seasons:[],history:[],pendingRound:null,pendingWorldMatch:null,lastRoundResults:[],lastUserMatch:null,preferredSimulationMode:'normal',playerStatus:{},conditions:defaultConditions(clubs),lineup:[],ownership:{},loans:[],transferHistory:[],transferContracts:[],seasonPerformance:{},playerDevelopment:{},retiredPlayers:{},regens:[],pendingRetirements:[],managerConfidence:createManagerConfidence(),seasonReview:null,pendingCelebration:null,boardPressureStreak:0,boardWarning:null,managerStatus:'active',dismissal:null,world:null,eventLedger:[],tacticalState:sanitizeTacticalState(null),trainingState:{focus:'balanced',sessions:0},careerChallenge:'normal',challengeStartSeason:season||2026,challengeHistory:[]};
+  let base={version:13,simulationEngineVersion:LDF_ENGINE_VERSION,userClubId,managerName:'',season:season||2026,round:0,schedule:buildSchedule(clubs),results:[],scorers:{},allTimeScorers:{},cash:initialCash,openingCash:initialCash,transactions:[],sponsors:[],trophies:[],messages:[],seasons:[],history:[],pendingRound:null,pendingWorldMatch:null,lastRoundResults:[],lastUserMatch:null,preferredSimulationMode:'normal',playerStatus:{},conditions:defaultConditions(clubs),lineup:[],ownership:{},loans:[],transferHistory:[],transferContracts:[],seasonPerformance:{},playerDevelopment:{},retiredPlayers:{},regens:[],pendingRetirements:[],managerConfidence:createManagerConfidence(),seasonReview:null,pendingCelebration:null,boardPressureStreak:0,boardWarning:null,managerStatus:'active',dismissal:null,world:null,eventLedger:[],tacticalState:sanitizeTacticalState(null),trainingState:{focus:'balanced',sessions:0},careerChallenge:'normal',challengeStartSeason:season||2026,challengeHistory:[]};
   base=initializeCareerSystems(base,userClub||{id:userClubId,name:'Clube',players:[]},clubs);
   base=initializeCareerLife(base,userClub||{id:userClubId,name:'Clube',players:[]},clubs);
   base.lineup=userClub?autoLineup(userClub,base,1):[];
@@ -554,7 +597,7 @@ export function sanitizeCareer(raw,clubs,userClubId){
   const pending=raw.pendingRound&&Array.isArray(raw.pendingRound.matches)?{...raw.pendingRound,matches:normalizeResults(raw.pendingRound.matches,season)}:null;
   const roundNumber=(raw.round||0)+1,seasonPerformance=raw.seasonPerformance&&typeof raw.seasonPerformance==='object'?raw.seasonPerformance:deriveSeasonPerformance(fullResults,club,userClubId);
   const migratedCash=Number(raw.version||0)<5&&(raw.round||0)===0&&!(raw.transactions||[]).length&&Number(raw.cash||0)===20000000?base.cash:raw.cash;
-  const merged={...base,...raw,cash:Number.isFinite(migratedCash)?migratedCash:base.cash,openingCash:Number.isFinite(Number(raw.openingCash))?Number(raw.openingCash):base.cash,version:12,managerName:String(raw.managerName||''),schedule:Array.isArray(raw.schedule)&&raw.schedule.length===38?raw.schedule:buildSchedule(clubs),results,scorers:raw.scorers&&typeof raw.scorers==='object'?raw.scorers:{},allTimeScorers:raw.allTimeScorers&&typeof raw.allTimeScorers==='object'?raw.allTimeScorers:{},sponsors:Array.isArray(raw.sponsors)?raw.sponsors:[],trophies:Array.isArray(raw.trophies)?raw.trophies:[],transactions:Array.isArray(raw.transactions)?raw.transactions:[],messages:Array.isArray(raw.messages)?raw.messages:[],seasons:Array.isArray(raw.seasons)?raw.seasons:[],history,pendingRound:pending,pendingWorldMatch:raw.pendingWorldMatch&&typeof raw.pendingWorldMatch==='object'?raw.pendingWorldMatch:null,lastRoundResults:Array.isArray(raw.lastRoundResults)?normalizeResults(raw.lastRoundResults,season):[],preferredSimulationMode:SIMULATION_MODES[raw.preferredSimulationMode]?raw.preferredSimulationMode:'normal',playerStatus:raw.playerStatus&&typeof raw.playerStatus==='object'?raw.playerStatus:{},conditions:{...base.conditions,...(raw.conditions||{})},ownership:raw.ownership&&typeof raw.ownership==='object'?raw.ownership:{},loans:Array.isArray(raw.loans)?raw.loans:[],transferHistory:Array.isArray(raw.transferHistory)?raw.transferHistory:[],transferContracts:Array.isArray(raw.transferContracts)?raw.transferContracts:[],seasonPerformance,playerDevelopment:raw.playerDevelopment&&typeof raw.playerDevelopment==='object'?raw.playerDevelopment:{},retiredPlayers:raw.retiredPlayers&&typeof raw.retiredPlayers==='object'?raw.retiredPlayers:{},regens:Array.isArray(raw.regens)?raw.regens:[],pendingRetirements:Array.isArray(raw.pendingRetirements)?raw.pendingRetirements:[],managerConfidence:sanitizeManagerConfidence(raw.managerConfidence),seasonReview:raw.seasonReview&&typeof raw.seasonReview==='object'?raw.seasonReview:null,pendingCelebration:raw.pendingCelebration&&typeof raw.pendingCelebration==='object'?raw.pendingCelebration:null,boardPressureStreak:Number(raw.boardPressureStreak)||0,boardWarning:raw.boardWarning&&typeof raw.boardWarning==='object'?raw.boardWarning:null,managerStatus:raw.managerStatus==='dismissed'?'dismissed':'active',dismissal:raw.dismissal&&typeof raw.dismissal==='object'?raw.dismissal:null,eventLedger:Array.isArray(raw.eventLedger)?raw.eventLedger:[],tacticalState:sanitizeTacticalState(raw.tacticalState),trainingState:raw.trainingState&&typeof raw.trainingState==='object'?raw.trainingState:{focus:'balanced',sessions:0},careerChallenge:String(raw.careerChallenge||'normal'),challengeStartSeason:Number(raw.challengeStartSeason||season),challengeHistory:Array.isArray(raw.challengeHistory)?raw.challengeHistory:[]};
+  const merged={...base,...raw,cash:Number.isFinite(migratedCash)?migratedCash:base.cash,openingCash:Number.isFinite(Number(raw.openingCash))?Number(raw.openingCash):base.cash,version:13,simulationEngineVersion:LDF_ENGINE_VERSION,managerName:String(raw.managerName||''),schedule:Array.isArray(raw.schedule)&&raw.schedule.length===38?raw.schedule:buildSchedule(clubs),results,scorers:raw.scorers&&typeof raw.scorers==='object'?raw.scorers:{},allTimeScorers:raw.allTimeScorers&&typeof raw.allTimeScorers==='object'?raw.allTimeScorers:{},sponsors:Array.isArray(raw.sponsors)?raw.sponsors:[],trophies:Array.isArray(raw.trophies)?raw.trophies:[],transactions:Array.isArray(raw.transactions)?raw.transactions:[],messages:Array.isArray(raw.messages)?raw.messages:[],seasons:Array.isArray(raw.seasons)?raw.seasons:[],history,pendingRound:pending,pendingWorldMatch:raw.pendingWorldMatch&&typeof raw.pendingWorldMatch==='object'?raw.pendingWorldMatch:null,lastRoundResults:Array.isArray(raw.lastRoundResults)?normalizeResults(raw.lastRoundResults,season):[],preferredSimulationMode:SIMULATION_MODES[raw.preferredSimulationMode]?raw.preferredSimulationMode:'normal',playerStatus:raw.playerStatus&&typeof raw.playerStatus==='object'?raw.playerStatus:{},conditions:{...base.conditions,...(raw.conditions||{})},ownership:raw.ownership&&typeof raw.ownership==='object'?raw.ownership:{},loans:Array.isArray(raw.loans)?raw.loans:[],transferHistory:Array.isArray(raw.transferHistory)?raw.transferHistory:[],transferContracts:Array.isArray(raw.transferContracts)?raw.transferContracts:[],seasonPerformance,playerDevelopment:raw.playerDevelopment&&typeof raw.playerDevelopment==='object'?raw.playerDevelopment:{},retiredPlayers:raw.retiredPlayers&&typeof raw.retiredPlayers==='object'?raw.retiredPlayers:{},regens:Array.isArray(raw.regens)?raw.regens:[],pendingRetirements:Array.isArray(raw.pendingRetirements)?raw.pendingRetirements:[],managerConfidence:sanitizeManagerConfidence(raw.managerConfidence),seasonReview:raw.seasonReview&&typeof raw.seasonReview==='object'?raw.seasonReview:null,pendingCelebration:raw.pendingCelebration&&typeof raw.pendingCelebration==='object'?raw.pendingCelebration:null,boardPressureStreak:Number(raw.boardPressureStreak)||0,boardWarning:raw.boardWarning&&typeof raw.boardWarning==='object'?raw.boardWarning:null,managerStatus:raw.managerStatus==='dismissed'?'dismissed':'active',dismissal:raw.dismissal&&typeof raw.dismissal==='object'?raw.dismissal:null,eventLedger:Array.isArray(raw.eventLedger)?raw.eventLedger:[],tacticalState:sanitizeTacticalState(raw.tacticalState),trainingState:raw.trainingState&&typeof raw.trainingState==='object'?raw.trainingState:{focus:'balanced',sessions:0},careerChallenge:String(raw.careerChallenge||'normal'),challengeStartSeason:Number(raw.challengeStartSeason||season),challengeHistory:Array.isArray(raw.challengeHistory)?raw.challengeHistory:[]};
   merged.world=sanitizeWorldState(raw.world,merged,clubs);
   let integrated=initializeCareerSystems(merged,club||{id:userClubId,name:'Clube',players:[]},clubs);
   integrated=initializeCareerLife(integrated,club||{id:userClubId,name:'Clube',players:[]},clubs);
@@ -639,6 +682,15 @@ function applyDisciplineAndInjuries(career,roundResults,roundNumber){
   }
   return{...career,playerStatus:status};
 }
+function minutesPlayed(result,side,playerId){
+  const id=String(playerId),starters=(side==='home'?result.homeLineup:result.awayLineup)||[],subs=(result.substitutions||[]).filter(item=>item.side===side);
+  const entered=subs.find(item=>String(item.inPlayerId)===id),started=starters.map(String).includes(id);
+  if(!started&&!entered)return 0;
+  const start=started?0:Number(entered.second||0);
+  const left=subs.find(item=>String(item.outPlayerId)===id),red=(result.events||[]).find(event=>event.side===side&&event.type==='red'&&String(event.playerId)===id);
+  const end=Math.min(Number(result.durationSecond)||FULL_TIME_SECOND,left?Number(left.second):Infinity,red?Number(red.second):Infinity);
+  return Math.max(0,(end-start)/60);
+}
 function updateConditions(career,roundResults,clubs){
   const conditions={...(career.conditions||{})};
   for(const club of clubs){
@@ -649,16 +701,16 @@ function updateConditions(career,roundResults,clubs){
   }
   for(const result of roundResults){
     for(const side of['home','away']){
-      const clubId=side==='home'?result.homeId:result.awayId;
-      const starters=side==='home'?result.homeLineup:result.awayLineup;
-      const fatigue=Number(side==='home'?result.intelligence?.homeFatigue:result.intelligence?.awayFatigue)||1;
-      for(const id of starters||[]){
-        const key=statusKey(clubId,id);conditions[key]=clamp(35,100,(conditions[key]??100)-Math.round(13*fatigue));
+      const clubId=side==='home'?result.homeId:result.awayId,club=clubs.find(item=>String(item.id)===String(clubId));if(!club)continue;
+      const starters=side==='home'?result.homeLineup:result.awayLineup,subs=(result.substitutions||[]).filter(item=>item.side===side),ids=new Set([...(starters||[]).map(String),...subs.map(item=>String(item.inPlayerId))]);
+      const intensity=Number(side==='home'?result.intelligence?.homeIntensity:result.intelligence?.awayIntensity)||Number(side==='home'?result.intelligence?.homeFatigue:result.intelligence?.awayFatigue)||1;
+      for(const id of ids){
+        const player=playerById(club,id);if(!player)continue;
+        const key=statusKey(clubId,id),condition=conditions[key]??100,stats=playerGameStats(player),age=Number(player._careerAge??player.age??27),minutes=minutesPlayed(result,side,id);
+        const load=fatigueLoad({minutes,intensity,roleLoad:roleLoad(positionGroup(player.position)),fitnessPenalty:fitnessPenalty({stamina:stats.stamina,condition,age})});
+        conditions[key]=clamp(35,100,condition-fatigueConditionLoss(load));
       }
-      for(const sub of(result.substitutions||[]).filter(s=>s.side===side)){
-        const key=statusKey(clubId,sub.inPlayerId);conditions[key]=clamp(35,100,(conditions[key]??100)+7-7);
-      }
-      for(const injury of(result.events||[]).filter(e=>e.side===side&&e.type==='injury')){
+      for(const injury of(result.events||[]).filter(event=>event.side===side&&event.type==='injury')){
         const key=statusKey(clubId,injury.playerId);conditions[key]=clamp(35,100,(conditions[key]??100)-10);
       }
     }
