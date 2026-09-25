@@ -185,7 +185,12 @@ function App() {
   }
   function surpriseClub() {
     const pool=data.clubs.filter(item=>item.id!==club.id);
-    const picked=pool[Math.floor(Math.random()*pool.length)]||data.clubs[0];
+    let index=0;
+    if(pool.length){
+      if(globalThis.crypto?.getRandomValues){const value=new Uint32Array(1);globalThis.crypto.getRandomValues(value);index=value[0]%pool.length;}
+      else index=Date.now()%pool.length;
+    }
+    const picked=pool[index]||data.clubs[0];
     setClubSearch('');
     selectClub(picked.id);
   }
