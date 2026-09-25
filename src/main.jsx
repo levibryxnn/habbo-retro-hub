@@ -17,6 +17,7 @@ import CompetitionHub from './CompetitionHub';
 import RetirementModal from './RetirementModal';
 import LandingScreen from './LandingScreen';
 import CareerCenter from './CareerCenter';
+import PlayerCareer from './PlayerCareer';
 import { applyCareerRoster } from './transfer-engine.js';
 import { clubThemeStyle, getClubWorld } from './club-world.js';
 import { positionGroup } from './position-labels.js';
@@ -63,6 +64,7 @@ function Modal({children,onClose,title}) { const ref=useRef(); useEffect(()=>{ c
 function loadCareers() { try { const raw=JSON.parse(localStorage.getItem(CAREER_KEY)); return raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{}; } catch { return {}; } }
 function App() {
   const [landingOpen,setLandingOpen]=useState(true);
+  const [gameMode,setGameMode]=useState(null);
   const [tab,setTab]=useState('dashboard');
   const [careers,setCareers]=useState(loadCareers);
   const [careerStorageError,setCareerStorageError]=useState(false);
@@ -222,10 +224,11 @@ function App() {
     const clubId=String(payload?.career?.userClubId||payload?.club?.id||'');
     if(!data.clubs.some(item=>String(item.id)===clubId))throw new Error('O clube deste save não existe nesta versão.');
     const roster=applyCareerRoster(data.clubs,payload.career),restored=sanitizeCareer(payload.career,roster,clubId),next={...careers,[clubId]:restored};
-    setCareers(next);setSaved(clubId);setSelected(clubId);setLandingOpen(false);setClubBrowserOpen(false);setMobileSquad(true);setTab('central');
+    setCareers(next);setSaved(clubId);setSelected(clubId);setGameMode('manager');setLandingOpen(false);setClubBrowserOpen(false);setMobileSquad(true);setTab('central');
     try{localStorage.setItem('ldf.club',clubId);localStorage.setItem(CAREER_KEY,JSON.stringify(next));setCareerStorageError(false);}catch{setCareerStorageError(true);}
   }
-  if(landingOpen)return <LandingScreen onPlay={()=>setLandingOpen(false)} onImport={importCareerPayload}/>;
+  if(landingOpen)return <LandingScreen onManager={()=>{setGameMode('manager');setLandingOpen(false);}} onPlayer={()=>{setGameMode('player');setLandingOpen(false);}} onImport={async payload=>{setGameMode('manager');await importCareerPayload(payload);}}/>;
+  if(gameMode==='player')return <PlayerCareer clubs={data.clubs} onExit={()=>{setGameMode(null);setLandingOpen(true);}}/>;
   if(clubBrowserOpen){
     return <div className="app-shell selector-only" style={clubThemeStyle(club.id)}>
     <section className="club-selector-overlay" aria-label="Seletor de clubes">
@@ -258,7 +261,7 @@ function App() {
   }
 
   return <div className="app-shell" style={clubThemeStyle(club.id)}>
-    <header className="topbar"><a href="#" className="brand" aria-label="Linha de Frente, abrir seletor de clubes" onClick={e=>{e.preventDefault();openClubBrowser();}}><span className="brand-symbol">L<span>F</span></span><span>LINHA DE<br/>FRENTE<span className="brand-small">FOOTBALL MANAGER</span></span></a><div className="top-context"><span className="top-divider"/><span>Uma nova história começa aqui.</span></div><div className="top-right"><span className="version"><i/> 1.0 RC2</span><button className="help" onClick={()=>setDialog('data')} aria-label="Sobre os dados"><CircleHelp size={20}/></button></div></header>
+    <header className="topbar"><a href="#" className="brand" aria-label="Linha de Frente, abrir seletor de clubes" onClick={e=>{e.preventDefault();openClubBrowser();}}><span className="brand-symbol">L<span>F</span></span><span>LINHA DE<br/>FRENTE<span className="brand-small">FOOTBALL MANAGER</span></span></a><div className="top-context"><span className="top-divider"/><span>Uma nova história começa aqui.</span></div><div className="top-right"><span className="version"><i/> 1.0 RC4</span><button className="help" onClick={()=>setDialog('data')} aria-label="Sobre os dados"><CircleHelp size={20}/></button></div></header>
     <main>
       {careerActive?<section className="career-strip"><div className="career-strip-club"><Crest club={club}/><span><small>MODO CARREIRA · TEMPORADA {career.season}</small><strong>{club.name}{career.managerName?' · '+career.managerName:''}</strong></span></div><div className="career-strip-meta"><span>{nextEvent?<><small className="career-next-label">{nextEvent.competitionName}</small><strong>{nextEvent.stage}</strong></>:<>Rodada <strong>{career.round}/38</strong></>}</span><button className="career-continue" onClick={()=>{setClubBrowserOpen(false);setTab(career.pendingRound?'match':nextEvent?.type==='world'?'competitions':career.round>=38?'competitions':'match');}}><CirclePlay size={14}/>{career.pendingRound?'Voltar ao jogo':nextEvent?.type==='world'?'Próximo compromisso':career.round>=38?'Fechar temporada':'Continuar'}</button><button className="career-explore" onClick={openClubBrowser}>Explorar clubes <ArrowRight size={14}/></button></div></section>:<section className="intro"><div><div className="eyebrow"><span>01 /</span> O PRIMEIRO PASSO</div><h1>Seu clube. Sua história.</h1><p>Escolha as cores que você vai defender. Conheça quem entra em campo.</p></div><div className="competition"><span className="trophy-icon"><Trophy size={25}/></span><div><strong>BRASILEIRÃO</strong><span>Série A <b>·</b> Temporada {career.season}</span></div><span className="brazil-tag">BR</span></div></section>}
       {savedClub&&!careerActive&&<div className="saved-banner" role="status"><Check size={16}/><span><strong>{savedClub.name}</strong>{savedManager?' · Técnico '+savedManager:''}. {storageError?'Carreira ativa nesta sessão.':'Carreira salva neste navegador.'}</span><button onClick={()=>{selectClub(savedClub.id);setClubBrowserOpen(false);setTab('dashboard');}}>Continuar carreira <ArrowRight size={15}/></button></div>}
@@ -279,7 +282,7 @@ function App() {
           {tab==='competitions'&&<CompetitionHub career={career} clubs={careerClubs} onCareerChange={saveCareer} onNavigate={setTab}/>}
           <div hidden={tab!=='match'}><MatchSimulation key={club.id} isVisible={tab==='match'} club={club} clubs={careerClubs} Crest={Crest} career={career} onCareerChange={saveCareer} canManage={managerCanManage} onChoose={openClubSetup} onNavigate={setTab}/></div> {tab==='standings'&&<LeagueTable clubs={careerClubs} focusClubId={club.id} Crest={Crest} career={career}/>} {tab==='transfers'&&<TransferMarket career={career} onCareerChange={saveCareer} club={club} clubs={careerClubs} baseClubs={data.clubs} Crest={Crest} canManage={managerCanManage}/>} {(tab==='trophies'||tab==='sponsors')&&<Management key={club.id+'-'+tab} club={club} tab={tab} career={career} onCareerChange={saveCareer} canManage={managerCanManage} onChoose={openClubSetup} Modal={Modal} storageError={careerStorageError} standings={careerStandings}/>} {tab==='legacy'&&<Legacy club={club} clubs={careerClubs} career={career}/>}
         </section>
-      </div><footer className="page-footer"><span>LINHA DE FRENTE <b>/</b> O futebol começa nas suas decisões.</span><span>1.0 RC2 <span className="footer-dot">·</span> 2026</span></footer>
+      </div><footer className="page-footer"><span>LINHA DE FRENTE <b>/</b> O futebol começa nas suas decisões.</span><span>1.0 RC4 <span className="footer-dot">·</span> 2026</span></footer>
     </main>
     {careerActive&&managerDismissed&&<Modal title="Decisão da diretoria" onClose={()=>{}}><span className="modal-icon"><Shield/></span><div className="eyebrow">FIM DE CICLO</div><h2>A diretoria encerrou o seu trabalho.</h2><p>{career.dismissal?.reason||'A confiança da diretoria caiu a um nível crítico por várias rodadas consecutivas.'}</p><div className="next-step"><strong>Confiança final da diretoria: {Math.round(career.managerConfidence?.board||0)}%</strong><p>O save permanece registrado no clube, mas esta passagem chegou ao fim. Você pode escolher outro projeto ou recomeçar neste clube com uma nova carreira.</p></div><button className="primary manager-confirm" onClick={leaveDismissedClub}>Voltar ao seletor de clubes <ArrowRight size={18}/></button></Modal>}
     {careerActive&&pendingRetirement&&<RetirementModal retirement={pendingRetirement} onClose={()=>saveCareer({...career,pendingRetirements:(career.pendingRetirements||[]).slice(1)})}/>}
