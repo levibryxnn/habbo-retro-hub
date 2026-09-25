@@ -4,6 +4,7 @@ import { applyConfidenceEvent, createManagerConfidence } from './manager-confide
 import { initialCashForClub } from './finance-model.js';
 import { initialTransferBudget } from './economy-engine.js';
 import { emitCareerEvent } from './event-engine.js';
+import { salaryDemand } from './ldf-engine.js';
 
 const clamp=(min,max,n)=>Math.max(min,Math.min(max,n));
 function hashString(value){let h=2166136261;for(const ch of String(value)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return h>>>0;}
@@ -63,10 +64,10 @@ export function expiringContracts(career,club,withinSeasons=1){
 }
 export function renewPlayerContract(career,club,playerId,years=3){
   const player=club?.players?.find(p=>String(p.id)===String(playerId));if(!player)return{career,error:'Jogador não encontrado.'};
-  const key=contractKey(club.id,player),old=career.playerContracts?.[key]||{salaryMonthly:estimatedSalary(player)},overall=playerGameStats(player).overall,raise=1.08+Math.max(0,overall-72)*.012,newSalary=Math.round(old.salaryMonthly*raise/1000)*1000,signing=Math.round(newSalary*(1.4+years*.35)),cash=Number(career.cash||0);
+  const key=contractKey(club.id,player),old=career.playerContracts?.[key]||{salaryMonthly:estimatedSalary(player)},stats=playerGameStats(player),overall=stats.overall,age=Number(player?._careerAge??player?.age??27),form=Number(career.playerForm?.[key]||0),role=String(old.role||'Elenco'),meta=getClubWorld(club.id),squadValueBRL=Math.max(8_000_000,Number(meta.marketTotalEurM||50)*1_000_000*6.25),estimatedValue=Math.max(1_000_000,squadValueBRL/Math.max(18,(club.players||[]).length)*Math.pow(Math.max(50,overall)/68,2.5)*(age<=23?1.25:age>=33?.72:1)),roleFactor=role==='Titular'?1.12:role==='Rotação'?1.03:.96,formFactor=clamp(.92,1.14,1+form*.035),agentDemand=.96+(hashString(key+'|renew-agent|'+career.season)%13)/100,wealth=clamp(.82,1.25,.82+Number(meta.gameBudgetM||20)/180,demand=salaryDemand({baseSalary:Number(old.salaryMonthly||estimatedSalary(player)),quality:overall,marketValue:estimatedValue,reputation:Number(career.managerReputation||50),contractYearsLeft:Math.max(0,Number(old.expirySeason||career.season)-Number(career.season)),agentDemand,clubWealth:wealth}),ageFactor=age<=21?.92:age>=34?.94:1,newSalary=Math.max(Number(old.salaryMonthly||0),Math.round(demand*roleFactor*formFactor*ageFactor/1000)*1000),signing=Math.round(newSalary*(1.4+clamp(1,5,years)*.35)),cash=Number(career.cash||0);
   if(cash<signing)return{career,error:'Caixa insuficiente para luvas e renovação.'};
-  let next={...career,cash:cash-signing,playerContracts:{...(career.playerContracts||{}),[key]:{...old,key,playerId:String(player.id),name:player.name,clubId:String(club.id),startSeason:career.season,expirySeason:career.season+clamp(1,5,years),salaryMonthly:newSalary}},transactions:[{id:'renew-'+key+'-'+career.season+'-'+career.round,round:career.round,amount:-signing,label:'Renovação de '+player.name,kind:'contract'},...(career.transactions||[])].slice(0,160)};
-  next=emitCareerEvent(next,{type:'CONTRACT_RENEWED',playerId:player.id,importance:2,payload:{name:player.name,years,newSalary,signing}});
+  let next={...career,cash:cash-signing,playerContracts:{...(career.playerContracts||{}),[key]:{...old,key,playerId:String(player.id),name:player.name,clubId:String(club.id),startSeason:career.season,expirySeason:career.season+clamp(1,5,years),salaryMonthly:newSalary,signingBonus:signing,role}},transactions:[{id:'renew-'+key+'-'+career.season+'-'+career.round,round:career.round,amount:-signing,label:'Renovação de '+player.name,kind:'contract'},...(career.transactions||[])].slice(0,160)};
+  next=emitCareerEvent(next,{type:'CONTRACT_RENEWED',playerId:player.id,importance:2,payload:{name:player.name,years,newSalary,signing,role}});
   return{career:next,contract:next.playerContracts[key]};
 }
 export const PROMISE_TYPES=[
