@@ -38,10 +38,13 @@ test('structural board trust is finite weighted and reconciles gradually',functi
   assert.notEqual(next.managerConfidence.board,55);
 });
 
-test('real round dispatch leaves one MATCH_FINISHED ledger event and keeps confidence bounded',function(){
-  let career=simulateRound(createCareer(clubs,clubs[0].id,2026),clubs);
+test('real calendar dispatches each MATCH_FINISHED once and keeps league confidence bounded',function(){
+  const career=simulateRound(createCareer(clubs,clubs[0].id,2026),clubs);
   const matches=career.eventLedger.filter(e=>e.type==='MATCH_FINISHED');
-  assert.equal(matches.length,1);
+  const ids=new Set(matches.map(e=>e.id));
+  const league=matches.filter(e=>e.payload?.competition==='Brasileirão Série A'&&e.payload?.stage==='Rodada 1');
+  assert.equal(ids.size,matches.length,'MATCH_FINISHED events must never duplicate the same event id');
+  assert.equal(league.length,1,'the first Brasileirao round must dispatch exactly once');
   assert.ok(career.managerConfidence.fans>=0&&career.managerConfidence.fans<=100);
   assert.ok(career.managerConfidence.board>=0&&career.managerConfidence.board<=100);
   assert.ok(Number.isFinite(career.managerConfidence.structuralBoardTarget));
