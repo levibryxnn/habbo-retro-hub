@@ -25,6 +25,12 @@ export const PLAYER_TRAINING=[
   {id:'defending',label:'Defesa',description:'Tempo de bote, posicionamento e duelos.',gain:{defending:.38,physical:.08},condition:1,injury:1.02},
   {id:'recovery',label:'Recuperação',description:'Prioriza condição e reduz risco.',gain:{},condition:11,injury:.70},
 ];
+export const PLAYER_MATCH_APPROACHES=[
+  {id:'team',label:'Jogar para o time',description:'Mais confiança do técnico e criação; menos protagonismo individual.',rating:.10,goal:.88,assist:1.18,trust:.55,fatigue:.96,injury:.94},
+  {id:'balanced',label:'Equilibrado',description:'Risco e protagonismo em níveis normais.',rating:0,goal:1,assist:1,trust:.10,fatigue:1,injury:1},
+  {id:'aggressive',label:'Buscar o protagonismo',description:'Mais gols e impacto, com maior desgaste e risco.',rating:.05,goal:1.24,assist:.92,trust:-.12,fatigue:1.12,injury:1.18},
+  {id:'disciplined',label:'Cumprir a função',description:'Menos brilho, mais consistência e confiança do treinador.',rating:.16,goal:.82,assist:.94,trust:.75,fatigue:.92,injury:.88},
+];
 export const TRIAL_DRILLS=[
   {id:'pace',title:'Arranque de 30 metros',copy:'Escolha como você encara o primeiro teste.',choices:[
     {id:'explode',label:'Explodir desde o primeiro passo',skill:'pace',bonus:6,risk:2},
@@ -57,6 +63,7 @@ const finite=(n,f=0)=>Number.isFinite(Number(n))?Number(n):f;
 const posDef=id=>PLAYER_POSITIONS.find(x=>x.id===id)||PLAYER_POSITIONS[2];
 const archetypeDef=id=>PLAYER_ARCHETYPES.find(x=>x.id===id)||PLAYER_ARCHETYPES[0];
 const trainingDef=id=>PLAYER_TRAINING.find(x=>x.id===id)||PLAYER_TRAINING[0];
+const approachDef=id=>PLAYER_MATCH_APPROACHES.find(x=>x.id===id)||PLAYER_MATCH_APPROACHES[1];
 function safeName(value){return String(value||'Jogador').replace(/[<>]/g,'').trim().slice(0,40)||'Jogador';}
 function roleSkill(position,attrs){
   if(position==='GOL')return attrs.goalkeeping*.72+attrs.passing*.12+attrs.physical*.10+attrs.technique*.06;
@@ -72,6 +79,10 @@ function clubLevel(club){
   const meta=getClubWorld(club.id),budget=finite(meta.gameBudgetM,20),fans=finite(meta.fanIndex,.5);
   return clamp(38,94,46+fans*31+Math.min(17,budget*.12));
 }
+function contractSalary(club,overall,age,score=60){
+  const meta=getClubWorld(club.id),wealth=clamp(.75,1.6,.78+finite(meta.gameBudgetM,20)/90),quality=clamp(.65,1.8,.65+Math.max(0,overall-50)*.028),ageFactor=age<=17?.58:age<=20?.76:age>=34?.88:1,trial=clamp(.85,1.18,.85+score/360);
+  return Math.max(2500,Math.round(5500*wealth*quality*ageFactor*trial/500)*500);
+}
 function faceDefaults(seed){
   const rng=mulberry32(hashSeed(seed,'face'));
   return{skin:Math.floor(rng()*5),hair:Math.floor(rng()*6),hairColor:Math.floor(rng()*5),eyes:Math.floor(rng()*4),shape:Math.floor(rng()*4)};
@@ -84,7 +95,7 @@ export function createPlayerCareer(input={},season=2026){
     version:PLAYER_CAREER_VERSION,mode:'player',seed:String(seed),season,week:0,age:16,stage:'trial',clubId:null,dreamClubId:String(input.dreamClubId||''),trial:{answers:{},score:null,completed:false,report:null},player:{
       id:'user-player',name,position,foot:['left','right'].includes(input.foot)?input.foot:'right',archetype:archetype.id,face:{...faceDefaults(seed),...(input.face||{})},attributes,potential,currentOverall:initialOverall,condition:100,morale:78,form:0,coachTrust:42,reputation:5,contractSatisfaction:70,injury:null,injuryHistory:0,
     },
-    trainingFocus:'balanced',careerStats:{matches:0,starts:0,minutes:0,goals:0,assists:0,totalRating:0,titles:0},seasonStats:{matches:0,starts:0,minutes:0,goals:0,assists:0,totalRating:0},timeline:[{id:'career-created',season,week:0,type:'start',title:'O sonho começa',text:name+' inicia a carreira aos 16 anos e entra em uma peneira.'}],offers:[],pendingOffer:null,news:[],lastMatch:null,achievements:[],saveId:'pc-'+hashSeed(seed,'save').toString(36),
+    trainingFocus:'balanced',matchApproach:'balanced',contract:null,nationalTeamStatus:'none',awards:[],careerStats:{matches:0,starts:0,minutes:0,goals:0,assists:0,totalRating:0,titles:0},seasonStats:{matches:0,starts:0,minutes:0,goals:0,assists:0,totalRating:0},timeline:[{id:'career-created',season,week:0,type:'start',title:'O sonho começa',text:name+' inicia a carreira aos 16 anos e entra em uma peneira.'}],offers:[],pendingOffer:null,news:[],lastMatch:null,achievements:[],saveId:'pc-'+hashSeed(seed,'save').toString(36),
   };
 }
 function trialSkillValue(career,choice){
@@ -114,10 +125,11 @@ export function completeTrial(career,clubs=[]){
   else if(eligibility.length){const ideal=eligibility.slice().sort((a,b)=>Math.abs((score+8)-a.level)-Math.abs((score+8)-b.level))[0];destination=ideal.club;reason='A comissão encontrou um projeto compatível com o desempenho da peneira.';}
   else{destination=ranked[0]?.club||clubs[0]||null;reason='Uma equipe decidiu apostar no potencial, mesmo com uma peneira difícil.';}
   if(!destination)return{...career,trial:{...career.trial,score,completed:true,report:{reason:'Nenhum clube disponível nesta base.'}}};
-  const clubName=destination.name,dreamSuccess=String(destination.id)===String(career.dreamClubId);
-  return{...career,stage:'academy',clubId:String(destination.id),week:1,trial:{...career.trial,score,completed:true,report:{clubId:String(destination.id),clubName,reason,dreamSuccess}},player:{...career.player,coachTrust:clamp(0,100,38+score*.28),morale:clamp(0,100,career.player.morale+(dreamSuccess?10:4))},timeline:[{id:'trial-'+career.season,title:'Aprovado na peneira',text:career.player.name+' fez '+score+' pontos e entrou na base do '+clubName+'.',season:career.season,week:0,type:'trial'},...(career.timeline||[])],news:[{id:'trial-news',title:'Novo talento chega à base do '+clubName,text:reason,season:career.season,week:0},...(career.news||[])]};
+  const clubName=destination.name,dreamSuccess=String(destination.id)===String(career.dreamClubId),salary=contractSalary(destination,playerCareerOverall(career),16,score),contract={clubId:String(destination.id),clubName,startSeason:career.season,expirySeason:career.season+3,salaryMonthly:salary,role:'Base',kind:'youth'};
+  return{...career,stage:'academy',clubId:String(destination.id),week:1,contract,trial:{...career.trial,score,completed:true,report:{clubId:String(destination.id),clubName,reason,dreamSuccess}},player:{...career.player,coachTrust:clamp(0,100,38+score*.28),morale:clamp(0,100,career.player.morale+(dreamSuccess?10:4)),contractSatisfaction:82},timeline:[{id:'trial-'+career.season,title:'Aprovado na peneira',text:career.player.name+' fez '+score+' pontos e entrou na base do '+clubName+'.',season:career.season,week:0,type:'trial'},...(career.timeline||[])],news:[{id:'trial-news',title:'Novo talento chega à base do '+clubName,text:reason+' O primeiro vínculo de formação foi assinado.',season:career.season,week:0},...(career.news||[])]};
 }
 export function setPlayerTraining(career,id){return{...career,trainingFocus:trainingDef(id).id};}
+export function setPlayerMatchApproach(career,id){return{...career,matchApproach:approachDef(id).id};}
 function matchSelection(career,club){
   const p=career.player,overall=playerCareerOverall(career),effective=effectiveOverall({baseOverall:overall,condition:p.condition,form:p.form,morale:p.morale}),stageBonus=career.stage==='professional'?0:-7,competition=career.stage==='professional'?clubLevel(club):58,roleFit=70,context=50+Math.min(15,career.week/6);
   const strength=.35*effective+.15*(50+p.form*12)+.15*p.condition+.10*p.morale+.10*p.coachTrust+.10*roleFit+.05*context+stageBonus,threshold=competition*.66+21;
