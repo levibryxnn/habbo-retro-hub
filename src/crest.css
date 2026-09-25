@@ -11,3 +11,7 @@
 .unified-crest.mini .crest-fallback{border-width:1px}.unified-crest.mini .crest-fallback i{display:none}.unified-crest.mini .crest-fallback b{font-size:8px}
 .unified-crest.large .crest-fallback b{font-size:22px}.unified-crest.large .crest-fallback i{width:14px;height:14px}
 @media(max-width:620px){.unified-crest.large{width:64px;height:72px}}
+
+.world-crest.unified-crest{background:transparent;border:0;border-radius:0;overflow:visible;clip-path:none;box-shadow:none}
+.world-crest.unified-crest.fallback{background:transparent;border:0;clip-path:none;box-shadow:none}
+.world-crest.unified-crest.fallback>span{font-family:inherit;font-size:inherit;letter-spacing:normal;color:inherit;text-shadow:none}
