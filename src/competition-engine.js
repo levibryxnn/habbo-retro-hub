@@ -1,7 +1,7 @@
 import { autoLineup, playerCondition, playerGameStats, sanitizeLineup, statusKey } from './player-engine.js';
 import { applyConfidenceEvent } from './manager-confidence.js';
 import { applyMatchDynamics, applyTitleDynamics, managerMatchModifier } from './career-dynamics.js';
-import { applyWeeklyTraining, matchWeather, sanitizeTacticalState, setPieceAttackModifier, setTacticalPreset, tacticalMatchup } from './tactical-engine.js';
+import { applyWeeklyTraining, matchWeather, sanitizeTacticalState, setPieceAttackModifier, setTacticalPreset, tacticalMatchup, updateTacticalState } from './tactical-engine.js';
 import { advanceWorldManagers, processPlayerPromises, refreshJobOffers } from './career-life-engine.js';
 import { emitCareerEvent } from './event-engine.js';
 import { LDF_ENGINE_VERSION, adaptiveAiDecision, combinedInjuryChance, contextScore, expectedGoals, fatigueConditionLoss, fatigueLoad, fitnessPenalty, formScore, individualInjuryRisk, injuryRecovery, logisticDominance, roleLoad, tacticalExecutionScore, teamStrength } from './ldf-engine.js';
