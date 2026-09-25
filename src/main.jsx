@@ -16,6 +16,7 @@ import './styles.css';
 
 
 import LandingScreen from './LandingScreen';
+import Crest from './Crest.jsx';
 const Management=React.lazy(()=>import('./Management'));
 const LeagueTable=React.lazy(()=>import('./LeagueTable'));
 const MatchSimulation=React.lazy(()=>import('./MatchSimulation'));
@@ -60,19 +61,6 @@ function clubChallenge(club) {
 }
 function age(p) { if(Number.isFinite(Number(p?._careerAge)))return Number(p._careerAge); if(!p.birthDate) return p.age ?? null; const dob=new Date(p.birthDate); if(Number.isNaN(dob.getTime())) return p.age ?? null; let a=snapshotDate.getUTCFullYear()-dob.getUTCFullYear(); if(snapshotDate.getUTCMonth()<dob.getUTCMonth() || (snapshotDate.getUTCMonth()===dob.getUTCMonth() && snapshotDate.getUTCDate()<dob.getUTCDate())) a--; return a; }
 function readSaved() { try { const id=localStorage.getItem('ldf.club'); return data.clubs.some(c=>c.id===id)? id:null; } catch { return null; } }
-function assetUrl(source) {
-  if(!source)return'';
-  if(/^(data:|blob:|https?:\/\/)/i.test(source))return source;
-  const base=String(import.meta.env.BASE_URL||'./').replace(/\/$/,'');
-  return source.startsWith('/')?base+source:base+'/'+source.replace(/^\.\//,'');
-}
-function Crest({club, large=false}) {
-  const id=club?.id||'unknown',[failed,setFailed]=useState(false);
-  useEffect(()=>setFailed(false),[id,club?.logo]);
-  const src=assetUrl(club?.logo);
-  const fallback=String(club?.abbreviation||club?.name||'?').slice(0,3);
-  return <span className={`crest ${large?'large':''}`}>{src&&!failed?<img src={src} alt={`Escudo do ${club?.name||'clube'}`} loading={large?'eager':'lazy'} decoding="async" fetchPriority={large?'high':'auto'} onError={()=>setFailed(true)}/>:<span className="crest-fallback" aria-label={`Escudo indisponível · ${fallback}`}>{fallback}</span>}</span>;
-}
 function Modal({children,onClose,title}) { const ref=useRef(); useEffect(()=>{ const el=ref.current; el.showModal(); return ()=>el.close(); },[]); return <dialog ref={ref} onCancel={onClose} onClick={e=>{if(e.target===ref.current)onClose();}} aria-label={title}><button className="close" onClick={onClose} aria-label="Fechar"><X size={20}/></button>{children}</dialog>; }
 function loadCareers() { try { const raw=JSON.parse(localStorage.getItem(CAREER_KEY)); return raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{}; } catch { return {}; } }
 function App() {
@@ -252,7 +240,7 @@ function App() {
     <section className="club-selector-overlay" aria-label="Seletor de clubes">
         <div className="club-selector-shell">
           <header className="club-selector-header">
-            <div className="club-selector-title"><span className="eyebrow">BRASILEIRÃO SÉRIE A · 20 CLUBES</span><h2>Qual história você quer conhecer?</h2><p>Explore livremente. Sua carreira atual permanece salva até você decidir assumir outro projeto.</p></div>
+            <div className="club-selector-title"><span className="eyebrow">BRASILEIRÃO SÉRIE A · 20 CLUBES</span><h2>Escolha o clube que você quer comandar.</h2><p>Compare elenco, estrutura e desafio. Sua carreira atual continua salva enquanto você explora outros clubes.</p></div>
             {saved?<button className="club-selector-return" onClick={()=>{closeClubBrowser();setTab('dashboard');}}><ArrowLeft size={16}/><span><small>RETOMAR CARREIRA</small><strong>{savedClub?.name||'Meu clube'}</strong></span></button>:<span className="club-selector-new"><small>NOVA CARREIRA</small><strong>Escolha seu primeiro projeto</strong></span>}
           </header>
           <div className="club-selector-toolbar">
@@ -279,7 +267,7 @@ function App() {
   }
 
   return <div className="app-shell" style={clubThemeStyle(club.id)}>
-    <header className="topbar"><a href="#" className="brand" aria-label="Linha de Frente, abrir seletor de clubes" onClick={e=>{e.preventDefault();openClubBrowser();}}><span className="brand-symbol">L<span>F</span></span><span>LINHA DE<br/>FRENTE<span className="brand-small">FOOTBALL MANAGER</span></span></a><div className="top-context"><span className="top-divider"/><span>Uma nova história começa aqui.</span></div><div className="top-right"><span className="version"><i/> 1.0 RC5</span><button className="help" onClick={()=>setDialog('data')} aria-label="Sobre os dados"><CircleHelp size={20}/></button></div></header>
+    <header className="topbar"><a href="#" className="brand" aria-label="Linha de Frente, abrir seletor de clubes" onClick={e=>{e.preventDefault();openClubBrowser();}}><span className="brand-symbol">L<span>F</span></span><span>LINHA DE<br/>FRENTE<span className="brand-small">FOOTBALL MANAGER</span></span></a><div className="top-context"><span className="top-divider"/><span>Uma nova história começa aqui.</span></div><div className="top-right"><span className="version"><i/> 1.0 RC6</span><button className="help" onClick={()=>setDialog('data')} aria-label="Sobre os dados"><CircleHelp size={20}/></button></div></header>
     <main>
       {careerActive?<section className="career-strip"><div className="career-strip-club"><Crest club={club}/><span><small>MODO CARREIRA · TEMPORADA {career.season}</small><strong>{club.name}{career.managerName?' · '+career.managerName:''}</strong></span></div><div className="career-strip-meta"><span>{nextEvent?<><small className="career-next-label">{nextEvent.competitionName}</small><strong>{nextEvent.stage}</strong></>:<>Rodada <strong>{career.round}/38</strong></>}</span><button className="career-continue" onClick={()=>{setClubBrowserOpen(false);setTab(career.pendingRound?'match':nextEvent?.type==='world'?'competitions':career.round>=38?'competitions':'match');}}><CirclePlay size={14}/>{career.pendingRound?'Voltar ao jogo':nextEvent?.type==='world'?'Próximo compromisso':career.round>=38?'Fechar temporada':'Continuar'}</button><button className="career-explore" onClick={openClubBrowser}>Explorar clubes <ArrowRight size={14}/></button></div></section>:<section className="intro"><div><div className="eyebrow"><span>01 /</span> O PRIMEIRO PASSO</div><h1>Seu clube. Sua história.</h1><p>Escolha as cores que você vai defender. Conheça quem entra em campo.</p></div><div className="competition"><span className="trophy-icon"><Trophy size={25}/></span><div><strong>BRASILEIRÃO</strong><span>Série A <b>·</b> Temporada {career.season}</span></div><span className="brazil-tag">BR</span></div></section>}
       {savedClub&&!careerActive&&<div className="saved-banner" role="status"><Check size={16}/><span><strong>{savedClub.name}</strong>{savedManager?' · Técnico '+savedManager:''}. {storageError?'Carreira ativa nesta sessão.':'Carreira salva neste navegador.'}</span><button onClick={()=>{selectClub(savedClub.id);setClubBrowserOpen(false);setTab('dashboard');}}>Continuar carreira <ArrowRight size={15}/></button></div>}
