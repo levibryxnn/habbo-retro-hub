@@ -17,7 +17,7 @@ import {
   sanitizeLineup,
   statusKey,
 } from './player-engine.js';
-import { applyConfidenceEvent, createManagerConfidence, sanitizeManagerConfidence } from './manager-confidence.js';
+import { applyConfidenceEvent, createManagerConfidence, reconcileStructuralBoardTrust, sanitizeManagerConfidence } from './manager-confidence.js';
 import { advancePlayerLifecycle } from './development-engine.js';
 import { brasileiraoDateForRound, createWorldState, finishPendingWorldFixture, nextCareerEvent, pendingSeasonFixtures, playNextWorldFixture, rollWorldToNextSeason, sanitizeWorldState, syncWorldToDate } from './competition-engine.js';
 import { applyMatchDynamics, applySeasonDynamics, applyTitleDynamics, initializeCareerSystems, managerMatchModifier } from './career-dynamics.js';
@@ -555,6 +555,7 @@ function applyRoundConfidence(career,clubs,userResult,roundNumber){
     kind:'round',
     reason:'Rodada '+roundNumber+': '+resultText+' e '+position+'º lugar na tabela.',
   });
+  next=reconcileStructuralBoardTrust(next,{weight:roundNumber<=5?.045:.075});
   const confidence=sanitizeManagerConfidence(next.managerConfidence);
   let pressure=Number(next.boardPressureStreak)||0;
   if(confidence.board<20)pressure+=1;
