@@ -1,4 +1,5 @@
 import { positionGroup } from './position-labels.js';
+import { fatigueLoad, fitnessPenalty, roleLoad } from './ldf-engine.js';
 
 function hashString(value){
   let h=2166136261;
@@ -191,10 +192,10 @@ export function currentBench(result,side,second){
   return bench.filter(id=>!usedIn.has(id));
 }
 export function effectivePlayerRating(player,career,clubId,minute,isSubstitute){
-  const overall=careerPlayerOverall(player,career,clubId);
-  const condition=playerCondition(career,clubId,player.id);
-  const fatigue=isSubstitute?Math.max(0,(minute-1)*.08):Math.max(0,(minute-55)*.22);
-  return overall*(.7+condition/100*.3)-fatigue;
+  const overall=careerPlayerOverall(player,career,clubId),condition=playerCondition(career,clubId,player.id),stats=playerGameStats(player),age=Number(player?._careerAge??player?.age??27);
+  const minutesPlayed=isSubstitute?0:Math.max(0,Number(minute)||0);
+  const load=fatigueLoad({minutes:minutesPlayed,intensity:1,roleLoad:roleLoad(positionGroup(player?.position)),fitnessPenalty:fitnessPenalty({stamina:stats.stamina,condition,age})});
+  return overall*(.7+condition/100*.3)-load*.035;
 }
 
 

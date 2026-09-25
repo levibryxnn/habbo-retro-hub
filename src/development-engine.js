@@ -1,4 +1,5 @@
 import { playerGameStats } from './player-engine.js';
+import { developmentModel } from './ldf-engine.js';
 
 const clamp=(min,max,n)=>Math.max(min,Math.min(max,n));
 function hashString(value){let h=2166136261;for(const ch of String(value)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return h>>>0;}
@@ -23,19 +24,16 @@ function performanceBoost(career,key){
   if(avg<6.1)return-.4;
   return 0;
 }
-function nextDelta(profile,key,season,boost){
-  const age=profile.age+1,current=profile.baseOverall+profile.delta,potential=profile.potential;
-  if(age<=35){
-    const gap=Math.max(0,potential-current);
-    if(!gap)return profile.delta;
-    const ageFactor=age<=20?1.35:age<=24?1.05:age<=29?.7:age<=32?.45:.24;
-    const chance=clamp(.08,.92,.24+gap*.035+ageFactor*.2+boost*.13);
-    if(roll(key+'|grow|'+season)>chance)return profile.delta;
-    const gain=age<=21?1+Math.floor(roll(key+'|gain|'+season)*3):age<=27?1+Math.floor(roll(key+'|gain|'+season)*2):1;
-    return profile.delta+Math.min(gain,gap);
+function nextDelta(profile,key,season,boost,trainingYouth=0){
+  const current=profile.baseOverall+profile.delta;
+  const model=developmentModel({age:profile.age,current,potential:profile.potential,performanceBoost:boost,trainingYouth});
+  if(model.mode==='decline'){
+    const variance=Math.floor(roll(key+'|decline|'+season)*Math.max(1,model.decline));
+    return profile.delta-Math.max(1,model.decline-1+variance);
   }
-  const decline=age>=42?2+Math.floor(roll(key+'|decline|'+season)*3):age>=38?1+Math.floor(roll(key+'|decline|'+season)*3):1+Math.floor(roll(key+'|decline|'+season)*2);
-  return profile.delta-decline;
+  if(!model.gap||roll(key+'|grow|'+season)>model.chance)return profile.delta;
+  const gain=1+Math.floor(roll(key+'|gain|'+season)*Math.max(1,model.maxGain));
+  return profile.delta+Math.min(gain,model.gap);
 }
 function regenFor(player,club,profile,season,index){
   const firstSuccessor=Number(profile.generation||0)===0;
@@ -71,7 +69,7 @@ export function advancePlayerLifecycle(career,clubs,newSeason){
         if(String(club.id)===String(career.userClubId))pending.push({id:'retire-'+key+'-'+newSeason,player:key,name:player.name,age:nextAge,clubId:String(club.id),successorName:successor.name,successorOverall:successor._generatedOverall,successorPotential:successor._potential});
         continue;
       }
-      const boost=performanceBoost(career,key),delta=nextDelta(profile,key,newSeason,boost);
+      const boost=performanceBoost(career,key),trainingYouth=Number(career.trainingState?.youthBonus||0),delta=nextDelta(profile,key,newSeason,boost,trainingYouth);
       development[key]={...profile,age:nextAge,delta,potential:profile.potential};
     }
   }

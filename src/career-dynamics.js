@@ -47,6 +47,18 @@ function leadersFor(club){
     return (bo+(b.age||27)*.06)-(ao+(a.age||27)*.06);
   }).slice(0,4).map(p=>({key:playerKey(club.id,p),name:p.name}));
 }
+export function squadHierarchyFor(club){
+  const ranked=(club?.players||[]).slice().sort((a,b)=>{
+    const ao=playerGameStats(a).overall,bo=playerGameStats(b).overall,aa=Number(a._careerAge??a.age??27),ba=Number(b._careerAge??b.age??27);
+    return(bo+Math.min(34,ba)*.075)-(ao+Math.min(34,aa)*.075);
+  });
+  const hierarchy={};
+  ranked.forEach((player,index)=>{
+    const age=Number(player._careerAge??player.age??27),tier=index<4?'leader':index<11?'core':age<=21?'prospect':'rotation',influence=tier==='leader'?1.35:tier==='core'?1.10:tier==='rotation'?.82:.68;
+    hierarchy[playerKey(club.id,player)]={key:playerKey(club.id,player),playerId:String(player.id),name:player.name,tier,influence,overall:playerGameStats(player).overall};
+  });
+  return hierarchy;
+}
 function seedNews(career,club){
   return[{id:'news-opening-'+career.season,season:career.season,round:0,type:'club',importance:2,title:'Novo trabalho começa no '+club.name,text:(career.managerName||'O novo treinador')+' inicia a temporada com o elenco, a diretoria e a torcida observando os primeiros passos.',timestamp:career.season+'-01-01'}];
 }
@@ -67,7 +79,8 @@ function deriveCareerRecord(career){
   return{matches:points.length,wins:points.filter(v=>v===3).length,draws:points.filter(v=>v===1).length,losses:points.filter(v=>v===0).length,seen:[]};
 }
 export function initializeCareerSystems(career,club,clubs=[]){
-  if(career.systemsVersion>=1&&career.dressingRoom&&career.careerMemory&&career.careerRecord)return career;
+  if(career.systemsVersion>=1&&career.dressingRoom&&career.careerMemory&&career.careerRecord&&career.dressingRoom.hierarchy)return career;
+  if(career.systemsVersion>=1&&career.dressingRoom&&career.careerMemory&&career.careerRecord)return{...career,dressingRoom:{...career.dressingRoom,hierarchy:squadHierarchyFor(club)}};
   const president=presidentForClub(club.id,career.season),dna=clubDNAFor(club.id),leaders=leadersFor(club);
   return{
     ...career,
@@ -77,7 +90,7 @@ export function initializeCareerSystems(career,club,clubs=[]){
     presidentProfile:career.presidentProfile||president,
     clubDNA:career.clubDNA||dna,
     transferBudget:Number.isFinite(Number(career.transferBudget))?Number(career.transferBudget):initialTransferBudget(club.id),
-    dressingRoom:career.dressingRoom||{morale:82,unity:78,leaders,playerMood:{}},
+    dressingRoom:career.dressingRoom||{morale:82,unity:78,leaders,hierarchy:squadHierarchyFor(club),playerMood:{}},
     fanCredit:Number.isFinite(career.fanCredit)?career.fanCredit:0,
     careerMemory:career.careerMemory||{streak:{type:'none',count:0},bestWin:null,rivalries:{},historicMoments:[],milestones:[]},
     newsFeed:Array.isArray(career.newsFeed)&&career.newsFeed.length?career.newsFeed:seedNews(career,club),
@@ -133,16 +146,18 @@ function updateRivalry(career,info,result,clubs){
   map[id]=next;return{...career,careerMemory:{...memory,rivalries:map}};
 }
 function updatePlayerMood(career,club,result){
-  const room=career.dressingRoom||{morale:80,unity:75,leaders:[],playerMood:{}},mood={...(room.playerMood||{})},side=String(result.homeId)===String(club.id)?'home':'away',lineupIds=(side==='home'?result.homeLineup:result.awayLineup)||[];
+  const room=career.dressingRoom||{morale:80,unity:75,leaders:[],hierarchy:squadHierarchyFor(club),playerMood:{}},hierarchy=squadHierarchyFor(club),mood={...(room.playerMood||{})},side=String(result.homeId)===String(club.id)?'home':'away',lineupIds=(side==='home'?result.homeLineup:result.awayLineup)||[];
   if(!lineupIds.length)return career;
-  const lineup=new Set(lineupIds.map(String));
-  const ranked=(club.players||[]).slice().sort((a,b)=>playerGameStats(b).overall-playerGameStats(a).overall).slice(0,10);
+  const lineup=new Set(lineupIds.map(String)),ranked=(club.players||[]).slice().sort((a,b)=>playerGameStats(b).overall-playerGameStats(a).overall).slice(0,16);
+  let unity=Number(room.unity??75);
   for(const player of ranked){
-    const key=playerKey(club.id,player),old=mood[key]||{benchStreak:0,morale:78};
-    const started=lineup.has(String(player.id)),benchStreak=started?0:old.benchStreak+1,morale=clamp(20,100,old.morale+(started?1:benchStreak>=3?-4:0));
-    mood[key]={...old,key,name:player.name,benchStreak,morale,unhappy:benchStreak>=4&&playerGameStats(player).overall>=72,wantsTransfer:benchStreak>=6&&playerGameStats(player).overall>=72};
+    const key=playerKey(club.id,player),old=mood[key]||{benchStreak:0,morale:78},influence=Number(hierarchy[key]?.influence||1),tier=hierarchy[key]?.tier||'rotation';
+    const started=lineup.has(String(player.id)),benchStreak=started?0:old.benchStreak+1,benchPenalty=benchStreak>=3?-3.2*influence:0,morale=clamp(20,100,old.morale+(started?1.2:benchPenalty));
+    const unhappyThreshold=tier==='leader'?3:4,requestThreshold=tier==='leader'?5:6;
+    if(!started&&benchStreak>=unhappyThreshold&&influence>=1.1)unity=clamp(20,100,unity-.35*influence);
+    mood[key]={...old,key,name:player.name,tier,influence,benchStreak,morale,unhappy:benchStreak>=unhappyThreshold&&playerGameStats(player).overall>=70,wantsTransfer:benchStreak>=requestThreshold&&playerGameStats(player).overall>=72};
   }
-  return{...career,dressingRoom:{...room,playerMood:mood}};
+  return{...career,dressingRoom:{...room,hierarchy,unity,playerMood:mood}};
 }
 function maybeFinancialEvent(career){
   if(![7,15,23,31].includes(Number(career.round)))return career;
