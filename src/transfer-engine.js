@@ -6,6 +6,7 @@ import { applyDevelopmentProfile } from './development-engine.js';
 import { canFundDeal, creditTransferSale, spendTransferBudget, transferBudgetSnapshot } from './economy-engine.js';
 import { applyTransferDynamics, managerProfile } from './career-dynamics.js';
 import { emitCareerEvent } from './event-engine.js';
+import { transferAllowedByChallenge } from './challenge-engine.js';
 
 export const EUR_BRL_REFERENCE=6.25;
 const clamp=(min,max,n)=>Math.max(min,Math.min(max,n));
@@ -138,6 +139,7 @@ function destinationAppeal(career,player,buyerClub,stars){
 export function evaluateTransferOffer(career,baseClubs,offer){
   const item=findCareerPlayer(baseClubs,offer.playerKey,career);if(!item)return{status:'rejected',reason:'Jogador não encontrado.'};
   const {player,originClub}=item;
+  const challengeRule=transferAllowedByChallenge(career,player,offer.type);if(!challengeRule.ok&&String(offer.toClubId)===String(career.userClubId))return{status:'rejected',reason:challengeRule.reason,challengeBlocked:true};
   const dynamic=applyCareerRoster(baseClubs,career),seller=dynamic.find(c=>c.id===String(offer.fromClubId)),buyer=dynamic.find(c=>c.id===String(offer.toClubId));
   if(!seller||!buyer)return{status:'rejected',reason:'Clube inválido.'};
   const current=currentOwnerId(career,offer.playerKey,originClub.id);
