@@ -144,7 +144,7 @@ function ContractPanel({career}){
 
 function CareerOverview({career,clubs,onChange}){
   const retired=career.stage==='retired';
-  return <><div className="pc-dashboard-grid"><CalendarPanel career={career} clubs={clubs} onChange={onChange}/><LastMatch career={career}/><PlanPanel career={career} onChange={onChange} retired={retired}/><StatsPanel career={career}/><AttributesPanel career={career}/><ContractPanel career={career}/></div></>;
+  return <><div className="pc-dashboard-grid">{!retired&&<CalendarPanel career={career} clubs={clubs} onChange={onChange}/>}<LastMatch career={career}/><PlanPanel career={career} onChange={onChange} retired={retired}/><StatsPanel career={career}/><AttributesPanel career={career}/><ContractPanel career={career}/></div></>;
 }
 
 function LifeOption({type,item,current,owned,onChoose}){
@@ -192,8 +192,8 @@ function LifeHub({career,onChange,onNotice}){
     <section className="pc-life-category pc-sponsor-market">
       <PlayerLifeVisual type="sponsor" subtitle="IMAGEM" title={sponsor?.name||'Sem patrocinador'}/>
       <div className="pc-life-category-copy"><h3>Patrocínios pessoais</h3><p>Reputação, média, gols e empresário definem quais marcas aparecem e quanto elas oferecem.</p></div>
-      {sponsor?<div className="pc-active-sponsor"><BadgeDollarSign size={18}/><div><strong>{sponsor.name}</strong><small>{money.format(sponsor.monthly)}/mês · {sponsor.monthsRemaining} mês(es) restantes</small></div></div>:<button className="pc-secondary pc-sponsor-search" onClick={searchSponsors}><Sparkles size={15}/> Consultar mercado de imagem</button>}
-      {!sponsor&&offers.length>0&&<div className="pc-sponsor-offers">{offers.map(offer=><article key={offer.id}><div><strong>{offer.name}</strong><p>{offer.description}</p><small>Luvas {money.format(offer.signing)} · {money.format(offer.monthly)}/mês · {offer.months} meses</small></div><div><button onClick={()=>onChange(declinePlayerSponsor(career,offer.id))}>Recusar</button><button className="accept" onClick={()=>acceptSponsor(offer.id)}>Assinar</button></div></article>)}</div>}
+      {sponsor?<div className="pc-active-sponsor"><BadgeDollarSign size={18}/><div><strong>{sponsor.name}</strong><small>{money.format(sponsor.monthly)}/mês · {sponsor.monthsRemaining} mês(es) restantes · bônus {money.format(sponsor.performanceBonus||0)} se média ≥ {Number(sponsor.targetAverage||0).toFixed(2)}</small></div></div>:<button className="pc-secondary pc-sponsor-search" onClick={searchSponsors}><Sparkles size={15}/> Consultar mercado de imagem</button>}
+      {!sponsor&&offers.length>0&&<div className="pc-sponsor-offers">{offers.map(offer=><article key={offer.id}><div><strong>{offer.name}</strong><p>{offer.description}</p><small>Luvas {money.format(offer.signing)} · {money.format(offer.monthly)}/mês · {offer.months} meses · bônus {money.format(offer.performanceBonus||0)} se média ≥ {Number(offer.targetAverage||0).toFixed(2)}</small></div><div><button onClick={()=>onChange(declinePlayerSponsor(career,offer.id))}>Recusar</button><button className="accept" onClick={()=>acceptSponsor(offer.id)}>Assinar</button></div></article>)}</div>}
     </section>
 
     <section className="pc-panel pc-transactions"><div className="pc-panel-head"><h3>Extrato</h3><History size={17}/></div>{snapshot.transactions.length?<div>{snapshot.transactions.slice(0,12).map(item=><article key={item.id}><span><strong>{item.label}</strong><small>Temporada {item.season} · dia {Number(item.day||0)+1}</small></span><b className={item.amount>=0?'positive':'negative'}>{item.amount>=0?'+':''}{money.format(item.amount)}</b></article>)}</div>:<p className="pc-empty">As movimentações pessoais aparecerão aqui depois do primeiro pagamento ou compra.</p>}</section>
