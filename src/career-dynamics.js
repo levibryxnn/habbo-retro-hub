@@ -3,7 +3,7 @@ import { playerGameStats } from './player-engine.js';
 import { applyConfidenceEvent } from './manager-confidence.js';
 import { initialTransferBudget, resetSeasonTransferBudget, transferBudgetSnapshot } from './economy-engine.js';
 import { emitCareerEvent } from './event-engine.js';
-import { achievementValue, newsworthiness, rivalryScore, scoutedPotentialRange } from './ldf-engine.js';
+import { achievementValue, careerDifficultyScore, newsworthiness, rivalryScore, scoutedPotentialRange } from './ldf-engine.js';
 
 const clamp=(min,max,n)=>Math.max(min,Math.min(max,n));
 const hash=value=>{let h=2166136261;for(const ch of String(value)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return h>>>0;};
