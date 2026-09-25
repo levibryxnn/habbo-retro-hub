@@ -24,7 +24,7 @@ import { applyMatchDynamics, applySeasonDynamics, applyTitleDynamics, initialize
 import { applyWeeklyTraining, matchWeather, sanitizeTacticalState, setPieceAttackModifier, setTacticalPreset, tacticalMatchup, trainingMatchModifier, updateTacticalState } from './tactical-engine.js';
 import { advanceWorldManagers, evaluateProjectObjectives, expirePlayerContracts, initializeCareerLife, processPlayerPromises, refreshJobOffers } from './career-life-engine.js';
 import { emitCareerEvent } from './event-engine.js';
-import { LDF_ENGINE_VERSION, adaptiveAiDecision, combinedInjuryChance, contextScore, expectedGoals, fatigueConditionLoss, fatigueLoad, fitnessPenalty, formScore, individualInjuryRisk, logisticDominance, roleLoad, tacticalExecutionScore, teamStrength } from './ldf-engine.js';
+import { LDF_ENGINE_VERSION, adaptiveAiDecision, combinedInjuryChance, contextScore, expectedGoals, fatigueConditionLoss, fatigueLoad, fitnessPenalty, formScore, individualInjuryRisk, injuryRecovery, logisticDominance, roleLoad, tacticalExecutionScore, teamStrength } from './ldf-engine.js';
 import { challengeSeasonResult } from './challenge-engine.js';
 
 export const CAREER_KEY='ldf.career.v2';
@@ -258,7 +258,7 @@ function generateDisciplineAndInjuries(result,home,away,rng,used,career,interact
     const severity=severityRoll<.48?1:severityRoll<.74?2:severityRoll<.90?3:severityRoll<.975?4:5;
     const duration=severity===1?1:severity===2?2:severity===3?3+Math.floor(rng()*2):severity===4?5+Math.floor(rng()*3):8+Math.floor(rng()*5);
     const label=severity===1?'Pancada / desconforto':severity===2?'Lesão muscular leve':severity===3?'Entorse moderada':severity===4?'Lesão muscular importante':'Lesão ligamentar grave';
-    events.push(makeEvent(side,'injury',second,club,player,eventIndex++,{severityMatches:duration,injurySeverity:severity,injuryLabel:label,requiresAttention:club.id===interactiveClubId,injuryRisk:Number(chosen.risk.toFixed(4)),fatigueLoad:Number(load.toFixed(1))}));
+    events.push(makeEvent(side,'injury',second,club,player,eventIndex++,{severityMatches:duration,injurySeverity:severity,injuryLabel:label,requiresAttention:club.id===interactiveClubId,injuryRisk:Number(chosen.risk.toFixed(4)),fatigueLoad:Number(load.toFixed(1)),playerAge:age}));
   }
   return{...result,events:events.sort((a,b)=>a.second-b.second)};
 }
@@ -675,8 +675,16 @@ function applyDisciplineAndInjuries(career,roundResults,roundNumber){
         current.suspensionReason=event.reason==='second-yellow'?'Expulsão por segundo amarelo':'Cartão vermelho';
       }
       if(event.type==='injury'){
-        current.injuryThroughRound=Math.max(current.injuryThroughRound||0,roundNumber+(event.severityMatches||1));
+        const clubId=String(event.clubId),club=roundResults.length?null:null,medical=String(clubId)===String(career.userClubId)?Number(career.facilities?.medical||1):2,condition=Number(career.conditions?.[key]??78),age=Number(event.playerAge||27),history=Number(current.injuryHistory||0),recovery=injuryRecovery({severity:Number(event.injurySeverity||1),medicalLevel:medical,age,fitness:condition,rehabQuality:medical>=4?1.12:1,injuryHistory:history});
+        const duration=Math.max(Number(event.severityMatches||1),recovery.matches);
+        current.injuryThroughRound=Math.max(current.injuryThroughRound||0,roundNumber+duration);
         current.injuryLabel=event.injuryLabel||'Lesão';
+        current.injurySeverity=Number(event.injurySeverity||1);
+        current.injuryHistory=history+1;
+        current.lastInjurySeason=career.season;
+        current.lastInjuryRound=roundNumber;
+        current.permanentLossRisk=Number(recovery.permanentLossRisk.toFixed(4));
+        current.recoveryMatches=duration;
       }
       status[key]=current;
     }
@@ -875,7 +883,7 @@ export function startNextSeason(career,clubs){
   if(pendingSeasonFixtures(career,clubs).length)return career;
   const challenge=challengeSeasonResult(career,career.seasonReview),withChallenge=challenge?emitCareerEvent({...career,challengeHistory:[{...challenge,season:career.season},...(career.challengeHistory||[])].slice(0,30)},{type:challenge.success?'CHALLENGE_COMPLETED':'CHALLENGE_MISSED',importance:challenge.success?4:3,payload:{challenge:career.careerChallenge,label:challenge.label,score:challenge.score}}):career,newSeason=career.season+1,currentClub=clubs.find(c=>String(c.id)===String(career.userClubId)),contracted=currentClub?expirePlayerContracts(withChallenge,currentClub,newSeason):withChallenge,evaluated=evaluateProjectObjectives(contracted,career.seasonReview),developed=advancePlayerLifecycle(evaluated,clubs,newSeason),userClub=clubs.find(c=>c.id===career.userClubId);
   const transitioned=userClub?applySeasonDynamics({...developed,season:newSeason},userClub,career.seasonReview):{...developed,season:newSeason};
-  const cleanStatus={};for(const[key,value]of Object.entries(transitioned.playerStatus||{}))cleanStatus[key]={...value,yellowCount:0,suspensionThroughRound:0,injuryThroughRound:0,injuryLabel:null};
+  const cleanStatus={};for(const[key,value]of Object.entries(transitioned.playerStatus||{}))cleanStatus[key]={...value,yellowCount:0,suspensionThroughRound:0,injuryThroughRound:Math.max(0,Number(value.injuryThroughRound||0)-38),injuryLabel:Number(value.injuryThroughRound||0)>38?value.injuryLabel:null};
   let next={...transitioned,round:0,schedule:buildSchedule(clubs),results:[],scorers:{},seasonPerformance:{},lastRoundResults:[],lastUserMatch:null,pendingRound:null,pendingWorldMatch:null,playerStatus:cleanStatus,conditions:defaultConditions(clubs),sponsors:(transitioned.sponsors||[]).map(contract=>({...contract,active:false})),openingCash:transitioned.cash,seasonReview:null,pendingCelebration:null,boardPressureStreak:0,boardWarning:null,managerStatus:'active',dismissal:null};
   next.world=rollWorldToNextSeason(transitioned,clubs,newSeason);
   return userClub?{...next,lineup:autoLineup(userClub,next,1)}:next;
