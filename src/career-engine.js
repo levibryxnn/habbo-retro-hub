@@ -876,10 +876,12 @@ export function finishPendingRound(career,clubs){
   let next={...prepared,round:roundNumber,results:[...prepared.results,...roundResults.map(compactStoredResult)],scorers,allTimeScorers:allTime,seasonPerformance,playerForm,history:entry?[...(prepared.history||[]),entry]:(prepared.history||[]),lastRoundResults:roundResults,lastUserMatch:userResult||prepared.lastUserMatch,pendingRound:null};
   next=applyDisciplineAndInjuries(next,roundResults,roundNumber);next=updateConditions(next,roundResults,clubs);
   if(userClub)next={...next,lineup:sanitizeLineup(userClub,next,roundNumber+1,next.lineup)};
-  if(userResult){next=applySponsorPayments(next,roundNumber,userOutcome(userResult,prepared.userClubId));next=applyMatchdayIncome(next,userResult);} next=applyTransferPayroll(next,clubs,roundNumber);
   if(userResult&&userClub){
     const matchEvent={type:'MATCH_FINISHED',importance:2,payload:{competition:'Brasileirão Série A',stage:'Rodada '+roundNumber,homeId:userResult.homeId,awayId:userResult.awayId,homeGoals:userResult.homeGoals,awayGoals:userResult.awayGoals,xg:userResult.xg||null}};
     next=dispatchCareerEvent(next,matchEvent,[
+      state=>applySponsorPayments(state,roundNumber,userOutcome(userResult,prepared.userClubId)),
+      state=>applyMatchdayIncome(state,userResult),
+      state=>applyTransferPayroll(state,clubs,roundNumber),
       state=>applyRoundConfidence(state,clubs,userResult,roundNumber),
       state=>applyMatchDynamics(state,userClub,clubs,userResult,{competition:'Brasileirão Série A',stage:'Rodada '+roundNumber}),
       state=>processPlayerPromises(state,userClub,userResult),
@@ -887,7 +889,7 @@ export function finishPendingRound(career,clubs){
       state=>refreshJobOffers(state,clubs),
     ]);
     for(const injury of(userResult.events||[]).filter(event=>event.type==='injury'&&String(event.clubId)===String(next.userClubId)))next=emitCareerEvent(next,{type:'PLAYER_INJURED',playerId:injury.playerId,importance:Number(injury.injurySeverity||1)>=4?4:2,payload:{name:injury.player,label:injury.injuryLabel,duration:injury.severityMatches,severity:injury.injurySeverity||1}});
-  }else next=applyRoundConfidence(next,clubs,userResult,roundNumber);
+  }else{next=applyTransferPayroll(next,clubs,roundNumber);next=applyRoundConfidence(next,clubs,userResult,roundNumber);}
   next=advanceWorldManagers(next,clubs);
   next=syncWorldToDate(next,clubs,brasileiraoDateForRound(roundNumber,next.season));
   if(roundNumber===prepared.schedule.length)next=finalizeSeason(next,clubs);
