@@ -233,3 +233,8 @@
 @media(max-width:560px){.manager-profile-picker{grid-template-columns:1fr}.manager-profile-picker button span{font-size:8px}}
 
 .manager-profile-picker button:disabled{cursor:default;opacity:.72}.profile-lock-note{margin:-7px 0 12px!important;font-size:8px!important;line-height:1.45!important;color:#879383!important}
+
+
+/* 1.0 RC3 · desafio opcional de carreira */
+.manager-challenge-picker{margin:4px 0 14px;padding-top:12px;border-top:1px solid #e7ebe3}.manager-challenge-picker>span small,.manager-challenge-picker>span strong{display:block}.manager-challenge-picker>span small{font-size:7px;letter-spacing:.7px;color:#929d8e}.manager-challenge-picker>span strong{font-size:10px;color:#425744;margin-top:2px}.manager-challenge-picker>div{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}.manager-challenge-picker button{border:1px solid #e0e6dc;border-radius:8px;background:#fafbf8;color:#586956;text-align:left;padding:8px 9px}.manager-challenge-picker button strong,.manager-challenge-picker button em{display:block}.manager-challenge-picker button strong{font-size:8px}.manager-challenge-picker button em{font-style:normal;font-size:7px;line-height:1.4;color:#8b9687;margin-top:3px}.manager-challenge-picker button.selected{border-color:#8a9f62;background:#f0f5e5;box-shadow:inset 0 0 0 1px #8a9f6226}.manager-challenge-picker button.selected strong{color:#365b3e}.manager-challenge-picker button:disabled{opacity:.68}
+@media(max-width:560px){.manager-challenge-picker>div{grid-template-columns:1fr}.manager-challenge-picker button em{font-size:8px}}
