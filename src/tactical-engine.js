@@ -50,7 +50,7 @@ export function applyWeeklyTraining(career,club){
     const key=String(club.id)+':'+String(player.id),value=Number.isFinite(conditions[key])?conditions[key]:100;
     conditions[key]=clamp(35,100,value+mod.condition);
   }
-  return{...career,conditions,trainingState:{...(career.trainingState||{}),focus:career.trainingState?.focus||'balanced',sessions:Number(career.trainingState?.sessions||0)+1,lastAppliedRound:career.round||0}};
+  return{...career,conditions,trainingState:{...(career.trainingState||{}),focus:career.trainingState?.focus||'balanced',sessions:Number(career.trainingState?.sessions||0)+1,lastAppliedRound:career.round||0,youthBonus:Number(mod.youth||0)}};
 }
 export function aiPlanVector(plan){
   const id=String(plan?.id||plan||'balanced');
