@@ -84,3 +84,13 @@ test('finance sanitizer clamps hostile money and unknown lifestyle identifiers',
   assert.equal(clean.homeId,PLAYER_HOMES[0].id);
   assert.equal(clean.transactions.length,120);
 });
+
+
+test('overspending has a causal morale consequence',function(){
+  let career=signedCareer();
+  career={...career,contract:{...career.contract,salaryMonthly:0},player:{...career.player,morale:80},finance:{...career.finance,cash:0,physioId:'performance',homeId:'luxury'}};
+  const next=settlePlayerMonth({...career,dayOfSeason:28});
+  assert.ok(next.finance.cash<0);
+  assert.ok(next.player.morale<80);
+  assert.ok(next.news.some(item=>item.title==='Finanças pessoais exigem atenção'));
+});
