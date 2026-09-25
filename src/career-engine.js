@@ -21,7 +21,7 @@ import { applyConfidenceEvent, createManagerConfidence, sanitizeManagerConfidenc
 import { advancePlayerLifecycle } from './development-engine.js';
 import { brasileiraoDateForRound, createWorldState, finishPendingWorldFixture, nextCareerEvent, pendingSeasonFixtures, playNextWorldFixture, rollWorldToNextSeason, sanitizeWorldState, syncWorldToDate } from './competition-engine.js';
 import { applyMatchDynamics, applySeasonDynamics, applyTitleDynamics, initializeCareerSystems, managerMatchModifier } from './career-dynamics.js';
-import { applyWeeklyTraining, matchWeather, sanitizeTacticalState, setPieceAttackModifier, tacticalMatchup, trainingMatchModifier } from './tactical-engine.js';
+import { applyWeeklyTraining, matchWeather, sanitizeTacticalState, setPieceAttackModifier, setTacticalPreset, tacticalMatchup, trainingMatchModifier, updateTacticalState } from './tactical-engine.js';
 import { advanceWorldManagers, evaluateProjectObjectives, initializeCareerLife, processPlayerPromises, refreshJobOffers } from './career-life-engine.js';
 import { emitCareerEvent } from './event-engine.js';
 
@@ -551,6 +551,42 @@ export function fixtureForUser(career){
   if(career.pendingRound)return career.pendingRound.matches.find(match=>match.homeId===career.userClubId||match.awayId===career.userClubId)||null;
   if(career.round>=career.schedule.length)return null;
   return career.schedule[career.round].find(match=>match.homeId===career.userClubId||match.awayId===career.userClubId)||null;
+}
+export function updateCareerTactics(career,patch){return updateTacticalState(career,patch);}
+export function setCareerTacticalPreset(career,presetId){return setTacticalPreset(career,presetId);}
+export function changeUserMatchTactic(career,clubs,presetId,second=0){
+  const base=setTacticalPreset(career,presetId);
+  if(!career.pendingRound)return base;
+  const matches=career.pendingRound.matches.slice(),index=matches.findIndex(match=>match.homeId===career.userClubId||match.awayId===career.userClubId);if(index<0)return base;
+  let match={...matches[index],events:[...(matches[index].events||[])],tacticalChanges:[...(matches[index].tacticalChanges||[])]};
+  const oldTactic=sanitizeTacticalState(career.tacticalState),newTactic=sanitizeTacticalState(base.tacticalState),aggression=((newTactic.mentality-oldTactic.mentality)+(newTactic.risk-oldTactic.risk)+(newTactic.pressing-oldTactic.pressing))/300;
+  const userSide=String(match.homeId)===String(career.userClubId)?'home':'away',oppSide=userSide==='home'?'away':'home',userClub=clubs.find(c=>String(c.id)===String(career.userClubId)),oppClub=clubs.find(c=>String(c.id)===String(userSide==='home'?match.awayId:match.homeId)),seed=match.id+'|tactic|'+Math.floor(second)+'|'+presetId,rng=rngFrom(seed),used=new Set(match.events.map(e=>e.second));
+  if(userClub&&oppClub&&second<match.durationSecond-180){
+    if(aggression>.05){
+      const attackChance=clamp(.05,.34,.09+aggression*.48),counterChance=clamp(.03,.28,.05+aggression*.36);
+      if(rng()<attackChance){
+        const at=Math.min(match.durationSecond-30,uniqueEventSecond(rng,used,match.durationSecond,Math.max(180,second+90))),lineup=currentLineup(match,userSide,at),player=weightedPlayer(userClub,lineup,rng);
+        if(rng()<clamp(.12,.42,.16+aggression*.38))match.events.push(makeGoalEvent(userSide,at,userClub,lineup,player,'tactical-push-'+Math.floor(second),rng,{tacticalImpact:true,assistNarrative:'A mudança de postura aumentou a presença ofensiva.'}));
+        else match.events.push(makeEvent(userSide,'big-chance',at,userClub,player,'tactical-push-'+Math.floor(second),{tacticalImpact:true}));
+      }
+      if(rng()<counterChance){
+        const at=Math.min(match.durationSecond-25,uniqueEventSecond(rng,used,match.durationSecond,Math.max(180,second+120))),lineup=currentLineup(match,oppSide,at),player=weightedPlayer(oppClub,lineup,rng);
+        if(rng()<clamp(.10,.36,.13+aggression*.34))match.events.push(makeGoalEvent(oppSide,at,oppClub,lineup,player,'tactical-counter-'+Math.floor(second),rng,{tacticalImpact:true,assistNarrative:'O espaço deixado pela pressão virou contra-ataque.'}));
+        else match.events.push(makeEvent(oppSide,'big-chance',at,oppClub,player,'tactical-counter-'+Math.floor(second),{tacticalImpact:true}));
+      }
+    }else if(aggression<-.05){
+      const futureGoals=match.events.filter(e=>e.type==='goal'&&e.side===oppSide&&e.second>second+120).sort((a,b)=>a.second-b.second);
+      if(futureGoals.length&&rng()<clamp(.08,.32,.10+Math.abs(aggression)*.42)){
+        const blocked=futureGoals[0];match.events=match.events.filter(e=>e.id!==blocked.id);
+        match.events.push({...blocked,id:blocked.id+'-blocked',type:'big-chance',text:(blocked.player||'O adversário')+' para na reorganização defensiva',tacticalImpact:true});
+      }
+    }
+  }
+  match.tacticalChanges.push({second:Math.max(0,Number(second)||0),preset:presetId,aggression:Number(aggression.toFixed(3))});
+  match=recalcScore({...match,events:match.events.sort((a,b)=>a.second-b.second)});
+  matches[index]=match;
+  let next={...base,pendingRound:{...career.pendingRound,matches}};
+  return emitCareerEvent(next,{type:'TACTIC_CHANGED',importance:2,payload:{preset:presetId,second:Math.floor(second),aggression:Number(aggression.toFixed(2))}});
 }
 export function userLineupForNextMatch(career,club){
   const roundNumber=career.round+1;
