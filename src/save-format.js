@@ -1,5 +1,19 @@
 export const SAVE_SIGNATURE='linha-de-frente-save';
 export const SAVE_FILE_VERSION=1;
+export const MAX_SAVE_BYTES=5_000_000;
+const FORBIDDEN_KEYS=new Set(['__proto__','prototype','constructor']);
+export function parseSafeJson(text,maxBytes=MAX_SAVE_BYTES){
+  const raw=String(text||'');if(raw.length>maxBytes)throw new Error('Arquivo de save excede o limite de segurança.');let nodes=0;
+  try{return JSON.parse(raw,(key,value)=>{if(FORBIDDEN_KEYS.has(key))throw new Error('Chave não permitida no save.');if(++nodes>250000)throw new Error('Save complexo demais para ser carregado com segurança.');if(typeof value==='string'&&value.length>200000)throw new Error('Campo de texto excede o limite de segurança.');return value;});}
+  catch(error){if(/segurança|permitida|complexo/.test(String(error?.message)))throw error;throw new Error('Arquivo de save inválido.');}
+}
+function validatePayloadShape(payload){
+  if(!payload||typeof payload!=='object'||Array.isArray(payload))return false;
+  const c=payload.career;if(!c||typeof c!=='object'||Array.isArray(c)||!c.userClubId)return false;
+  const bounded=[['results',2500],['history',2500],['eventLedger',300],['transactions',500],['transferHistory',500],['regens',1000],['newsFeed',200]];
+  for(const [key,max] of bounded)if(Array.isArray(c[key])&&c[key].length>max)return false;
+  return true;
+}
 
 export function buildSavePayload(career,club){
   if(!career||!career.userClubId)throw new Error('Carreira inválida.');
@@ -15,10 +29,11 @@ export function serializeCareerSave(career,club){
   return JSON.stringify(buildSavePayload(career,club));
 }
 export function parseCareerSave(text){
-  let payload;
-  try{payload=JSON.parse(String(text||''));}catch{throw new Error('Arquivo de save inválido.');}
-  if(!payload||payload.signature!==SAVE_SIGNATURE||!payload.career||!payload.career.userClubId)throw new Error('Este arquivo não é um save válido do Linha de Frente.');
+  const payload=parseSafeJson(text);
+  if(!validatePayloadShape(payload)||payload.signature!==SAVE_SIGNATURE)throw new Error('Este arquivo não é um save válido do Linha de Frente.');
   if(Number(payload.fileVersion||0)>SAVE_FILE_VERSION)throw new Error('Este save foi criado por uma versão mais nova do jogo.');
+  payload.career.userClubId=String(payload.career.userClubId).slice(0,80);
+  if(payload.club?.name)payload.club.name=String(payload.club.name).slice(0,100);
   return payload;
 }
 export function saveFileName(career,club){
