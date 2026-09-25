@@ -3,7 +3,7 @@ import { playerGameStats } from './player-engine.js';
 import { applyConfidenceEvent } from './manager-confidence.js';
 import { initialTransferBudget, resetSeasonTransferBudget, transferBudgetSnapshot } from './economy-engine.js';
 import { emitCareerEvent } from './event-engine.js';
-import { newsworthiness, rivalryScore, scoutedPotentialRange } from './ldf-engine.js';
+import { achievementValue, newsworthiness, rivalryScore, scoutedPotentialRange } from './ldf-engine.js';
 
 const clamp=(min,max,n)=>Math.max(min,Math.min(max,n));
 const hash=value=>{let h=2166136261;for(const ch of String(value)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return h>>>0;};
@@ -281,10 +281,14 @@ export function applyTransferDynamics(career,{type,playerName,playerKey:nullKey=
   return updateCareerMilestones(next);
 }
 export function applyTitleDynamics(career,trophy){
-  let next={...career,fanCredit:clamp(0,30,(career.fanCredit||0)+8),managerReputation:clamp(1,100,(career.managerReputation??50)+5)};
+  const meta=getClubWorld(career.userClubId),clubStrength=clamp(40,98,44+(meta.fanIndex||.5)*34+Math.min(20,Number(meta.gameBudgetM||20)*.16));
+  const importance=trophy.id==='world'||trophy.id==='mundial'?2:trophy.id==='libertadores'||trophy.id==='champions-league'?1.75:trophy.id==='brasileirao'?1.45:trophy.kind==='Continental'?1.35:trophy.kind==='Nacional'?1.18:.85;
+  const expectedDifficulty=clamp(.65,1.85,1.62-clubStrength/125),value=achievementValue({importance,expectedDifficulty,clubStrength});
+  const reputationGain=clamp(1.5,8,1.4+value*2.4),legacyGain=clamp(4,12,4+value*2.2);
+  let next={...career,fanCredit:clamp(0,30,(career.fanCredit||0)+legacyGain),managerReputation:clamp(1,100,(career.managerReputation??50)+reputationGain)};
   next=addMoment(next,{id:'title-'+trophy.id+'-'+career.season,season:career.season,round:career.round,type:'title',title:'Campeão: '+trophy.name,text:'Título conquistado na temporada '+career.season+'.'});
   next=addNews(next,{id:'news-title-'+trophy.id+'-'+career.season,season:career.season,round:career.round,type:'title',importance:5,title:(career.managerName||'Treinador')+' coloca o clube no topo',text:'O título de '+trophy.name+' entra para a história do save e amplia o crédito do treinador com torcida e diretoria.',timestamp:String(career.season)+'-r'+String(career.round)});
-  next=emitCareerEvent(next,{type:'TITLE_WON',importance:5,payload:{id:trophy.id,name:trophy.name}});
+  next=emitCareerEvent(next,{type:'TITLE_WON',importance:5,payload:{id:trophy.id,name:trophy.name,achievementValue:value,reputationGain:Number(reputationGain.toFixed(2))}});
   return updateCareerMilestones(next);
 }
 export function applySeasonDynamics(career,club,previousReview=career.seasonReview){
