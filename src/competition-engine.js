@@ -1,7 +1,7 @@
 import { autoLineup, playerGameStats, sanitizeLineup, statusKey } from './player-engine.js';
 import { applyConfidenceEvent } from './manager-confidence.js';
 import { applyMatchDynamics, applyTitleDynamics, managerMatchModifier } from './career-dynamics.js';
-import { applyWeeklyTraining, matchWeather, setPieceAttackModifier, tacticalMatchup } from './tactical-engine.js';
+import { applyWeeklyTraining, matchWeather, sanitizeTacticalState, setPieceAttackModifier, setTacticalPreset, tacticalMatchup } from './tactical-engine.js';
 import { advanceWorldManagers, processPlayerPromises, refreshJobOffers } from './career-life-engine.js';
 import { emitCareerEvent } from './event-engine.js';
 import {
@@ -485,6 +485,25 @@ export function startWorldFixture(career,serieAClubs,mode='normal'){
   const selected=['normal','fast','instant'].includes(mode)?mode:'normal';
   return{...career,preferredSimulationMode:selected,pendingWorldMatch:{id:'world-'+preview.result.fixtureId,fixtureId:preview.result.fixtureId,competitionKey:preview.event.competitionKey,competitionId:preview.event.competitionId,competitionName:preview.event.competitionName,stage:preview.event.stage,date:preview.event.date,mode:selected,result:preview.result}};
 }
+export function changePendingWorldTactic(career,presetId,second=0){
+  if(!career.pendingWorldMatch)return setTacticalPreset(career,presetId);
+  const oldTactic=sanitizeTacticalState(career.tacticalState),base=setTacticalPreset(career,presetId),newTactic=sanitizeTacticalState(base.tacticalState),pending=career.pendingWorldMatch,result={...(pending.result||{})},userHome=String(result.homeId)===String(career.userClubId),aggression=((newTactic.mentality-oldTactic.mentality)+(newTactic.risk-oldTactic.risk)+(newTactic.pressing-oldTactic.pressing))/300,progress=clamp(0,1,Number(second||0)/(90*60)),seed=pending.fixtureId+'|tactic|'+Math.floor(second)+'|'+presetId;
+  let homeGoals=Number(result.homeGoals||0),awayGoals=Number(result.awayGoals||0);
+  if(progress<.96){
+    if(aggression>.05){
+      const push=clamp(.03,.28,.07+aggression*.42)*(1-progress*.45),counter=clamp(.02,.24,.04+aggression*.34)*(1-progress*.35);
+      if(roll(seed+'|push')<push){if(userHome)homeGoals++;else awayGoals++;}
+      if(roll(seed+'|counter')<counter){if(userHome)awayGoals++;else homeGoals++;}
+    }else if(aggression<-.05){
+      const block=clamp(.02,.22,.06+Math.abs(aggression)*.32)*(1-progress*.25);
+      if(roll(seed+'|block')<block){if(userHome&&awayGoals>0)awayGoals--;else if(!userHome&&homeGoals>0)homeGoals--;}
+    }
+  }
+  const updated={...result,homeGoals:clamp(0,8,homeGoals),awayGoals:clamp(0,8,awayGoals),tacticalChanges:[...(result.tacticalChanges||[]),{second:Math.max(0,Number(second)||0),preset:presetId,aggression:Number(aggression.toFixed(3))}]};
+  let next={...base,pendingWorldMatch:{...pending,result:updated}};
+  return emitCareerEvent(next,{type:'TACTIC_CHANGED',importance:2,payload:{competition:pending.competitionName,preset:presetId,second:Math.floor(second),aggression:Number(aggression.toFixed(2))}});
+}
+
 export function finishPendingWorldFixture(career,serieAClubs){
   if(!career.pendingWorldMatch)return career;
   const pending=career.pendingWorldMatch,base={...career,pendingWorldMatch:null};
