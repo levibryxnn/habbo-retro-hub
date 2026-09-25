@@ -366,7 +366,8 @@ function applyAdaptiveAiTactics(result,home,away,career,interactiveClubId,rng){
     const decision=adaptiveAiDecision({scoreDiff:gf-ga,minute:Math.floor(checkpoint/60),condition,basePlan});
     if(Math.abs(decision.aggression)<.01)continue;
     next.tacticalChanges.push({side,second:checkpoint,preset:decision.id,aggression:Number(decision.aggression.toFixed(3)),adaptiveAi:true,reason:decision.reason});
-    next.intelligence={...(next.intelligence||{}),[side+'Plan']:decision.id,[side+'AdaptiveReason']:decision.reason};
+    const planLabel={compact:'Compacto',balanced:'Equilibrado',control:'Controle',vertical:'Vertical',pressing:'Pressão alta','all-in':'Tudo ou nada'}[decision.id]||decision.id;
+    next.intelligence={...(next.intelligence||{}),[side+'Plan']:planLabel,[side+'PlanId']:decision.id,[side+'AdaptiveReason']:decision.reason};
     const opportunityChance=decision.aggression>0?clamp(.10,.42,.14+decision.aggression*.24):clamp(.04,.20,.06+Math.abs(decision.aggression)*.10);
     if(rng()<opportunityChance){
       const at=Math.min(next.durationSecond-20,checkpoint+120+Math.floor(rng()*Math.max(180,next.durationSecond-checkpoint-180)));
