@@ -142,6 +142,10 @@ export function settlePlayerMonth(career){
   if(services>0)finance=transaction(finance,{amount:-services,label:'Custos pessoais e performance',type:'life-costs',season:career.season,day:career.dayOfSeason||0});
   finance={...finance,lastSettlementDay:career.dayOfSeason||0};
   let next={...career,finance};
+  if(finance.cash<0){
+    const stress=clamp(1,6,1+Math.abs(finance.cash)/120000);
+    next={...next,player:{...next.player,morale:clamp(0,100,finite(next.player?.morale,75)-stress)},news:[{id:'finance-stress-'+career.season+'-'+(career.dayOfSeason||0),title:'Finanças pessoais exigem atenção',text:'Custos de carreira superaram o saldo disponível. O estresse financeiro afetou a moral.',season:career.season,week:career.week,day:career.dayOfSeason||0},...(career.news||[])].slice(0,80)};
+  }
   if(finance.cash>=1_000_000&&!career.achievements?.includes('millionaire'))next={...next,achievements:['millionaire',...(career.achievements||[])],pendingMoment:career.pendingMoment||{id:'millionaire',type:'finance',title:'Primeiro milhão',subtitle:'Patrimônio pessoal',text:'O saldo da carreira ultrapassou R$ 1 milhão.',season:career.season,day:career.dayOfSeason||0}};
   return next;
 }
