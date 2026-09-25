@@ -5,6 +5,7 @@ import { applyConfidenceEvent } from './manager-confidence.js';
 import { applyDevelopmentProfile } from './development-engine.js';
 import { canFundDeal, creditTransferSale, spendTransferBudget, transferBudgetSnapshot } from './economy-engine.js';
 import { applyTransferDynamics, managerProfile } from './career-dynamics.js';
+import { emitCareerEvent } from './event-engine.js';
 
 export const EUR_BRL_REFERENCE=6.25;
 const clamp=(min,max,n)=>Math.max(min,Math.min(max,n));
@@ -171,7 +172,7 @@ export function evaluateTransferOffer(career,baseClubs,offer){
   }
   if(offer.type==='swap'){
     const swap=findCareerPlayer(baseClubs,offer.swapPlayerKey,career);if(!swap)return{status:'rejected',reason:'Jogador oferecido na troca não encontrado.'};
-    const swapValue=careerMarketValueBRL(career,swap.player,swap.originClub,evaluation?.swapPlayerKey||offer.swapPlayerKey).valueBRL;
+    const swapValue=careerMarketValueBRL(career,swap.player,swap.originClub,offer.swapPlayerKey).valueBRL;
     const packageValue=swapValue+Number(offer.amount||0);
     const target=diff.minimum*(rivalry===2?1.18:1);
     if(rivalry===2&&stars>=2&&packageValue<target*1.1)return{status:'rejected',reason:'Para uma troca entre rivais, o pacote teria de ser excepcional.'};
@@ -216,6 +217,18 @@ function applyTransferConfidence(career,offer,item,evaluation){
   }
   return career;
 }
+function breakNoSalePromise(career,key,playerName){
+  const promises=(career.playerPromises||[]).map(item=>item.key===key&&item.status==='active'&&item.type==='no-sale'?{...item,status:'broken',brokenReason:'Jogador negociado apesar da promessa'}:item),broken=promises.some((item,index)=>item.status==='broken'&&(career.playerPromises||[])[index]?.status==='active'&&(career.playerPromises||[])[index]?.key===key&&(career.playerPromises||[])[index]?.type==='no-sale');
+  if(!broken)return career;
+  const mood={...(career.dressingRoom?.playerMood||{})},old=mood[key]||{name:playerName,morale:70,managerTrust:60};mood[key]={...old,name:playerName,morale:clamp(20,100,(old.morale||70)-13),managerTrust:clamp(0,100,(old.managerTrust||60)-22),promiseStatus:'broken'};
+  let next={...career,playerPromises:promises,dressingRoom:{...(career.dressingRoom||{}),playerMood:mood}};
+  next=applyConfidenceEvent(next,{fans:-1.2,board:-.8,kind:'promise',reason:'Uma promessa de permanência foi quebrada durante a negociação.'});
+  return emitCareerEvent(next,{type:'PROMISE_BROKEN',playerId:key.split(':').pop(),importance:4,payload:{name:playerName,promise:'Não será vendido nesta janela'}});
+}
+function applyPermanentContract(career,key,player,toClubId,wageMonthly){
+  const old=career.playerContracts?.[key]||{},contract={...old,key,playerId:String(player.id),name:player.name,clubId:String(toClubId),startSeason:career.season,expirySeason:career.season+3,salaryMonthly:Number(wageMonthly||old.salaryMonthly||35000),status:'active'};
+  return{...career,playerContracts:{...(career.playerContracts||{}),[key]:contract}};
+}
 export function executeTransfer(career,baseClubs,offer,evaluation){
   if(!evaluation||evaluation.status!=='accepted')return{career,error:'A negociação ainda não foi aceita.'};
   const item=findCareerPlayer(baseClubs,offer.playerKey,career);if(!item)return{career,error:'Jogador não encontrado.'};
@@ -226,15 +239,18 @@ export function executeTransfer(career,baseClubs,offer,evaluation){
     const amount=Number(evaluation.agreedAmount||offer.amount||0);
     if(to===user){const funding=canFundDeal(next,{fee:amount,wageMonthly:evaluation.wageMonthly||estimatedMonthlySalary(item.player,item.originClub,next,offer.playerKey)});if(!funding.ok)return{career,error:funding.reason};}
     next.ownership[offer.playerKey]=to;
-    if(to===user){next=spendTransferBudget(next,amount);next=addTransaction(next,-amount,'Compra · '+item.player.name,career.round,'transfer',{playerKey:offer.playerKey});next.transferContracts.push({playerKey:offer.playerKey,clubId:user,wageMonthly:evaluation.wageMonthly||estimatedMonthlySalary(item.player,item.originClub,next,offer.playerKey),active:true,signedSeason:career.season,signedRound:career.round});}
-    if(from===user){next=addTransaction(next,amount,'Venda · '+item.player.name,career.round,'transfer',{playerKey:offer.playerKey});next=creditTransferSale(next,amount);next.transferContracts=next.transferContracts.map(contract=>contract.playerKey===offer.playerKey&&contract.clubId===user?{...contract,active:false,endedRound:career.round}:contract);}
+    if(to===user){const wage=evaluation.wageMonthly||estimatedMonthlySalary(item.player,item.originClub,next,offer.playerKey);next=spendTransferBudget(next,amount);next=addTransaction(next,-amount,'Compra · '+item.player.name,career.round,'transfer',{playerKey:offer.playerKey});next.transferContracts.push({playerKey:offer.playerKey,clubId:user,wageMonthly:wage,active:true,signedSeason:career.season,signedRound:career.round});next=applyPermanentContract(next,offer.playerKey,item.player,user,wage);}
+    if(from===user){next=breakNoSalePromise(next,offer.playerKey,item.player.name);next=addTransaction(next,amount,'Venda · '+item.player.name,career.round,'transfer',{playerKey:offer.playerKey});next=creditTransferSale(next,amount);next.transferContracts=next.transferContracts.map(contract=>contract.playerKey===offer.playerKey&&contract.clubId===user?{...contract,active:false,endedRound:career.round}:contract);next=applyPermanentContract(next,offer.playerKey,item.player,to,evaluation.wageMonthly||estimatedMonthlySalary(item.player,item.originClub,next,offer.playerKey));}
   }
   if(offer.type==='swap'){
     const swap=findCareerPlayer(baseClubs,evaluation.swapPlayerKey||offer.swapPlayerKey,career);if(!swap)return{career,error:'Jogador de troca não encontrado.'};
     const cash=Number(evaluation.cashAmount||offer.amount||0);
     if(to===user){const funding=canFundDeal(next,{fee:cash,wageMonthly:0});if(!funding.ok)return{career,error:funding.reason};}
+    if(from===user)next=breakNoSalePromise(next,offer.playerKey,item.player.name);
     next.ownership[offer.playerKey]=to;
     next.ownership[evaluation.swapPlayerKey||offer.swapPlayerKey]=from;
+    next=applyPermanentContract(next,offer.playerKey,item.player,to,estimatedMonthlySalary(item.player,item.originClub,next,offer.playerKey));
+    next=applyPermanentContract(next,evaluation.swapPlayerKey||offer.swapPlayerKey,swap.player,from,estimatedMonthlySalary(swap.player,swap.originClub,next,evaluation.swapPlayerKey||offer.swapPlayerKey));
     if(to===user&&cash>0){next=spendTransferBudget(next,cash);next=addTransaction(next,-cash,'Troca · compensação por '+item.player.name,career.round,'transfer');}
   }
   if(['loan-in','loan-out'].includes(offer.type)){
@@ -247,6 +263,7 @@ export function executeTransfer(career,baseClubs,offer,evaluation){
   next=applyTransferConfidence(next,offer,item,evaluation);
   const record=transferRecord(next,offer,item,evaluation);next.transferHistory=[...next.transferHistory,record].slice(-240);
   next=applyTransferDynamics(next,{type:offer.type,playerName:item.player.name,amount:record.amount,marketValue:record.marketValue,fromUser:from===user,toUser:to===user});
+  next=emitCareerEvent(next,{type:'TRANSFER_COMPLETED',playerId:item.player.id,importance:record.amount>=100000000?4:2,payload:{type:offer.type,player:item.player.name,fromClubId:from,toClubId:to,amount:record.amount,marketValue:record.marketValue}});
   return{career:next,error:null};
 }
 export function negotiationPreset(player,originClub,buyerClub,career=null,key=null){
