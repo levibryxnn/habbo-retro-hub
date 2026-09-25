@@ -53,7 +53,7 @@ function generateProspects(career,club,count=5){
   const first=['Caio','João','Lucas','Rafael','Gabriel','Matheus','Pedro','Arthur','Nicolas','Samuel','Bruno','Henrique','Murilo','Gustavo','Davi','Theo'];
   const last=['Silva','Souza','Oliveira','Santos','Lima','Pereira','Rocha','Moura','Almeida','Costa','Ferreira','Vieira','Ribeiro','Cardoso','Nunes'];
   const positions=['Goalkeeper','Defender','Defender','Midfielder','Midfielder','Forward'];
-  const profile=managerProfile(career.managerProfile),dna=clubDNAFor(club.id),level=clamp(1,5,Math.round(1+(getClubWorld(club.id).fanIndex||.5)*2+(getClubWorld(club.id).gameBudgetM||20)/75));
+  const profile=managerProfile(career.managerProfile),dna=clubDNAFor(club.id),level=clamp(1,5,Number(career.facilities?.academy)||Number(career.youthAcademy?.level)||Math.round(1+(getClubWorld(club.id).fanIndex||.5)*2+(getClubWorld(club.id).gameBudgetM||20)/75));
   return Array.from({length:count},(_,i)=>{
     const seed=career.season+'|'+club.id+'|academy|'+i,name=pick(first,seed+'f')+' '+pick(last,seed+'l'),age=16+(hash(seed+'age')%3),position=positions[hash(seed+'pos')%positions.length];
     const base=47+Math.floor(roll(seed+'base')*(11+level*2)),boom=roll(seed+'boom'),rawPotential=base+(boom>.94?27:boom>.72?17:boom>.35?10:4)+Math.floor(roll(seed+'pot')*8);
@@ -259,7 +259,8 @@ export function managerCareerSummary(career){
   const record=career.careerRecord||deriveCareerRecord(career),wins=record.wins||0,draws=record.draws||0,losses=record.losses||0;
   const biggest=(career.careerMemory?.historicMoments||[]).find(m=>m.type==='score');
   const buys=(career.transferHistory||[]).filter(t=>t.type==='buy'),sales=(career.transferHistory||[]).filter(t=>t.type==='sell');
-  return{seasons:Math.max(1,(career.seasons||[]).length+(career.round>0?1:0)),matches:wins+draws+losses,wins,draws,losses,titles:(career.trophies||[]).length,reputation:Math.round(career.managerReputation??50),biggest,biggestBuy:buys.sort((a,b)=>b.amount-a.amount)[0]||null,biggestSale:sales.sort((a,b)=>b.amount-a.amount)[0]||null};
+  const allTitles=[...(career.managerTrophies||[]),...(career.trophies||[])],clubsManaged=Math.max(1,(career.managerClubHistory||[]).length);
+  return{seasons:Math.max(1,(career.seasons||[]).length+(career.round>0?1:0)),matches:wins+draws+losses,wins,draws,losses,titles:allTitles.length,clubsManaged,reputation:Math.round(career.managerReputation??50),biggest,biggestBuy:buys.sort((a,b)=>b.amount-a.amount)[0]||null,biggestSale:sales.sort((a,b)=>b.amount-a.amount)[0]||null};
 }
 export function careerNews(career){
   const universe=(career.universeNotes||[]).map(item=>({...item,importance:item.importance||2,round:item.round||0,timestamp:item.date||item.timestamp||String(item.season),type:item.type||'universe'}));
