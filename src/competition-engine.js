@@ -448,6 +448,7 @@ function applyUserWorldOutcome(next,before,game,comp,result,serieAClubs){
     next=applyWeeklyTraining(next,userClub);
     next=refreshJobOffers(next,serieAClubs);
     next=emitCareerEvent(next,{type:'MATCH_FINISHED',importance:competitionImportance(comp.id)>=1.2?4:3,payload:{competition:comp.name,stage:game.stage,homeId:result.homeId,awayId:result.awayId,homeGoals:result.homeGoals,awayGoals:result.awayGoals,xg:result.xg||null}});
+    for(const injury of(result.events||[]).filter(event=>event.type==='injury'&&String(event.clubId)===String(next.userClubId)))next=emitCareerEvent(next,{type:'PLAYER_INJURED',playerId:injury.playerId,importance:Number(injury.injurySeverity||1)>=4?4:2,payload:{name:injury.player,label:injury.injuryLabel,duration:injury.severityMatches,severity:injury.injurySeverity||1}});
   }
   next=advanceWorldManagers(next,serieAClubs);
   const trophy=trophyFor(comp),userNowChampion=comp.championId===String(next.userClubId),already=(next.trophies||[]).some(t=>t.id===trophy.id&&Number(t.season)===Number(comp.edition));
