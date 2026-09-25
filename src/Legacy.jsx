@@ -1,5 +1,5 @@
 import React from 'react';
-import { Award, Crown, History, LockKeyhole, Medal, Sparkles, Star, Trophy, Users } from 'lucide-react';
+import { Award, Crown, History, Medal, Sparkles, Star, Trophy, Users } from 'lucide-react';
 import { topScorers } from './career-engine';
 import { brasileiraoHistoricalScorers, historicalWorldTitles, realWorldRecords } from './records-data';
 import './legacy.css';
@@ -27,6 +27,9 @@ export default function Legacy({career,club,clubs}) {
   const historicalWorld=historicalWorldTitles(club.name);
   const managedWorld=(career.trophies||[]).filter(function(trophy){return trophy.id==='world';}).length;
   const managedBrazil=(career.trophies||[]).filter(function(trophy){return trophy.id==='brasileirao';}).length;
+  const seasons=(career.seasons||[]).filter(item=>String(item.userClubId||career.userClubId)===String(club.id)&&Number.isFinite(Number(item.points))).slice().sort((a,b)=>Number(b.season)-Number(a.season));
+  const bestPoints=seasons.slice().sort((a,b)=>Number(b.points)-Number(a.points))[0]||null,bestAttack=seasons.slice().sort((a,b)=>Number(b.goalsFor)-Number(a.goalsFor))[0]||null,bestDefense=seasons.slice().sort((a,b)=>Number(a.goalsAgainst)-Number(b.goalsAgainst))[0]||null;
+  const hofPlayers=(career.hallOfFame?.players||[]).slice(0,8),milestones=(career.careerMemory?.milestones||[]).slice(0,8),clubsManaged=(career.managerClubHistory||[]);
 
   return <div className="legacy-content">
     <div className="legacy-heading">
@@ -52,6 +55,11 @@ export default function Legacy({career,club,clubs}) {
       <Ranking title="Maiores artilheiros do seu save" items={allTime} clubs={clubs} empty="Simule partidas para começar a construir este ranking."/>
     </div>
 
+    <section className="legacy-card season-comparison">
+      <div className="legacy-card-title"><h3>Temporadas comparáveis do save</h3><span>{seasons.length} arquivada(s)</span></div>
+      {seasons.length?<><div className="season-record-cards"><span><small>MAIOR PONTUAÇÃO</small><strong>{bestPoints.points} pts</strong><em>{bestPoints.season}</em></span><span><small>MELHOR ATAQUE</small><strong>{bestAttack.goalsFor} gols</strong><em>{bestAttack.season}</em></span><span><small>MELHOR DEFESA</small><strong>{bestDefense.goalsAgainst} sofridos</strong><em>{bestDefense.season}</em></span></div><div className="season-comparison-table">{seasons.slice(0,10).map(item=><article key={item.season}><b>{item.season}</b><span><small>Pos.</small>{item.position}º</span><span><small>PTS</small>{item.points}</span><span><small>V</small>{item.wins}</span><span><small>GP</small>{item.goalsFor}</span><span><small>GC</small>{item.goalsAgainst}</span><span><small>SG</small>{item.goalDifference>0?'+':''}{item.goalDifference}</span></article>)}</div></>:<p className="legacy-empty">Conclua uma temporada para criar a primeira referência histórica comparável.</p>}
+    </section>
+
     <section className="legacy-card historical-scorers">
       <div className="legacy-card-title"><h3>Referência real · artilheiros do Brasileirão</h3><span>CBF · 18/08/2026</span></div>
       <div className="historical-grid">{brasileiraoHistoricalScorers.map(function(player,index){
@@ -59,11 +67,11 @@ export default function Legacy({career,club,clubs}) {
       })}</div>
     </section>
 
-    <div className="hall-heading"><div><div className="eyebrow">EM CONSTRUÇÃO</div><h3>Hall da Fama</h3></div><span>Estrutura inicial</span></div>
-    <div className="hall-grid">
-      <article><span className="hall-icon"><Users/></span><h3>Jogadores</h3><p>Ídolos do seu save, artilheiros, recordistas de jogos e protagonistas de títulos.</p><div className="hall-lock"><LockKeyhole size={13}/> Critérios serão ativados nas próximas competições.</div></article>
-      <article><span className="hall-icon"><Award/></span><h3>Clubes</h3><p>Dinastias, sequências de títulos, temporadas históricas e recordes nacionais.</p><div className="hall-lock"><LockKeyhole size={13}/> {managedBrazil} Brasileirão(ões) na sua gestão.</div></article>
-      <article><span className="hall-icon"><Medal/></span><h3>Técnicos</h3><p>Carreiras longevas, aproveitamento, títulos e marcas quebradas ao longo dos anos.</p><div className="hall-lock"><LockKeyhole size={13}/> Perfil do treinador será conectado depois.</div></article>
+    <div className="hall-heading"><div><div className="eyebrow">MEMÓRIA DO SAVE</div><h3>Hall da Fama</h3></div><span>{hofPlayers.length+milestones.length} registros em destaque</span></div>
+    <div className="hall-grid active-hall">
+      <article><span className="hall-icon"><Users/></span><h3>Jogadores</h3><p>Os melhores desempenhos de temporada que já entraram para a história da carreira.</p><div className="hall-live-list">{hofPlayers.length?hofPlayers.slice(0,4).map(item=><span key={item.name+'-'+item.season}><b>{item.name}</b><small>{item.season} · média {Number(item.rating||0).toFixed(1)}</small></span>):<span><b>Aguardando um protagonista</b><small>O primeiro destaque anual aparecerá aqui.</small></span>}</div></article>
+      <article><span className="hall-icon"><Award/></span><h3>Clubes</h3><p>Projetos que fizeram parte da trajetória do treinador.</p><div className="hall-live-list">{clubsManaged.slice(0,4).map(item=><span key={item.clubId+'-'+item.fromSeason}><b>{item.clubName}</b><small>desde {item.fromSeason}{item.toSeason?' até '+item.toSeason:' · projeto atual'}</small></span>)}</div></article>
+      <article><span className="hall-icon"><Medal/></span><h3>Técnico</h3><p>Marcos que transformaram a carreira em uma história própria.</p><div className="hall-live-list">{milestones.length?milestones.slice(0,4).map(item=><span key={item.id}><b>{item.title}</b><small>{item.season}</small></span>):<span><b>Primeiro capítulo</b><small>Os marcos aparecem conforme a carreira avança.</small></span>}</div></article>
     </div>
 
     <div className="legacy-source-note">As referências reais desta tela são dados históricos de contexto; resultados, artilharia e conquistas do save são gerados pela sua carreira.</div>
