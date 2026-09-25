@@ -760,7 +760,9 @@ function autoResolveOutstandingUserPenalties(career,clubs){
 }
 function finalizeSeason(career,clubs){
   const table=standingsFromResults(career.results,clubs),champion=table[0],leaders=topScorers(career.scorers,1),userRow=table.find(item=>item.clubId===career.userClubId);
-  let next={...career,seasons:[...(career.seasons||[]),{season:career.season,championId:champion?.clubId,topScorer:leaders[0]||null}]};
+  const best=seasonBestPerformer(career),snapshot={season:career.season,championId:champion?.clubId,topScorer:leaders[0]||null,userClubId:String(career.userClubId),position:userRow?.position||20,points:userRow?.points||0,wins:userRow?.wins||0,draws:userRow?.draws||0,losses:userRow?.losses||0,goalsFor:userRow?.goalsFor||0,goalsAgainst:userRow?.goalsAgainst||0,goalDifference:userRow?.goalDifference||0,clubTopScorer:clubTopScorer(career),bestPlayer:best,cash:Number(career.cash||0),fanConfidence:Math.round(career.managerConfidence?.fans||0),boardConfidence:Math.round(career.managerConfidence?.board||0)};
+  const previousSeasons=(career.seasons||[]).filter(item=>Number(item.season)!==Number(career.season));
+  let next={...career,seasons:[...previousSeasons,snapshot]};
   let newTitle=null;
   if(champion?.clubId===career.userClubId){
     const club=clubs.find(c=>c.id===career.userClubId);
