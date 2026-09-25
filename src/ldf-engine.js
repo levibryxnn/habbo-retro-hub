@@ -255,6 +255,7 @@ export function salaryDemand({
 
 export function boardTrustScore({
   results=70,
+  titles=70,
   objectives=70,
   finance=70,
   transfers=70,
@@ -262,11 +263,12 @@ export function boardTrustScore({
   clubDNA=70,
   president='balanced',
 }={}){
-  const weights=president==='ambitious'?{results:.40,objectives:.20,finance:.10,transfers:.10,youth:.07,clubDNA:.13}
-    :president==='prudent'?{results:.22,objectives:.20,finance:.30,transfers:.12,youth:.08,clubDNA:.08}
-    :president==='developer'?{results:.22,objectives:.20,finance:.13,transfers:.10,youth:.27,clubDNA:.08}
-    :{results:.30,objectives:.22,finance:.18,transfers:.12,youth:.10,clubDNA:.08};
-  return Number(clamp(0,100,Object.entries(weights).reduce((sum,[key,w])=>sum+clamp(0,100,finite({results,objectives,finance,transfers,youth,clubDNA}[key],70))*w,0)).toFixed(1));
+  const weights=president==='ambitious'?{results:.36,titles:.25,objectives:.13,finance:.08,transfers:.06,youth:.05,clubDNA:.07}
+    :president==='prudent'?{results:.19,titles:.05,objectives:.18,finance:.30,transfers:.12,youth:.08,clubDNA:.08}
+    :president==='developer'?{results:.18,titles:.04,objectives:.17,finance:.12,transfers:.10,youth:.31,clubDNA:.08}
+    :{results:.27,titles:.08,objectives:.20,finance:.17,transfers:.11,youth:.09,clubDNA:.08};
+  const values={results,titles,objectives,finance,transfers,youth,clubDNA};
+  return Number(clamp(0,100,Object.entries(weights).reduce((sum,[key,w])=>sum+clamp(0,100,finite(values[key],70))*w,0)).toFixed(1));
 }
 
 export function newsworthiness({importance=1,surprise=0,rivalry=0,streak=0,playerImpact=0,historicalContext=0}={}){
