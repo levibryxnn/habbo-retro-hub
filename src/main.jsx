@@ -25,6 +25,7 @@ import { initialTransferBudget } from './economy-engine.js';
 import { MANAGER_PROFILES } from './career-dynamics.js';
 import { CAREER_KEY, createCareer, sanitizeCareer, standingsFromResults } from './career-engine';
 import { nextCareerEvent } from './competition-engine.js';
+import { CAREER_CHALLENGES } from './challenge-engine.js';
 
 const labels = { GOL: 'Goleiro', DEF: 'Defensor', MEI: 'Meio-campista', ATA: 'Atacante', NI: 'Não informada' };
 const categories = [['Todos', 'Todo o elenco'], ['GOL', 'Goleiros'], ['DEF', 'Defensores'], ['MEI', 'Meias'], ['ATA', 'Atacantes']];
@@ -77,6 +78,7 @@ function App() {
   const [clubBrowserOpen,setClubBrowserOpen]=useState(true);
   const [managerNameInput,setManagerNameInput]=useState('');
   const [managerProfileInput,setManagerProfileInput]=useState('strategist');
+  const [careerChallengeInput,setCareerChallengeInput]=useState('normal');
   const clubMarketBudget=id=>Number(careers[String(id)]?.transferBudget??initialTransferBudget(String(id)));
   const careersRef=useRef(careers);
   const persistHandle=useRef(null);
@@ -136,7 +138,7 @@ function App() {
   useEffect(()=>{
     if(!rawCareer)return;
     const detailedResults=Array.isArray(rawCareer.results)&&rawCareer.results.some(result=>Array.isArray(result.events)||result.stats||result.homeLineup||result.awayLineup);
-    const needsMigration=Number(rawCareer.version||0)<11||detailedResults||!rawCareer.seasonPerformance||!rawCareer.world||!rawCareer.systemsVersion;
+    const needsMigration=Number(rawCareer.version||0)<12||detailedResults||!rawCareer.seasonPerformance||!rawCareer.world||!rawCareer.systemsVersion;
     if(needsMigration)setCareers(current=>({...current,[club.id]:career}));
   },[club.id,rawCareer,career]);
   const careerActive=saved===club.id;
@@ -186,6 +188,7 @@ function App() {
   function openClubSetup() {
     setManagerNameInput(String(career.managerName||''));
     setManagerProfileInput(String(career.managerProfile||'strategist'));
+    setCareerChallengeInput(String(career.careerChallenge||'normal'));
     setDialog('manager');
   }
   function confirmClub() {
@@ -195,7 +198,7 @@ function App() {
     const existing=careers[club.id];
     const source=existing?.managerStatus==='dismissed'?createCareer(careerClubs,club.id,data.season):(existing||createCareer(careerClubs,club.id));
     const current=sanitizeCareer(source,careerClubs,club.id);
-    const configured={...current,managerName,managerProfile:managerProfileLocked?(current.managerProfile||'strategist'):managerProfileInput,managerStatus:'active',dismissal:null,boardPressureStreak:0,boardWarning:null};
+    const configured={...current,managerName,managerProfile:managerProfileLocked?(current.managerProfile||'strategist'):managerProfileInput,careerChallenge:managerProfileLocked?(current.careerChallenge||'normal'):careerChallengeInput,challengeStartSeason:managerProfileLocked?(current.challengeStartSeason||current.season):current.season,managerStatus:'active',dismissal:null,boardPressureStreak:0,boardWarning:null};
     const next={...careers,[club.id]:configured};
     setCareers(next);
     try {
@@ -283,7 +286,7 @@ function App() {
     {careerActive&&!pendingRetirement&&career.pendingCelebration&&<SeasonReviewModal career={career} club={club} Crest={Crest} mode="trophy" onClose={()=>saveCareer({...career,pendingCelebration:null})}/>}
     {careerActive&&!pendingRetirement&&!career.pendingCelebration&&career.seasonReview?.pending&&<SeasonReviewModal career={career} club={club} Crest={Crest} mode="season" onClose={()=>saveCareer({...career,seasonReview:{...career.seasonReview,pending:false}})} onContinue={()=>{saveCareer({...career,seasonReview:{...career.seasonReview,pending:false}});setTab('legacy');}}/>}
     {dialog==='data'&&<Modal title="Sobre os dados" onClose={()=>setDialog(null)}><span className="modal-icon"><Shield/></span><div className="eyebrow">TRANSPARÊNCIA</div><h2>Futebol real. Base consultável.</h2><p>Os 20 clubes e seus elencos vêm dos cadastros de temporada da ESPN, consultados em <strong>{displayDate}</strong>. A tela usa uma cópia local dessa consulta.</p><p>{data.note} Idades se referem à data da consulta. Dados ausentes aparecem como “—”.</p><p>Partidas, classificação, artilharia, caixa, patrocínios e transferências compartilham o mesmo save local. Receitas e valores de mercado usam referências públicas; orçamento disponível e negociações são modelagens de gameplay, não saldos contábeis oficiais.</p><a className="primary" href={club.sourcePage} target="_blank" rel="noreferrer">Consultar elenco na ESPN <ArrowRight size={17}/></a></Modal>}
-    {dialog==='manager'&&<Modal title="Definir técnico" onClose={()=>setDialog(null)}><Crest club={club} large/><div className="eyebrow">COMANDO TÉCNICO</div><h2>Quem comandará o {club.name}?</h2><p>Seu perfil altera pequenas partes da gestão, do vestiário e das decisões sem substituir o peso do elenco ou dos resultados.</p><label className="manager-name-field"><span>Nome do técnico</span><input autoFocus maxLength="40" value={managerNameInput} onChange={e=>setManagerNameInput(e.target.value)} placeholder="Digite o nome do técnico"/></label><div className="manager-profile-picker">{MANAGER_PROFILES.map(item=><button type="button" key={item.id} disabled={managerProfileLocked} className={managerProfileInput===item.id?'selected':''} onClick={()=>setManagerProfileInput(item.id)}><strong>{item.name}</strong><span>{item.description}</span></button>)}</div>{managerProfileLocked&&<p className="profile-lock-note">O perfil foi definido no início desta carreira e não muda depois da primeira partida oficial.</p>}<button className="primary manager-confirm" disabled={!managerNameInput.trim()} onClick={confirmClub}>{saved===club.id?'Salvar técnico':'Assumir o clube'} <ArrowRight size={18}/></button></Modal>}
+    {dialog==='manager'&&<Modal title="Definir técnico" onClose={()=>setDialog(null)}><Crest club={club} large/><div className="eyebrow">COMANDO TÉCNICO</div><h2>Quem comandará o {club.name}?</h2><p>Seu perfil altera pequenas partes da gestão, do vestiário e das decisões sem substituir o peso do elenco ou dos resultados.</p><label className="manager-name-field"><span>Nome do técnico</span><input autoFocus maxLength="40" value={managerNameInput} onChange={e=>setManagerNameInput(e.target.value)} placeholder="Digite o nome do técnico"/></label><div className="manager-profile-picker">{MANAGER_PROFILES.map(item=><button type="button" key={item.id} disabled={managerProfileLocked} className={managerProfileInput===item.id?'selected':''} onClick={()=>setManagerProfileInput(item.id)}><strong>{item.name}</strong><span>{item.description}</span></button>)}</div><div className="manager-challenge-picker"><span><small>DESAFIO OPCIONAL</small><strong>Como você quer construir esta carreira?</strong></span><div>{CAREER_CHALLENGES.map(item=><button type="button" key={item.id} disabled={managerProfileLocked} className={careerChallengeInput===item.id?'selected':''} onClick={()=>setCareerChallengeInput(item.id)}><strong>{item.name}</strong><em>{item.description}</em></button>)}</div></div>{managerProfileLocked&&<p className="profile-lock-note">Perfil e desafio foram definidos no início desta carreira e não mudam depois da primeira partida oficial.</p>}<button className="primary manager-confirm" disabled={!managerNameInput.trim()} onClick={confirmClub}>{saved===club.id?'Salvar técnico':'Assumir o clube'} <ArrowRight size={18}/></button></Modal>}
     {dialog==='confirmed'&&<Modal title="Clube escolhido" onClose={()=>setDialog(null)}><Crest club={club} large/><div className="eyebrow">COMANDO DEFINIDO</div><h2>{managerNameInput.trim()}, você assume o {club.name}.</h2><p>{storageError?'A carreira está ativa nesta sessão.':'Clube e técnico foram salvos neste navegador.'}</p><div className="next-step"><strong>A temporada está pronta.</strong><p>Gerencie escalação, partidas, transferências, finanças e a história do clube.</p></div><button className="primary" onClick={()=>{setDialog(null);setTab('dashboard');}}>Ir para a temporada <ArrowRight size={18}/></button></Modal>}
     {dialog&&typeof dialog==='object'&&<Modal title={`Ficha de ${dialog.name}`} onClose={()=>setDialog(null)}><div className="player-modal-club"><Crest club={club}/><span>{club.name} · {career.season}</span></div><span className={`position ${position(dialog)}`}>{labels[position(dialog)]}</span><h2>{dialog.name}</h2><div className="player-facts"><div><small>Camisa</small><strong>{dialog.number||'—'}</strong></div><div><small>Idade na temporada</small><strong>{age(dialog)!==null?`${age(dialog)} anos`:'—'}</strong></div><div><small>Nacionalidade</small><strong>{country(dialog)}</strong></div><div><small>Altura</small><strong>{dialog.heightCm?`${dialog.heightCm} cm`:'—'}</strong></div><div><small>Overall</small><strong>{careerPlayerOverall(dialog,career,club.id)}</strong></div></div><p className="fineprint">Cadastro da ESPN · Consulta de {displayDate}. Vínculo atual sujeito à confirmação.</p><button className="primary" onClick={()=>setDialog(null)}>Voltar ao elenco <ArrowRight size={17}/></button></Modal>}
   </div>;
