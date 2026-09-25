@@ -3,6 +3,7 @@ import { Activity, CalendarDays, Clock3, FastForward, Flag, Gauge, History, Paus
 import {
   HALF_TIME_SECOND,
   MAX_SUBSTITUTIONS,
+  changeUserMatchTactic,
   finishPendingRound,
   fixtureForUser,
   liveRoundMatches,
@@ -14,6 +15,7 @@ import {
   standingsFromResults,
   startNextSeason,
   startRound,
+  setCareerTacticalPreset,
   updateUserLineup,
   userLineupForNextMatch,
 } from './career-engine';
@@ -29,7 +31,8 @@ import {
 } from './player-engine';
 import { getClubWorld } from './club-world.js';
 import { positionGroup, translatePosition } from './position-labels.js';
-import { finishPendingWorldFixture, nextCareerEvent, pendingSeasonFixtures, startWorldFixture, unifiedUserMatchHistory, worldClub } from './competition-engine.js';
+import { changePendingWorldTactic, finishPendingWorldFixture, nextCareerEvent, pendingSeasonFixtures, startWorldFixture, unifiedUserMatchHistory, worldClub } from './competition-engine.js';
+import { TACTICAL_PRESETS, sanitizeTacticalState } from './tactical-engine.js';
 import WorldCrest from './WorldCrest.jsx';
 import './match.css';
 
@@ -84,6 +87,14 @@ function worldImportance(id,stage=''){
   if(id==='copa-do-brasil'||id==='sudamericana'||id==='supercopa')return'Alta';
   if(/semi|quartas|oitavas|playoff/i.test(stage))return'Alta';
   return'Média';
+}
+function MatchTacticStrip({career,onSelect,live=false,disabled=false}){
+  const tactic=sanitizeTacticalState(career?.tacticalState),current=TACTICAL_PRESETS.find(item=>item.id===tactic.preset)||TACTICAL_PRESETS[1];
+  return <section className={'match-tactic-strip '+(live?'live':'')}><div className="match-tactic-copy"><Gauge size={16}/><span><small>{live?'AJUSTE DURANTE O JOGO':'PLANO DE JOGO'}</small><strong>{current.name}</strong><em>{live?'Mais risco pode criar chances e também abrir contra-ataques.':current.description}</em></span></div><div className="match-tactic-options">{TACTICAL_PRESETS.map(item=><button key={item.id} disabled={disabled} className={tactic.preset===item.id?'active':''} onClick={()=>onSelect(item.id)}>{item.name}</button>)}</div></section>;
+}
+function MatchContextStrip({result,career}){
+  const weather=result?.environment?.weather,info=result?.intelligence;
+  return <div className="match-context-strip"><span><small>Treino</small><strong>{info?.training||({balanced:'Equilibrado',recovery:'Recuperação',physical:'Físico',attacking:'Ataque',defending:'Defesa',possession:'Posse',setpieces:'Bola parada',academy:'Integração da base'}[career?.trainingState?.focus]||'Equilibrado')}</strong></span><span><small>Clima</small><strong>{weather?.label||info?.weather||'A confirmar'}</strong></span><span><small>xG</small><strong>{result?.xg?result.xg[0].toFixed(2)+' × '+result.xg[1].toFixed(2):'pré-jogo'}</strong></span></div>;
 }
 const latestFor=(events,side,second)=>[...(events||[])].reverse().find(e=>e.side===side&&e.second<=second)||null;
 function PlayerHighlight({club,result,side,second}) {
@@ -251,6 +262,14 @@ export default function MatchSimulation({club,clubs,Crest,career,onCareerChange,
     onCareerChange(started);setSecond(0);setRealElapsed(0);setPaused(false);
   }
   function clearWorldResult(){setWorldCompleted(null);setSecond(0);setRealElapsed(0);setPaused(true);}
+  function chooseLeagueTactic(id){
+    const next=activeRound?changeUserMatchTactic(career,clubs,id,second):setCareerTacticalPreset(career,id);
+    onCareerChange(next);
+  }
+  function chooseWorldTactic(id){
+    const next=activeWorld?changePendingWorldTactic(career,id,second):setCareerTacticalPreset(career,id);
+    onCareerChange(next);
+  }
   function runRound(){
     if(!canManage||activeRound||completed||blockedByCompetition)return;
     if(selectedMode==='instant'){const started=startRound(career,clubs,'instant'),finished=finishPendingRound(started,clubs);onCareerChange(finished);setSecond(finished.lastUserMatch?.durationSecond||FULL_TIME);setRealElapsed(0);setPaused(true);return;}
@@ -271,6 +290,8 @@ export default function MatchSimulation({club,clubs,Crest,career,onCareerChange,
       <div className="match-heading"><div><div className="eyebrow">CALENDÁRIO INTEGRADO</div><h2>{event?.competitionName||result?.competitionName||'Competição'}</h2><p>{event?.stage||result?.stage||'Partida oficial'} · as três velocidades usam a mesma engine e o resultado permanece no save.</p></div><span className="stage-two-badge"><Trophy size={13}/> {event?.stage||result?.stage}</span></div>
       {!canManage&&<div className="choose-notice"><Target size={18}/><p>Escolha o {club.name} para administrar esta partida.</p><button onClick={onChoose}>Escolher clube</button></div>}
       <div className="match-meta"><span><CalendarDays size={15}/> {event?.date||result?.date}</span><span><Trophy size={15}/> {event?.competitionName||result?.competitionName}</span><span><Timer size={15}/> {finished?'Partida encerrada':playing?'Partida em andamento':'Pré-jogo'}</span></div>
+      {!finished&&canManage&&<MatchTacticStrip career={career} onSelect={chooseWorldTactic} live={playing}/>}
+      <MatchContextStrip result={result} career={career}/>
       {!playing&&!finished&&<section className="pregame-insights"><article><small>PESO DO JOGO</small><strong>{worldImportance(event?.competitionId,event?.stage)}</strong><span>{event?.stage}</span></article><article><small>TORCIDA</small><strong>{Math.round(career.managerConfidence?.fans??100)}%</strong><span>confiança atual</span></article><article><small>DIRETORIA</small><strong>{Math.round(career.managerConfidence?.board??100)}%</strong><span>segurança do trabalho</span></article><article><small>FORÇA PROJETADA</small><strong>{Math.round(result?.homePower||0)} × {Math.round(result?.awayPower||0)}</strong><span>{result?.homePower>result?.awayPower?(homeWorld?.abbreviation||'Mandante')+' chega mais forte':result?.awayPower>result?.homePower?(awayWorld?.abbreviation||'Visitante')+' chega mais forte':'equilíbrio técnico'}</span></article></section>}
       <section className="match-stage world-match-stage" aria-label={(homeWorld?.name||'Mandante')+' contra '+(awayWorld?.name||'Visitante')}><SidelineField/><div className="match-score-layer"><div className="match-team home"><WorldCrest club={homeWorld} size="large"/><h3>{homeWorld?.name||'Mandante'}</h3></div><div className="score-center"><span className="match-period">{finished?'FIM DE JOGO':playing?(virtualSecond<45*60?'1º TEMPO':'2º TEMPO'):'PRÉ-JOGO'}</span><span className="match-clock">{playing?Math.min(90,Math.floor(virtualSecond/60))+"'":finished?"90'":"00:00"}</span><strong>{worldScore.home}<i>–</i>{worldScore.away}</strong><small>{finished?'RESULTADO OFICIAL':playing?paused?'JOGO PAUSADO':'PARTIDA EM ANDAMENTO':'AGUARDANDO SIMULAÇÃO'}</small><div className="match-venue"><strong>{event?.competitionName||result?.competitionName}</strong><span>{event?.stage||result?.stage}</span></div></div><div className="match-team away"><WorldCrest club={awayWorld} size="large"/><h3>{awayWorld?.name||'Visitante'}</h3></div></div></section>
       <section className="match-momentum-panel" aria-label="Momento da partida"><div className="momentum-copy"><Activity size={15}/><span><small>MOMENTO DO JOGO</small><strong>{worldMomentum>=57?(homeWorld?.abbreviation||homeWorld?.name)+' pressiona':worldMomentum<=43?(awayWorld?.abbreviation||awayWorld?.name)+' pressiona':'Jogo equilibrado'}</strong></span></div><div className="momentum-teams"><span>{homeWorld?.abbreviation}</span><div className="momentum-track"><i style={{width:worldMomentum+'%'}}/><b style={{width:(100-worldMomentum)+'%'}}/></div><span>{awayWorld?.abbreviation}</span></div><small className="momentum-note">Leitura calculada por força das equipes, posse projetada e volume ofensivo.</small></section>
@@ -285,6 +306,8 @@ export default function MatchSimulation({club,clubs,Crest,career,onCareerChange,
     {!canManage&&<div className="choose-notice"><Target size={18}/><p>Escolha o {club.name} para iniciar uma carreira e simular as rodadas.</p><button onClick={onChoose}>Escolher clube</button></div>}
     {canManage&&blockedByCompetition&&<div className="competition-gate"><CalendarDays size={18}/><span><strong>{careerEvent.competitionName} vem antes da próxima rodada.</strong><small>{careerEvent.stage} · o calendário não permite pular este compromisso.</small></span><button onClick={()=>onNavigate?.('competitions')}>Ir para Competições</button></div>}
     <div className="match-meta"><span><Timer size={15}/> Brasileirão Série A · {completed?'Temporada encerrada':activeRound?'Rodada '+activeRound.roundNumber+' em andamento':'Próxima: rodada '+(career.round+1)}</span><span><Trophy size={15}/> {userRow?.points||0} pts oficiais · {userRow?.position||20}º lugar</span><span><ShieldAlert size={15}/> {matchYellows} amarelo(s) · {matchReds} vermelho(s)</span></div>
+    {!completed&&!blockedByCompetition&&canManage&&<MatchTacticStrip career={career} onSelect={chooseLeagueTactic} live={Boolean(activeRound)}/>}
+    <MatchContextStrip result={displayMatch?.events?displayMatch:null} career={career}/>
 
     {!activeRound&&!completed&&!blockedByCompetition&&<section className="prematch-lineup-bar"><div><UserRoundCog size={18}/><span><strong>Escalação para a rodada {career.round+1}</strong><small>11 titulares · condição e atributos influenciam a partida</small></span></div><div className="prematch-lineup-actions"><span>{userLineupForNextMatch(career,club).length}/11 definidos</span><button onClick={()=>setLineupOpen(true)}>Alterar escalação</button></div></section>}
 
