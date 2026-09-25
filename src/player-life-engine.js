@@ -57,7 +57,7 @@ export function sanitizePlayerFinance(raw={}){
     transactions:Array.isArray(raw.transactions)?raw.transactions.slice(0,120):[],
     agentId:agent.id,bootsId:boots.id,ownedBoots:Array.from(new Set(['academy',...(Array.isArray(raw.ownedBoots)?raw.ownedBoots.filter(id=>PLAYER_BOOTS.some(item=>item.id===id)):[])])),
     physioId:physio.id,homeId:home.id,ownedHomes:Array.from(new Set(['family',...(Array.isArray(raw.ownedHomes)?raw.ownedHomes.filter(id=>PLAYER_HOMES.some(item=>item.id===id)):[])])),
-    sponsorship:raw.sponsorship&&typeof raw.sponsorship==='object'?{...raw.sponsorship,monthly:clamp(0,10_000_000,finite(raw.sponsorship.monthly,0)),monthsRemaining:clamp(0,36,finite(raw.sponsorship.monthsRemaining,0))}:null,
+    sponsorship:raw.sponsorship&&typeof raw.sponsorship==='object'?{...raw.sponsorship,monthly:clamp(0,10_000_000,finite(raw.sponsorship.monthly,0)),monthsRemaining:clamp(0,36,finite(raw.sponsorship.monthsRemaining,0)),performanceBonus:clamp(0,5_000_000,finite(raw.sponsorship.performanceBonus,0)),targetAverage:clamp(5.5,8.5,finite(raw.sponsorship.targetAverage,6.8))}:null,
     sponsorOffers:Array.isArray(raw.sponsorOffers)?raw.sponsorOffers.slice(0,4):[],
     lastSettlementDay:clamp(0,400,finite(raw.lastSettlementDay,0)),
   };
@@ -110,17 +110,18 @@ export function purchasePlayerLifeItem(career,type,id){
 export function refreshPlayerSponsorOffers(career){
   const finance=sanitizePlayerFinance(career?.finance);
   if(finance.sponsorship?.monthsRemaining>0)return{...career,finance:{...finance,sponsorOffers:[]}};
-  const rep=finite(career?.player?.reputation,5),stats=career?.seasonStats||{},avg=finite(stats.matches)>0?finite(stats.totalRating)/Math.max(1,finite(stats.matches)):6.3,goals=finite(stats.goals),life=playerLifeBonuses({...career,finance}),seed=hashSeed(career?.seed,career?.season,career?.dayOfSeason,'sponsors'),rng=mulberry32(seed);
+  const stats=career?.seasonStats||{},avg=finite(stats.matches)>0?finite(stats.totalRating)/Math.max(1,finite(stats.matches)):6.3,goals=finite(stats.goals),life=playerLifeBonuses({...career,finance}),rep=finite(career?.player?.reputation,5)+life.reputationLifestyle,seed=hashSeed(career?.seed,career?.season,career?.dayOfSeason,'sponsors'),rng=mulberry32(seed);
   const offers=PLAYER_SPONSOR_BRANDS.filter(brand=>rep>=brand.reputationMin-8&&rng()<clamp(.08,.92,.28+(rep-brand.reputationMin)*.012+(avg-6.4)*.16+life.agent.sponsorBoost*.08)).map(brand=>{
     const performance=clamp(.78,1.7,1+(avg-6.5)*.18+Math.min(10,goals)*.018),monthly=money(brand.baseMonthly*(.72+rep/120)*performance*life.agent.sponsorBoost),signing=money(brand.signing*(.8+rep/160)*life.agent.sponsorBoost),months=4+Math.floor(rng()*5);
-    return{id:'sp-'+brand.id+'-'+career.season+'-'+(career.dayOfSeason||0),brandId:brand.id,name:brand.name,monthly,signing,months,description:brand.description};
+    const targetAverage=Number(clamp(6.5,7.6,6.58+brand.performanceWeight*.18+rep/550).toFixed(2)),performanceBonus=money(monthly*(.12+brand.performanceWeight*.08));
+    return{id:'sp-'+brand.id+'-'+career.season+'-'+(career.dayOfSeason||0),brandId:brand.id,name:brand.name,monthly,signing,months,description:brand.description,targetAverage,performanceBonus};
   }).sort((a,b)=>b.monthly-a.monthly).slice(0,3);
   return{...career,finance:{...finance,sponsorOffers:offers}};
 }
 export function acceptPlayerSponsor(career,offerId){
   const finance=sanitizePlayerFinance(career?.finance),offer=finance.sponsorOffers.find(item=>item.id===offerId);if(!offer)return{career,error:'Proposta de patrocínio indisponível.'};
   let nextFinance=transaction(finance,{amount:offer.signing,label:'Luvas de imagem · '+offer.name,type:'sponsor-signing',season:career.season,day:career.dayOfSeason||0});
-  nextFinance={...nextFinance,sponsorship:{brandId:offer.brandId,name:offer.name,monthly:offer.monthly,monthsRemaining:offer.months},sponsorOffers:[]};
+  nextFinance={...nextFinance,sponsorship:{brandId:offer.brandId,name:offer.name,monthly:offer.monthly,monthsRemaining:offer.months,targetAverage:offer.targetAverage,performanceBonus:offer.performanceBonus},sponsorOffers:[]};
   const next={...career,finance:nextFinance,player:{...career.player,reputation:clamp(1,100,finite(career.player?.reputation,5)+1.5)},pendingMoment:career.pendingMoment||{id:'sponsor-'+offer.brandId+'-'+career.season,type:'sponsor',title:'Primeiro contrato de imagem',subtitle:offer.name,text:'Seu desempenho virou valor de mercado também fora do campo.',season:career.season,day:career.dayOfSeason||0}};
   return{career:next,offer};
 }
@@ -130,7 +131,12 @@ export function declinePlayerSponsor(career,offerId){
 export function settlePlayerMonth(career){
   let finance=sanitizePlayerFinance(career?.finance),life=playerLifeBonuses({...career,finance}),gross=0;
   if(career?.contract?.salaryMonthly){gross+=finite(career.contract.salaryMonthly);finance=transaction(finance,{amount:career.contract.salaryMonthly,label:'Salário · '+String(career.contract.clubName||'clube'),type:'salary',season:career.season,day:career.dayOfSeason||0});}
-  if(finance.sponsorship?.monthsRemaining>0){gross+=finite(finance.sponsorship.monthly);finance=transaction(finance,{amount:finance.sponsorship.monthly,label:'Patrocínio · '+finance.sponsorship.name,type:'sponsor',season:career.season,day:career.dayOfSeason||0});finance={...finance,sponsorship:{...finance.sponsorship,monthsRemaining:finance.sponsorship.monthsRemaining-1}};if(finance.sponsorship.monthsRemaining<=0)finance={...finance,sponsorship:null};}
+  if(finance.sponsorship?.monthsRemaining>0){
+    gross+=finite(finance.sponsorship.monthly);finance=transaction(finance,{amount:finance.sponsorship.monthly,label:'Patrocínio · '+finance.sponsorship.name,type:'sponsor',season:career.season,day:career.dayOfSeason||0});
+    const stats=career?.seasonStats||{},avg=finite(stats.matches)>0?finite(stats.totalRating)/Math.max(1,finite(stats.matches)):0;
+    if(avg>=finite(finance.sponsorship.targetAverage,6.8)&&finite(finance.sponsorship.performanceBonus)>0){const bonus=finite(finance.sponsorship.performanceBonus);gross+=bonus;finance=transaction(finance,{amount:bonus,label:'Bônus de performance · '+finance.sponsorship.name,type:'sponsor-bonus',season:career.season,day:career.dayOfSeason||0});}
+    finance={...finance,sponsorship:{...finance.sponsorship,monthsRemaining:finance.sponsorship.monthsRemaining-1}};if(finance.sponsorship.monthsRemaining<=0)finance={...finance,sponsorship:null};
+  }
   const commission=money(gross*life.agent.commission),services=money(life.physio.monthly+life.home.monthly);
   if(commission>0)finance=transaction(finance,{amount:-commission,label:'Comissão · '+life.agent.name,type:'agent-commission',season:career.season,day:career.dayOfSeason||0});
   if(services>0)finance=transaction(finance,{amount:-services,label:'Custos pessoais e performance',type:'life-costs',season:career.season,day:career.dayOfSeason||0});
