@@ -170,3 +170,15 @@ export function evaluateProjectObjectives(career,seasonReview){
   for(const item of resolved)next=emitCareerEvent(next,{type:item.status==='completed'?'PROJECT_OBJECTIVE_COMPLETED':'PROJECT_OBJECTIVE_MISSED',importance:item.status==='completed'?2:3,payload:{label:item.label}});
   return next;
 }
+
+export function expirePlayerContracts(career,club,newSeason){
+  if(!club)return career;
+  const contracts={...(career.playerContracts||{})},released={...(career.releasedPlayers||{})};let next=career,changed=false;
+  for(const player of club.players||[]){
+    const key=contractKey(club.id,player),contract=contracts[key];
+    if(!contract||contract.status==='expired'||Number(contract.expirySeason)>=Number(newSeason))continue;
+    contracts[key]={...contract,status:'expired',expiredSeason:newSeason};released[key]={key,playerId:String(player.id),name:player.name,clubId:String(club.id),season:newSeason,reason:'Fim de contrato'};changed=true;
+    next=emitCareerEvent(next,{type:'PLAYER_LEFT_FREE',playerId:player.id,importance:3,payload:{name:player.name,reason:'Fim de contrato'}});
+  }
+  return changed?{...next,playerContracts:contracts,releasedPlayers:released}:career;
+}
