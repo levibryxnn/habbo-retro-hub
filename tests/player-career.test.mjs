@@ -9,6 +9,8 @@ import {
   createPlayerCareer,
   parsePlayerCareer,
   playerCareerOverall,
+  playerObjectiveSnapshot,
+  respondPlayerContractOffer,
   sanitizePlayerCareer,
   serializePlayerCareer,
   setPlayerMatchApproach,
@@ -68,7 +70,7 @@ test('portable player save round-trips without touching manager save format',fun
   assert.equal(restored.mode,'player');
   assert.equal(restored.player.name,'Portátil');
   assert.equal(restored.clubId,original.clubId);
-  assert.equal(restored.version,2);
+  assert.equal(restored.version,3);
   assert.ok(sanitizePlayerCareer(restored,clubs));
 });
 
@@ -160,4 +162,49 @@ test('achievement popup queue preserves consecutive career moments',function(){
   assert.equal(career.momentQueue.length,0);
   career=acknowledgePlayerMoment(career);
   assert.equal(career.pendingMoment,null);
+});
+
+
+test('RC6 player career exposes market value objectives and position metrics after matches',function(){
+  let career=finishTrial(createPlayerCareer({name:'Inteligência',position:'MEI',archetype:'creator',dreamClubId:clubs[0].id},2026));
+  assert.ok(career.player.marketValue>=150000);
+  assert.ok(playerObjectiveSnapshot(career).length>=2);
+  for(let i=0;i<6;i++)career=simulatePlayerDay(career,clubs);
+  assert.ok(career.lastMatch);
+  if(career.lastMatch.performance){
+    assert.ok(career.lastMatch.performance.metrics);
+    assert.ok('passesCompleted' in career.lastMatch.performance.metrics);
+  }
+  assert.ok(career.player.marketValue>=150000&&career.player.marketValue<=250000000);
+});
+
+test('contract renewal can be accepted or refused and expiry creates a free agent',function(){
+  let career=finishTrial(createPlayerCareer({name:'Contrato RC6',position:'DEF',archetype:'strong',dreamClubId:clubs[2].id},2026));
+  career={...career,stage:'professional',dayOfSeason:220,week:31,contract:{...career.contract,kind:'pro',expirySeason:2027,salaryMonthly:25000},pendingContractOffer:{id:'renew-test',clubId:career.clubId,clubName:career.contract.clubName,salaryMonthly:33000,years:3,role:'Disputa posição',expiresDay:250}};
+  const renewed=respondPlayerContractOffer(career,true);
+  assert.equal(renewed.contract.expirySeason,2029);
+  assert.equal(renewed.contract.salaryMonthly,33000);
+  assert.equal(renewed.pendingContractOffer,null);
+
+  let leaving={...career,pendingContractOffer:{...career.pendingContractOffer}};
+  leaving=respondPlayerContractOffer(leaving,false);
+  assert.equal(leaving.contractIntent,'leave');
+  leaving={...leaving,dayOfSeason:265,week:37};
+  leaving=simulatePlayerDay(leaving,clubs);
+  assert.equal(leaving.season,2027);
+  assert.equal(leaving.stage,'free-agent');
+  assert.equal(leaving.contract,null);
+  assert.equal(leaving.clubId,null);
+});
+
+test('legacy v2 portable player saves migrate to RC6 without corrupting identity',function(){
+  const original=finishTrial(createPlayerCareer({name:'Migração V2',position:'GOL',archetype:'technical',dreamClubId:clubs[4].id},2026));
+  const legacy={...original,version:2};delete legacy.teamSeason;delete legacy.objectives;delete legacy.careerEvents;delete legacy.pendingContractOffer;delete legacy.performanceHistory;delete legacy.player.marketValue;
+  const raw=JSON.stringify({signature:'linha-de-frente-player-save',fileVersion:2,exportedAt:new Date(0).toISOString(),career:legacy});
+  const migrated=parsePlayerCareer(raw,clubs);
+  assert.equal(migrated.version,3);
+  assert.equal(migrated.player.name,'Migração V2');
+  assert.ok(Array.isArray(migrated.objectives));
+  assert.ok(migrated.teamSeason);
+  assert.ok(Number.isFinite(migrated.player.marketValue));
 });
