@@ -63,11 +63,37 @@ export function expiringContracts(career,club,withinSeasons=1){
   return(club?.players||[]).map(player=>({player,contract:contracts[contractKey(club.id,player)]})).filter(item=>item.contract&&item.contract.expirySeason<=career.season+withinSeasons).sort((a,b)=>a.contract.expirySeason-b.contract.expirySeason||b.contract.salaryMonthly-a.contract.salaryMonthly);
 }
 export function renewPlayerContract(career,club,playerId,years=3){
-  const player=club?.players?.find(p=>String(p.id)===String(playerId));if(!player)return{career,error:'Jogador não encontrado.'};
-  const key=contractKey(club.id,player),old=career.playerContracts?.[key]||{salaryMonthly:estimatedSalary(player)},stats=playerGameStats(player),overall=stats.overall,age=Number(player?._careerAge??player?.age??27),form=Number(career.playerForm?.[key]||0),role=String(old.role||'Elenco'),meta=getClubWorld(club.id),squadValueBRL=Math.max(8_000_000,Number(meta.marketTotalEurM||50)*1_000_000*6.25),estimatedValue=Math.max(1_000_000,squadValueBRL/Math.max(18,(club.players||[]).length)*Math.pow(Math.max(50,overall)/68,2.5)*(age<=23?1.25:age>=33?.72:1)),roleFactor=role==='Titular'?1.12:role==='Rotação'?1.03:.96,formFactor=clamp(.92,1.14,1+form*.035),agentDemand=.96+(hashString(key+'|renew-agent|'+career.season)%13)/100,wealth=clamp(.82,1.25,.82+Number(meta.gameBudgetM||20)/180,demand=salaryDemand({baseSalary:Number(old.salaryMonthly||estimatedSalary(player)),quality:overall,marketValue:estimatedValue,reputation:Number(career.managerReputation||50),contractYearsLeft:Math.max(0,Number(old.expirySeason||career.season)-Number(career.season)),agentDemand,clubWealth:wealth}),ageFactor=age<=21?.92:age>=34?.94:1,newSalary=Math.max(Number(old.salaryMonthly||0),Math.round(demand*roleFactor*formFactor*ageFactor/1000)*1000),signing=Math.round(newSalary*(1.4+clamp(1,5,years)*.35)),cash=Number(career.cash||0);
+  const player=club?.players?.find(p=>String(p.id)===String(playerId));
+  if(!player)return{career,error:'Jogador não encontrado.'};
+  const key=contractKey(club.id,player);
+  const old=career.playerContracts?.[key]||{salaryMonthly:estimatedSalary(player)};
+  const stats=playerGameStats(player),overall=stats.overall,age=Number(player?._careerAge??player?.age??27);
+  const form=Number(career.playerForm?.[key]||0),role=String(old.role||'Elenco'),meta=getClubWorld(club.id);
+  const squadValueBRL=Math.max(8_000_000,Number(meta.marketTotalEurM||50)*1_000_000*6.25);
+  const estimatedValue=Math.max(1_000_000,(squadValueBRL/Math.max(18,(club.players||[]).length))*Math.pow(Math.max(50,overall)/68,2.5)*(age<=23?1.25:age>=33?.72:1));
+  const roleFactor=role==='Titular'?1.12:role==='Rotação'?1.03:.96,formFactor=clamp(.92,1.14,1+form*.035);
+  const agentDemand=.96+(hashString(key+'|renew-agent|'+career.season)%13)/100;
+  const wealth=clamp(.82,1.25,.82+Number(meta.gameBudgetM||20)/180);
+  const demand=salaryDemand({
+    baseSalary:Number(old.salaryMonthly||estimatedSalary(player)),
+    quality:overall,
+    marketValue:estimatedValue,
+    reputation:Number(career.managerReputation||50),
+    contractYearsLeft:Math.max(0,Number(old.expirySeason||career.season)-Number(career.season)),
+    agentDemand,
+    clubWealth:wealth,
+  });
+  const ageFactor=age<=21?.92:age>=34?.94:1;
+  const newSalary=Math.max(Number(old.salaryMonthly||0),Math.round(demand*roleFactor*formFactor*ageFactor/1000)*1000);
+  const safeYears=clamp(1,5,years),signing=Math.round(newSalary*(1.4+safeYears*.35)),cash=Number(career.cash||0);
   if(cash<signing)return{career,error:'Caixa insuficiente para luvas e renovação.'};
-  let next={...career,cash:cash-signing,playerContracts:{...(career.playerContracts||{}),[key]:{...old,key,playerId:String(player.id),name:player.name,clubId:String(club.id),startSeason:career.season,expirySeason:career.season+clamp(1,5,years),salaryMonthly:newSalary,signingBonus:signing,role}},transactions:[{id:'renew-'+key+'-'+career.season+'-'+career.round,round:career.round,amount:-signing,label:'Renovação de '+player.name,kind:'contract'},...(career.transactions||[])].slice(0,160)};
-  next=emitCareerEvent(next,{type:'CONTRACT_RENEWED',playerId:player.id,importance:2,payload:{name:player.name,years,newSalary,signing,role}});
+  let next={
+    ...career,
+    cash:cash-signing,
+    playerContracts:{...(career.playerContracts||{}),[key]:{...old,key,playerId:String(player.id),name:player.name,clubId:String(club.id),startSeason:career.season,expirySeason:career.season+safeYears,salaryMonthly:newSalary,signingBonus:signing,role}},
+    transactions:[{id:'renew-'+key+'-'+career.season+'-'+career.round,round:career.round,amount:-signing,label:'Renovação de '+player.name,kind:'contract'},...(career.transactions||[])].slice(0,160),
+  };
+  next=emitCareerEvent(next,{type:'CONTRACT_RENEWED',playerId:player.id,importance:2,payload:{name:player.name,years:safeYears,newSalary,signing,role}});
   return{career:next,contract:next.playerContracts[key]};
 }
 export const PROMISE_TYPES=[
