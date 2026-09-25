@@ -73,11 +73,11 @@ export function tacticalMatchup(career,opponentPlan,{isHome=false}={}){
   return{attackBoost,defenseBoost,possession,tempo,fatigueMultiplier,injuryMultiplier,counterRisk,setPiece:training.setPiece||0,label:tacticalPreset(own.preset).name};
 }
 export function matchWeather(seed){
-  const r=roll(seed+'|weather'),r2=roll(seed+'|temperature');
-  if(r<.10)return{id:'heavy-rain',label:'Chuva forte',passing:-.06,tempo:-.05,injury:1.10,variance:.08,temperature:18+Math.round(r2*6)};
-  if(r<.27)return{id:'rain',label:'Chuva',passing:-.035,tempo:-.025,injury:1.05,variance:.04,temperature:19+Math.round(r2*7)};
-  if(r>.91)return{id:'heat',label:'Calor forte',passing:0,tempo:-.02,injury:1.06,variance:.02,temperature:31+Math.round(r2*5)};
-  return{id:'clear',label:'Tempo firme',passing:0,tempo:0,injury:1,variance:0,temperature:22+Math.round(r2*8)};
+  const r=roll(seed+'|weather'),r2=roll(seed+'|temperature'),pitchRoll=roll(seed+'|pitch'),pitch=pitchRoll<.08?'Gramado pesado':pitchRoll<.18?'Gramado irregular':pitchRoll>.88?'Gramado rápido':'Gramado bom',pitchPassing=pitch==='Gramado pesado'?-.025:pitch==='Gramado irregular'?-.035:pitch==='Gramado rápido'?.012:0;
+  if(r<.10)return{id:'heavy-rain',label:'Chuva forte',pitch,passing:-.06+pitchPassing,tempo:-.05,injury:1.10,variance:.08,temperature:18+Math.round(r2*6)};
+  if(r<.27)return{id:'rain',label:'Chuva',pitch,passing:-.035+pitchPassing,tempo:-.025,injury:1.05,variance:.04,temperature:19+Math.round(r2*7)};
+  if(r>.91)return{id:'heat',label:'Calor forte',pitch,passing:pitchPassing,tempo:-.02,injury:1.06,variance:.02,temperature:31+Math.round(r2*5)};
+  return{id:'clear',label:'Tempo firme',pitch,passing:pitchPassing,tempo:pitch==='Gramado pesado'?-.018:0,injury:1,variance:pitch==='Gramado irregular'?.025:0,temperature:22+Math.round(r2*8)};
 }
 export function setPieceAttackModifier(career){
   const t=sanitizeTacticalState(career?.tacticalState),training=trainingMatchModifier(career);
