@@ -209,10 +209,11 @@ async function mobileCreatorLayout(browser,width,height,label){
   }
 
   const cta=page.getByRole('button',{name:/Ir para a peneira/i});
-  await cta.scrollIntoViewIfNeeded();
   const ctaBox=await cta.boundingBox();
+  const ruleBox=await page.locator('.pc-rule-note').boundingBox();
   assert.ok(ctaBox&&ctaBox.x>=0&&ctaBox.x+ctaBox.width<=width+1,'creator CTA is horizontally clipped at '+label+': '+JSON.stringify(ctaBox));
-  assert.ok(ctaBox&&ctaBox.y+ctaBox.height<=height-45,'creator CTA is hidden behind mobile chrome/safe area at '+label+': '+JSON.stringify(ctaBox));
+  assert.ok(ctaBox&&ctaBox.y+ctaBox.height<=height-12,'creator CTA is not visible at 100% zoom at '+label+': '+JSON.stringify(ctaBox));
+  assert.ok(ctaBox&&ruleBox&&ctaBox.y>=ruleBox.y+ruleBox.height,'creator CTA overlaps the final form content at '+label+': '+JSON.stringify({ctaBox,ruleBox}));
   await page.screenshot({path:'browser-artifacts/player-creator-'+label+'.png',fullPage:true});
   assert.deepEqual(errors,[],errors.join('\n'));
   await context.close();
