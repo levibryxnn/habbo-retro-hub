@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import {
   COACH_PROFILES,INTERNATIONAL_PLAYER_CLUBS,PLAYER_PERSONALITIES,PLAYER_WORLD_MARKETS,
   createCoachState,createPositionRivals,ensurePlayerWorld,maybeChangePlayerCoach,
-  playerCareerClubPool,playerPreMatchBriefing,playerSelectionContext,processPlayerWorldEvent,
+  playerCareerClubPool,playerClubLevel,playerPreMatchBriefing,playerSelectionContext,processPlayerWorldEvent,
   sanitizePlayerWorld
 } from '../src/player-world-engine.js';
 import { TRIAL_DRILLS,answerTrialDrill,completeTrial,createPlayerCareer } from '../src/player-career-engine.js';
@@ -89,4 +89,11 @@ test('world markets expose meaningful salary exposure and difficulty differences
   assert.ok(spain.salary>brazil.salary);
   assert.ok(spain.exposure>brazil.exposure);
   assert.ok(spain.difficulty>brazil.difficulty);
+});
+
+
+test('domestic club levels retain meaningful hierarchy instead of collapsing to one value',function(){
+  const values=clubs.map(club=>playerClubLevel(club));
+  assert.ok(new Set(values.map(value=>Math.round(value))).size>=5,'Serie A club levels collapsed into too few tiers');
+  assert.ok(Math.max(...values)-Math.min(...values)>=8,'Serie A hierarchy spread is too small');
 });
