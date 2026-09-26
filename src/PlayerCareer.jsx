@@ -9,9 +9,9 @@ import {
   TRIAL_DRILLS,acknowledgePlayerMoment,answerTrialDrill,completeTrial,createPlayerCareer,
   negotiatePlayerContractOffer,nextPlayerMatchPreview,parsePlayerCareer,playerAgendaSnapshot,
   playerCalendarLabel,playerCareerOverall,playerObjectiveSnapshot,playerSquadCompetitionSnapshot,
-  respondPlayerContractOffer,respondPlayerOffer,sanitizePlayerCareer,serializePlayerCareer,
-  setPlayerContractPreference,setPlayerMatchApproach,setPlayerTraining,simulatePlayerDay,
-  simulatePlayerUntilNextMatch,simulatePlayerWeek,trialScore
+  advancePlayerLiveMatch,respondPlayerContractOffer,respondPlayerOffer,sanitizePlayerCareer,serializePlayerCareer,
+  setPlayerContractPreference,setPlayerLiveApproach,setPlayerMatchApproach,setPlayerTraining,simulatePlayerDay,
+  simulatePlayerLiveMatchToEnd,simulatePlayerUntilNextMatch,simulatePlayerWeek,trialScore
 } from './player-career-engine.js';
 import {
   PLAYER_AGENTS,PLAYER_ASSETS,PLAYER_BOOTS,PLAYER_HOMES,PLAYER_PHYSIOS,PLAYER_SERVICES,
@@ -89,7 +89,7 @@ function AgendaPanel({career,clubs,onChange}){
   return <section className="pc-panel pc-agenda-panel"><div className="pc-panel-head"><div><small className="pc-eyebrow">AGENDA</small><h3>{playerCalendarLabel(career)} · Semana {career.week+1}</h3></div><CalendarDays size={18}/></div>
     <div className="pc-agenda-strip">{agenda.map((item,index)=><article key={index} className={'pc-agenda-day '+item.type+(index===0?' today':'')}><small>{WEEK_DAYS[(Number(career.dayOfWeek||0)+index)%7]}</small><strong>{index===0?'Hoje':item.label}</strong><span>{item.detail}</span></article>)}</div>
     {last&&<div className="pc-last-day"><Activity size={16}/><span><strong>{last.title}</strong><small>{last.text}</small></span></div>}
-    <div className="pc-advance-actions"><button className="pc-secondary" onClick={()=>onChange(simulatePlayerDay(career,clubs))}><Play size={15}/> 1 dia</button><button className="pc-secondary" onClick={()=>onChange(simulatePlayerUntilNextMatch(career,clubs))}><Target size={15}/> Até o próximo jogo</button><button className="pc-primary" onClick={()=>onChange(simulatePlayerWeek(career,clubs))}><Play size={15}/> 7 dias</button></div>
+    <div className="pc-advance-actions"><button className="pc-secondary" onClick={()=>onChange(simulatePlayerDay(career,clubs,{pauseOnMatch:true}))}><Play size={15}/> 1 dia</button><button className="pc-secondary" onClick={()=>onChange(simulatePlayerUntilNextMatch(career,clubs))}><Target size={15}/> Até o próximo jogo</button><button className="pc-primary" onClick={()=>onChange(simulatePlayerWeek(career,clubs))}><Play size={15}/> 7 dias</button></div>
     {preview&&<small className="pc-engine-note">Próximo jogo em {preview.daysUntil} dia(s). Treino, recuperação, contratos, mercado e finanças só avançam com o calendário.</small>}
   </section>;
 }
@@ -112,8 +112,23 @@ function LastMatch({career}){
       <div className="pc-match-rating"><strong>{performance.rating.toFixed(1)}</strong><span>{last.started?'Titular':'Entrou do banco'}</span><span>{performance.minutes}'</span><span>Energia final {last.energyEnd}%</span><span>{performance.goals} gol(s)</span><span>{performance.assists} assistência(s)</span></div>
       {performance.metrics&&<div className="pc-role-metrics">{Object.entries(performance.metrics).map(([key,value])=><span key={key}><small>{labels[key]||key}</small><b>{typeof value==='number'&&!Number.isInteger(value)?value.toFixed(2):value}</b></span>)}</div>}
     </>}
-    {last.coachReview&&<div className={'pc-review '+last.coachReview.tone}><strong>{last.coachReview.title}</strong><p>{last.coachReview.text}</p><small>Impacto na confiança: {last.coachReview.trustDelta>=0?'+':''}{last.coachReview.trustDelta}</small></div>}
+    {last.individualObjective&&<div className={'pc-match-objective '+(last.individualObjective.completed?'done':'missed')}><Target size={15}/><span><strong>{last.individualObjective.completed?'Objetivo individual cumprido':'Objetivo individual não cumprido'}</strong><small>{last.individualObjective.label}</small></span></div>}{last.coachReview&&<div className={'pc-review '+last.coachReview.tone}><strong>{last.coachReview.title}</strong><p>{last.coachReview.text}</p><small>Impacto na confiança: {last.coachReview.trustDelta>=0?'+':''}{last.coachReview.trustDelta}</small></div>}
     {last.timeline?.length>0&&<div className="pc-match-timeline"><span className="pc-subheading">EVENTOS DA PARTIDA</span>{last.timeline.map((event,index)=><div key={index}><b>{event.minute}'</b><span>{event.text}</span></div>)}</div>}
+  </section>;
+}
+
+function LiveMatchPanel({career,clubs,onChange}){
+  const match=career.liveMatch;if(!match)return null;
+  const status=match.active?'Em campo':match.selected?'Banco de reservas':'Fora da rotação',rating=match.rating===null?'—':Number(match.rating).toFixed(1);
+  return <section className="pc-panel pc-live-player-match">
+    <div className="pc-live-scoreboard"><div><small>{match.isHome?'CASA':'FORA'} · {match.briefing?.difficulty||'PARTIDA'}</small><strong>{match.opponentName}</strong><span>{status}</span></div><b>{match.goalsFor} × {match.goalsAgainst}</b><em>{match.minute}'</em></div>
+    <div className="pc-live-vitals"><span><small>NOTA AO VIVO</small><b>{rating}</b></span><span><small>ENERGIA</small><b>{match.energy}%</b></span><span><small>GOLS</small><b>{match.goals}</b></span><span><small>ASSISTÊNCIAS</small><b>{match.assists}</b></span></div>
+    {match.selected&&!match.active&&match.subMinute!==null&&<div className="pc-live-bench"><Activity size={16}/><span><strong>Aguardando no banco</strong><small>Entrada provável por volta dos {match.subMinute}'. O treinador ainda pode manter você fora conforme o contexto.</small></span></div>}
+    {!match.selected&&<div className="pc-live-bench muted"><Activity size={16}/><span><strong>Você não foi relacionado para entrar</strong><small>Acompanhe o jogo e avance até o fim. Treino, forma e concorrência definirão a próxima oportunidade.</small></span></div>}
+    <span className="pc-subheading">COMPORTAMENTO DURANTE A PARTIDA</span><div className="pc-approach-compact live">{PLAYER_MATCH_APPROACHES.map(item=><button key={item.id} disabled={!match.selected} className={match.currentApproach===item.id?'active':''} onClick={()=>onChange(setPlayerLiveApproach(career,item.id))}><strong>{item.label}</strong><small>{item.id==='aggressive'?'Mais impacto, desgaste e risco.':item.id==='disciplined'?'Preserva energia e aumenta consistência.':item.id==='team'?'Prioriza criação e confiança coletiva.':'Equilíbrio entre risco e participação.'}</small></button>)}</div>
+    <div className="pc-live-timeline"><span className="pc-subheading">LANCES</span>{(match.timeline||[]).slice(-7).map((event,index)=><div key={index}><b>{event.minute}'</b><span>{event.text}</span></div>)}</div>
+    <div className="pc-live-actions"><button className="pc-secondary" onClick={()=>onChange(advancePlayerLiveMatch(career,clubs))}><Play size={15}/> Avançar 15 min</button><button className="pc-primary" onClick={()=>onChange(simulatePlayerLiveMatchToEnd(career,clubs))}><Target size={15}/> Simular até o fim</button></div>
+    <small className="pc-engine-note">A postura escolhida altera participação ofensiva, confiança, desgaste, risco de erro e risco físico nos próximos blocos da partida.</small>
   </section>;
 }
 
@@ -187,7 +202,7 @@ function HistoryHub({career}){
   return <div className="pc-history-hub"><section className="pc-panel pc-news-panel"><div className="pc-panel-head"><h3>Notícias</h3><Star size={17}/></div>{career.news?.length?<div>{career.news.slice(0,16).map(item=><article key={item.id}><small>{item.season} · S{item.week??0}</small><strong>{item.title}</strong><p>{item.text}</p></article>)}</div>:<p className="pc-empty">As notícias surgem conforme a carreira avança.</p>}</section><section className="pc-timeline"><div className="pc-panel-head"><h3>Linha do tempo</h3><UserRound size={17}/></div>{career.timeline.slice(0,30).map(item=><article key={item.id}><b>{item.season}<small>D{Number(item.day??item.week*7??0)+1}</small></b><div><strong>{item.title}</strong><p>{item.text}</p></div></article>)}</section><section className="pc-panel"><div className="pc-panel-head"><h3>Prêmios & marcos</h3><Trophy size={17}/></div><div className="pc-awards-grid">{career.awards?.length?career.awards.map(item=><article key={item.id}><Trophy size={16}/><strong>{item.title}</strong><small>{item.season}</small></article>):<p className="pc-empty">Ainda não há prêmios individuais.</p>}</div></section></div>;
 }
 
-function TodayHub({career,clubs,onChange}){return <div className="pc-today-grid"><AgendaPanel career={career} clubs={clubs} onChange={onChange}/><PreMatchPanel career={career} clubs={clubs} onChange={onChange}/><LastMatch career={career}/></div>;}
+function TodayHub({career,clubs,onChange}){if(career.liveMatch)return <div className="pc-today-grid live-mode"><LiveMatchPanel career={career} clubs={clubs} onChange={onChange}/></div>;return <div className="pc-today-grid"><AgendaPanel career={career} clubs={clubs} onChange={onChange}/><PreMatchPanel career={career} clubs={clubs} onChange={onChange}/><LastMatch career={career}/></div>;}
 
 function Dashboard({career,clubs,onChange,onReset,onNotice}){
   const [view,setView]=useState('today'),pool=useMemo(()=>playerCareerClubPool(clubs),[clubs]),club=clubById(pool,career.clubId);
