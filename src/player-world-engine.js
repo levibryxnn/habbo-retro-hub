@@ -1,4 +1,5 @@
 import { clamp, hashSeed, mulberry32 } from './ldf-engine.js';
+import { getClubWorld } from './club-world.js';
 
 const finite=(value,fallback=0)=>Number.isFinite(Number(value))?Number(value):fallback;
 
@@ -60,11 +61,15 @@ export function playerCareerClubPool(baseClubs=[]){
 export function playerClubLevel(club){
   if(!club)return 50;
   if(Number.isFinite(Number(club.level)))return clamp(38,96,Number(club.level));
-  const budget=finite(club.gameBudgetM??club.budgetM,20),players=Array.isArray(club.players)?club.players:[],squad=players.length?players.reduce((sum,p)=>sum+finite(p.overall??p.rating,65),0)/players.length:64;
-  return clamp(38,94,44+squad*.32+Math.min(18,budget*.10));
+  const meta=getClubWorld(club.id),budget=finite(club.gameBudgetM??club.budgetM??meta.gameBudgetM,20),fans=finite(club.fanIndex??meta.fanIndex,.5);
+  return clamp(38,94,46+fans*31+Math.min(17,budget*.12));
 }
 
-export function playerClubBudgetM(club){return Math.max(8,finite(club?.budgetM??club?.gameBudgetM,25));}
+export function playerClubBudgetM(club){
+  if(!club)return 20;
+  const meta=getClubWorld(club.id);
+  return Math.max(8,finite(club.budgetM??club.gameBudgetM??meta.gameBudgetM,25));
+}
 export function playerClubMarket(club){return playerMarketDef(club?.country||'BRA');}
 
 function pick(seed,list){return list[hashSeed(seed)%list.length];}
