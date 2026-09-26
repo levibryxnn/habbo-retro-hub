@@ -1,4 +1,5 @@
 import { clamp, hashSeed, mulberry32 } from './ldf-engine.js';
+import { personalityDef } from './player-world-engine.js';
 
 const finite=(value,fallback=0)=>Number.isFinite(Number(value))?Number(value):fallback;
 const money=value=>Math.round(finite(value,0)/100)*100;
@@ -150,7 +151,7 @@ export function purchasePlayerLifeItem(career,type,id){
 export function refreshPlayerSponsorOffers(career){
   const finance=sanitizePlayerFinance(career?.finance);
   if(finance.sponsorship?.monthsRemaining>0)return{...career,finance:{...finance,sponsorOffers:[]}};
-  const stats=career?.seasonStats||{},avg=finite(stats.matches)>0?finite(stats.totalRating)/Math.max(1,finite(stats.matches)):6.3,goals=finite(stats.goals),life=playerLifeBonuses({...career,finance}),rep=finite(career?.player?.reputation,5)+life.reputationLifestyle,seed=hashSeed(career?.seed,career?.season,career?.dayOfSeason,'sponsors'),rng=mulberry32(seed);
+  const stats=career?.seasonStats||{},avg=finite(stats.matches)>0?finite(stats.totalRating)/Math.max(1,finite(stats.matches)):6.3,goals=finite(stats.goals),life=playerLifeBonuses({...career,finance}),personality=personalityDef(career?.player?.personalityId),rep=(finite(career?.player?.reputation,5)+life.reputationLifestyle)*finite(personality.media,1),seed=hashSeed(career?.seed,career?.season,career?.dayOfSeason,'sponsors'),rng=mulberry32(seed);
   const offers=PLAYER_SPONSOR_BRANDS.filter(brand=>rep>=brand.reputationMin-8&&rng()<clamp(.08,.92,.28+(rep-brand.reputationMin)*.012+(avg-6.4)*.16+life.agent.sponsorBoost*.08)).map(brand=>{
     const performance=clamp(.78,1.7,1+(avg-6.5)*.18+Math.min(10,goals)*.018),monthly=money(brand.baseMonthly*(.72+rep/120)*performance*life.agent.sponsorBoost),signing=money(brand.signing*(.8+rep/160)*life.agent.sponsorBoost),months=4+Math.floor(rng()*5);
     const targetAverage=Number(clamp(6.5,7.6,6.58+brand.performanceWeight*.18+rep/550).toFixed(2)),performanceBonus=money(monthly*(.12+brand.performanceWeight*.08));
