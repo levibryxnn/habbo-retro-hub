@@ -2,10 +2,11 @@ import { getClubWorld } from './club-world.js';
 import { clamp, effectiveOverall, expectedGoals, formRegression, hashSeed, individualInjuryRisk, injuryRecovery, logisticDominance, mulberry32, teamStrength } from './ldf-engine.js';
 import { createPlayerFinance, effectivePlayerAttributes, enqueuePlayerMoment, playerLifeBonuses, refreshPlayerSponsorOffers, sanitizePlayerFinance, settlePlayerMonth } from './player-life-engine.js';
 import { moraleAfterEvent, objectiveProgress, playerDevelopmentScore, playerMarketValue, playerSeasonObjectives, playerTransferInterest, positionPerformanceMetrics, squadStatus, starterProbability } from './player-career-intelligence.js';
+import { buildPlayerMatchTimeline, coachPostMatchReview, ensurePlayerWorld, evolvePositionRivals, maybeChangePlayerCoach, personalityDef, playerAgendaForDay, playerCareerClubPool, playerClubBudgetM, playerClubLevel, playerClubMarket, playerPreMatchBriefing, playerSelectionContext, processPlayerWorldEvent } from './player-world-engine.js';
 import { parseSafeJson } from './save-format.js';
 
 export const PLAYER_CAREER_KEY='ldf.playerCareer.v1';
-export const PLAYER_CAREER_VERSION=3;
+export const PLAYER_CAREER_VERSION=4;
 export const PLAYER_POSITIONS=[
   {id:'GOL',label:'Goleiro',base:{finishing:28,passing:54,defending:38,pace:56,physical:64,technique:55,goalkeeping:67}},
   {id:'DEF',label:'Defensor',base:{finishing:46,passing:58,defending:68,pace:64,physical:68,technique:57,goalkeeping:12}},
@@ -81,27 +82,20 @@ export function playerCareerOverall(state){
   const p=state?.player||state||{},attrs=state?.player?effectivePlayerAttributes(state):(p.attributes||{});
   return Math.round(clamp(40,97,roleSkill(p.position||'MEI',attrs)));
 }
-function clubLevel(club){
-  const meta=getClubWorld(club.id),budget=finite(meta.gameBudgetM,20),fans=finite(meta.fanIndex,.5);
-  return clamp(38,94,46+fans*31+Math.min(17,budget*.12));
-}
+function clubLevel(club){return playerClubLevel(club);}
 function contractSalary(club,overall,age,score=60){
-  const meta=getClubWorld(club.id),wealth=clamp(.75,1.6,.78+finite(meta.gameBudgetM,20)/90),quality=clamp(.65,1.8,.65+Math.max(0,overall-50)*.028),ageFactor=age<=17?.58:age<=20?.76:age>=34?.88:1,trial=clamp(.85,1.18,.85+score/360);
-  return Math.max(2500,Math.round(5500*wealth*quality*ageFactor*trial/500)*500);
-}
-function faceDefaults(seed){
-  const rng=mulberry32(hashSeed(seed,'face'));
-  return{skin:Math.floor(rng()*5),hair:Math.floor(rng()*6),hairColor:Math.floor(rng()*5),eyes:Math.floor(rng()*4),shape:Math.floor(rng()*4)};
+  const market=playerClubMarket(club),wealth=clamp(.75,2.1,.78+playerClubBudgetM(club)/90),quality=clamp(.65,2.05,.65+Math.max(0,overall-50)*.028),ageFactor=age<=17?.58:age<=20?.76:age>=34?.88:1,trial=clamp(.85,1.22,.85+score/340);
+  return Math.max(2500,Math.round(5500*wealth*quality*ageFactor*trial*market.salary/500)*500);
 }
 export function createPlayerCareer(input={},season=2026){
-  const name=safeName(input.name),position=posDef(input.position).id,archetype=archetypeDef(input.archetype),seed=hashSeed(name,input.birthMonth||6,position,archetype.id,season),rng=mulberry32(seed),base=posDef(position).base,attributes={};
+  const name=safeName(input.name),position=posDef(input.position).id,archetype=archetypeDef(input.archetype),personality=personalityDef(input.personalityId),seed=hashSeed(name,input.birthMonth||6,position,archetype.id,personality.id,season),rng=mulberry32(seed),base=posDef(position).base,attributes={};
   for(const [key,value] of Object.entries(base))attributes[key]=Math.round(clamp(20,85,value+(archetype.mods?.[key]||0)+(rng()-.5)*6));
   const initialOverall=Math.round(roleSkill(position,attributes)),potential=Math.round(clamp(initialOverall+8,94,initialOverall+18+rng()*15));
   const state={
     version:PLAYER_CAREER_VERSION,mode:'player',seed:String(seed),season,week:0,age:16,stage:'trial',clubId:null,dreamClubId:String(input.dreamClubId||''),trial:{answers:{},score:null,completed:false,report:null},player:{
-      id:'user-player',name,position,foot:['left','right'].includes(input.foot)?input.foot:'right',archetype:archetype.id,face:{...faceDefaults(seed),...(input.face||{})},attributes,potential,currentOverall:initialOverall,marketValue:0,condition:100,morale:78,form:0,coachTrust:42,reputation:5,contractSatisfaction:70,injury:null,injuryHistory:0,
+      id:'user-player',name,position,foot:['left','right'].includes(input.foot)?input.foot:'right',archetype:archetype.id,personalityId:personality.id,attributes,potential,currentOverall:initialOverall,marketValue:0,condition:100,morale:78,form:0,coachTrust:42,reputation:5,contractSatisfaction:70,injury:null,injuryHistory:0,
     },
-    trainingFocus:'balanced',matchApproach:'balanced',contract:null,pendingContractOffer:null,contractIntent:'open',nationalTeamStatus:'none',awards:[],dayOfSeason:0,dayOfWeek:0,finance:createPlayerFinance(),careerStats:{matches:0,starts:0,minutes:0,goals:0,assists:0,totalRating:0,titles:0},seasonStats:{matches:0,starts:0,minutes:0,goals:0,assists:0,totalRating:0},teamSeason:{matches:0,wins:0,draws:0,losses:0,goalsFor:0,goalsAgainst:0,points:0},performanceHistory:[],timeline:[{id:'career-created',season,week:0,type:'start',title:'Peneira marcada',text:name+' inicia a carreira aos 16 anos e entra em uma peneira.'}],offers:[],pendingOffer:null,pendingMoment:null,momentQueue:[],careerEvents:[],news:[],lastMatch:null,lastDay:null,achievements:[],saveId:'pc-'+hashSeed(seed,'save').toString(36),
+    trainingFocus:'balanced',matchApproach:'balanced',contract:null,pendingContractOffer:null,contractIntent:'open',contractPreference:'open',nationalTeamStatus:'none',awards:[],dayOfSeason:0,dayOfWeek:0,finance:createPlayerFinance(),world:null,worldEventLedger:[],objectiveRewards:[],careerStats:{matches:0,starts:0,minutes:0,goals:0,assists:0,totalRating:0,titles:0},seasonStats:{matches:0,starts:0,minutes:0,goals:0,assists:0,totalRating:0},teamSeason:{matches:0,wins:0,draws:0,losses:0,goalsFor:0,goalsAgainst:0,points:0},performanceHistory:[],timeline:[{id:'career-created',season,week:0,type:'start',title:'Peneira marcada',text:name+' inicia a carreira aos 16 anos e entra em uma peneira.'}],offers:[],pendingOffer:null,pendingMoment:null,momentQueue:[],careerEvents:[],news:[],lastMatch:null,lastDay:null,achievements:[],saveId:'pc-'+hashSeed(seed,'save').toString(36),
   };
   state.player.marketValue=playerMarketValue({position,state,overall:initialOverall,potential,age:16,form:0,leagueLevel:55,contractYears:0,reputation:5});
   state.objectives=playerSeasonObjectives(state);
