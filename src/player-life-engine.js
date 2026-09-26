@@ -1,13 +1,14 @@
 import { clamp, hashSeed, mulberry32 } from './ldf-engine.js';
+import { personalityDef } from './player-world-engine.js';
 
 const finite=(value,fallback=0)=>Number.isFinite(Number(value))?Number(value):fallback;
 const money=value=>Math.round(finite(value,0)/100)*100;
 
 export const PLAYER_AGENTS=[
-  {id:'self',name:'Sem empresário',cost:0,commission:.02,salaryBoost:1,sponsorBoost:1,marketBoost:1,description:'Você e sua família cuidam da carreira. Quase sem custo, mas com alcance limitado.'},
-  {id:'local',name:'Empresário regional',cost:18000,commission:.04,salaryBoost:1.035,sponsorBoost:1.12,marketBoost:1.08,description:'Abre portas regionais e melhora pequenas negociações.'},
-  {id:'national',name:'Agência nacional',cost:85000,commission:.065,salaryBoost:1.075,sponsorBoost:1.28,marketBoost:1.18,description:'Boa rede no país, contratos melhores e mais marcas interessadas.'},
-  {id:'elite',name:'Agência de elite',cost:360000,commission:.095,salaryBoost:1.13,sponsorBoost:1.52,marketBoost:1.32,description:'Rede forte, negociação agressiva e acesso mais rápido a grandes projetos.'},
+  {id:'self',name:'Sem empresário',cost:0,commission:.02,salaryBoost:1,sponsorBoost:1,marketBoost:1,negotiation:0,markets:['BRA'],description:'Você e sua família cuidam da carreira. Baixo custo, alcance restrito ao mercado brasileiro.'},
+  {id:'local',name:'Empresário regional',cost:18000,commission:.04,salaryBoost:1.035,sponsorBoost:1.12,marketBoost:1.08,negotiation:4,markets:['BRA','ARG'],description:'Abre portas no Brasil e na Argentina e melhora pequenas negociações.'},
+  {id:'national',name:'Agência nacional',cost:85000,commission:.065,salaryBoost:1.075,sponsorBoost:1.28,marketBoost:1.18,negotiation:9,markets:['BRA','ARG','POR'],description:'Boa rede nacional e ponte com Portugal, com contratos e marcas melhores.'},
+  {id:'elite',name:'Agência de elite',cost:360000,commission:.095,salaryBoost:1.13,sponsorBoost:1.52,marketBoost:1.32,negotiation:15,markets:['BRA','ARG','POR','ESP'],description:'Rede internacional, negociação agressiva e acesso a grandes projetos europeus.'},
 ];
 
 export const PLAYER_BOOTS=[
@@ -32,6 +33,22 @@ export const PLAYER_HOMES=[
   {id:'luxury',name:'Casa de alto padrão',cost:2800000,monthly:9500,morale:4,recovery:1.1,reputation:5,description:'Patrimônio, conforto máximo e ganho de imagem fora de campo.'},
 ];
 
+export const PLAYER_SERVICES=[
+  {id:'nutrition',name:'Nutricionista esportivo',cost:6000,monthly:2600,recovery:.35,injury:.96,training:1.02,morale:.2,bonuses:{physical:.5},description:'Melhora recuperação, composição física e consistência de treino.'},
+  {id:'personal-trainer',name:'Personal trainer',cost:12000,monthly:5200,recovery:.25,injury:.94,training:1.06,morale:.2,bonuses:{pace:.6,physical:1},description:'Trabalho físico individual com ganho de ritmo e potência.'},
+  {id:'technical-coach',name:'Treinador técnico particular',cost:16000,monthly:7000,recovery:0,injury:1,training:1.08,morale:.1,bonuses:{technique:1,passing:.6},description:'Sessões individuais de técnica, domínio e passe.'},
+  {id:'finishing-coach',name:'Preparador de finalização',cost:15000,monthly:6500,recovery:0,injury:1.01,training:1.07,morale:.1,bonuses:{finishing:1.4},description:'Treino específico de finalização e tomada de decisão perto do gol.'},
+  {id:'psychologist',name:'Psicólogo esportivo',cost:9000,monthly:4200,recovery:.10,injury:.99,training:1.01,morale:1.8,bonuses:{},description:'Reduz oscilações de moral e melhora resposta à pressão.'},
+];
+
+export const PLAYER_ASSETS=[
+  {id:'car',name:'Carro próprio',cost:120000,monthly:900,yield:0,reputation:1,morale:.6,description:'Conforto logístico e pequeno ganho de imagem, sem alterar habilidade esportiva.'},
+  {id:'investment',name:'Carteira de investimentos',cost:250000,monthly:0,yield:.006,reputation:0,morale:.2,description:'Patrimônio financeiro com retorno mensal moderado e previsível para gameplay.'},
+  {id:'institute',name:'Instituto social',cost:500000,monthly:4000,yield:0,reputation:5,morale:1.2,description:'Projeto social que amplia reputação e vínculo público, com custo recorrente.'},
+  {id:'rental-property',name:'Imóvel para renda',cost:800000,monthly:1200,yield:.0045,reputation:1,morale:.3,description:'Ativo imobiliário que gera renda mensal líquida no longo prazo.'},
+  {id:'property-portfolio',name:'Carteira imobiliária',cost:3000000,monthly:4800,yield:.006,reputation:3,morale:.5,description:'Patrimônio avançado com renda recorrente e maior estabilidade financeira.'},
+];
+
 export const PLAYER_SPONSOR_BRANDS=[
   {id:'vertice',name:'Vértice Sports',baseMonthly:9000,signing:18000,reputationMin:12,performanceWeight:.9,description:'Marca esportiva focada em jovens talentos.'},
   {id:'nexo',name:'Nexo Energy',baseMonthly:18000,signing:42000,reputationMin:28,performanceWeight:1.05,description:'Campanhas nacionais e bônus por desempenho.'},
@@ -44,6 +61,8 @@ export const agentDef=id=>byId(PLAYER_AGENTS,id);
 export const bootsDef=id=>byId(PLAYER_BOOTS,id);
 export const physioDef=id=>byId(PLAYER_PHYSIOS,id);
 export const homeDef=id=>byId(PLAYER_HOMES,id);
+export const serviceDef=id=>PLAYER_SERVICES.find(item=>item.id===id)||null;
+export const assetDef=id=>PLAYER_ASSETS.find(item=>item.id===id)||null;
 
 export function enqueuePlayerMoment(career,moment){
   if(!moment)return career;
@@ -54,7 +73,7 @@ export function enqueuePlayerMoment(career,moment){
 }
 
 export function createPlayerFinance(){
-  return{cash:0,careerIncome:0,careerSpending:0,transactions:[],agentId:'self',bootsId:'academy',ownedBoots:['academy'],physioId:'club',homeId:'family',ownedHomes:['family'],sponsorship:null,sponsorOffers:[],lastSettlementDay:0};
+  return{cash:0,careerIncome:0,careerSpending:0,transactions:[],agentId:'self',bootsId:'academy',ownedBoots:['academy'],physioId:'club',homeId:'family',ownedHomes:['family'],serviceIds:[],ownedAssets:[],sponsorship:null,sponsorOffers:[],lastSettlementDay:0};
 }
 export function sanitizePlayerFinance(raw={}){
   const agent=agentDef(raw.agentId),boots=bootsDef(raw.bootsId),physio=physioDef(raw.physioId),home=homeDef(raw.homeId);
@@ -65,6 +84,8 @@ export function sanitizePlayerFinance(raw={}){
     transactions:Array.isArray(raw.transactions)?raw.transactions.slice(0,120):[],
     agentId:agent.id,bootsId:boots.id,ownedBoots:Array.from(new Set(['academy',...(Array.isArray(raw.ownedBoots)?raw.ownedBoots.filter(id=>PLAYER_BOOTS.some(item=>item.id===id)):[])])),
     physioId:physio.id,homeId:home.id,ownedHomes:Array.from(new Set(['family',...(Array.isArray(raw.ownedHomes)?raw.ownedHomes.filter(id=>PLAYER_HOMES.some(item=>item.id===id)):[])])),
+    serviceIds:Array.from(new Set(Array.isArray(raw.serviceIds)?raw.serviceIds.filter(id=>PLAYER_SERVICES.some(item=>item.id===id)):[])).slice(0,5),
+    ownedAssets:Array.from(new Set(Array.isArray(raw.ownedAssets)?raw.ownedAssets.filter(id=>PLAYER_ASSETS.some(item=>item.id===id)):[])).slice(0,10),
     sponsorship:raw.sponsorship&&typeof raw.sponsorship==='object'?{...raw.sponsorship,monthly:clamp(0,10_000_000,finite(raw.sponsorship.monthly,0)),monthsRemaining:clamp(0,36,finite(raw.sponsorship.monthsRemaining,0)),performanceBonus:clamp(0,5_000_000,finite(raw.sponsorship.performanceBonus,0)),targetAverage:clamp(5.5,8.5,finite(raw.sponsorship.targetAverage,6.8))}:null,
     sponsorOffers:Array.isArray(raw.sponsorOffers)?raw.sponsorOffers.slice(0,4):[],
     lastSettlementDay:clamp(0,400,finite(raw.lastSettlementDay,0)),
@@ -75,18 +96,25 @@ function transaction(finance,{amount,label,type,season,day}){
   return{...finance,cash,careerIncome:finite(finance.careerIncome)+(value>0?value:0),careerSpending:finite(finance.careerSpending)+(value<0?Math.abs(value):0),transactions:[{id:'pf-'+season+'-'+day+'-'+type+'-'+hashSeed(label,value,finance.transactions?.length||0).toString(36),amount:value,label,type,season,day},...(finance.transactions||[])].slice(0,120)};
 }
 export function playerLifeBonuses(career){
-  const finance=sanitizePlayerFinance(career?.finance),agent=agentDef(finance.agentId),boots=bootsDef(finance.bootsId),physio=physioDef(finance.physioId),home=homeDef(finance.homeId);
+  const finance=sanitizePlayerFinance(career?.finance),agent=agentDef(finance.agentId),boots=bootsDef(finance.bootsId),physio=physioDef(finance.physioId),home=homeDef(finance.homeId),services=finance.serviceIds.map(serviceDef).filter(Boolean),assets=finance.ownedAssets.map(assetDef).filter(Boolean);
+  const serviceBonuses={};
+  for(const service of services)for(const [key,value] of Object.entries(service.bonuses||{}))serviceBonuses[key]=finite(serviceBonuses[key])+finite(value);
+  const attributeBonuses={...(boots.bonuses||{})};for(const [key,value] of Object.entries(serviceBonuses))attributeBonuses[key]=finite(attributeBonuses[key])+finite(value);
+  const serviceRecovery=services.reduce((sum,item)=>sum+finite(item.recovery),0),serviceInjury=services.reduce((product,item)=>product*finite(item.injury,1),1),serviceTraining=services.reduce((product,item)=>product*finite(item.training,1),1),serviceMorale=services.reduce((sum,item)=>sum+finite(item.morale),0);
+  const assetReputation=assets.reduce((sum,item)=>sum+finite(item.reputation),0),assetMorale=assets.reduce((sum,item)=>sum+finite(item.morale),0);
   return{
-    agent,boots,physio,home,
-    attributeBonuses:{...(boots.bonuses||{})},
+    agent,boots,physio,home,services,assets,attributeBonuses,
     salaryMultiplier:agent.salaryBoost,
     sponsorMultiplier:agent.sponsorBoost,
     marketMultiplier:agent.marketBoost,
-    injuryMultiplier:physio.injury,
+    negotiationBonus:finite(agent.negotiation),
+    accessibleMarkets:Array.isArray(agent.markets)?agent.markets:['BRA'],
+    trainingMultiplier:serviceTraining,
+    injuryMultiplier:physio.injury*serviceInjury,
     injuryRecoveryMultiplier:physio.recovery,
-    dailyRecovery:physio.condition+home.recovery,
-    moraleBaseline:home.morale,
-    reputationLifestyle:home.reputation,
+    dailyRecovery:physio.condition+home.recovery+serviceRecovery,
+    moraleBaseline:home.morale+serviceMorale+assetMorale,
+    reputationLifestyle:home.reputation+assetReputation,
   };
 }
 export function effectivePlayerAttributes(career){
@@ -95,13 +123,15 @@ export function effectivePlayerAttributes(career){
   return attrs;
 }
 export function playerFinancialSnapshot(career){
-  const finance=sanitizePlayerFinance(career?.finance),contract=career?.contract||{},life=playerLifeBonuses({...career,finance}),grossMonthly=finite(contract.salaryMonthly,0)+finite(finance.sponsorship?.monthly,0),commission=grossMonthly*life.agent.commission,expenses=commission+life.physio.monthly+life.home.monthly;
-  return{...finance,grossMonthly:money(grossMonthly),projectedExpenses:money(expenses),projectedNet:money(grossMonthly-expenses),agent:life.agent,boots:life.boots,physio:life.physio,home:life.home};
+  const finance=sanitizePlayerFinance(career?.finance),contract=career?.contract||{},life=playerLifeBonuses({...career,finance}),grossMonthly=finite(contract.salaryMonthly,0)+finite(finance.sponsorship?.monthly,0),commission=grossMonthly*life.agent.commission,serviceCost=life.services.reduce((sum,item)=>sum+finite(item.monthly),0),assetCost=life.assets.reduce((sum,item)=>sum+finite(item.monthly),0),assetIncome=life.assets.reduce((sum,item)=>sum+finite(item.cost)*finite(item.yield),0),expenses=commission+life.physio.monthly+life.home.monthly+serviceCost+assetCost;
+  return{...finance,grossMonthly:money(grossMonthly+assetIncome),projectedExpenses:money(expenses),projectedNet:money(grossMonthly+assetIncome-expenses),assetIncome:money(assetIncome),serviceCost:money(serviceCost),agent:life.agent,boots:life.boots,physio:life.physio,home:life.home,services:life.services,assets:life.assets};
 }
 export function purchasePlayerLifeItem(career,type,id){
   const finance=sanitizePlayerFinance(career?.finance);
-  const map={agent:PLAYER_AGENTS,boots:PLAYER_BOOTS,physio:PLAYER_PHYSIOS,home:PLAYER_HOMES},list=map[type],item=list?.find(entry=>entry.id===id);
+  const map={agent:PLAYER_AGENTS,boots:PLAYER_BOOTS,physio:PLAYER_PHYSIOS,home:PLAYER_HOMES,service:PLAYER_SERVICES,asset:PLAYER_ASSETS},list=map[type],item=list?.find(entry=>entry.id===id);
   if(!item)return{career,error:'Item de carreira inválido.'};
+  if(type==='service'&&finance.serviceIds.includes(id))return{career:{...career,finance:{...finance,serviceIds:finance.serviceIds.filter(value=>value!==id)}},item,equipped:true,deactivated:true};
+  if(type==='asset'&&finance.ownedAssets.includes(id))return{career,error:'Esse patrimônio já foi adquirido.'};
   if(type==='boots'&&finance.ownedBoots.includes(id))return{career:{...career,finance:{...finance,bootsId:id}},item,equipped:true};
   if(type==='home'&&finance.ownedHomes.includes(id))return{career:{...career,finance:{...finance,homeId:id}},item,equipped:true};
   if(finance.cash<item.cost)return{career,error:'Saldo pessoal insuficiente para esta decisão.'};
@@ -110,15 +140,18 @@ export function purchasePlayerLifeItem(career,type,id){
   if(type==='physio')nextFinance={...nextFinance,physioId:id};
   if(type==='boots')nextFinance={...nextFinance,bootsId:id,ownedBoots:Array.from(new Set([...(nextFinance.ownedBoots||[]),id]))};
   if(type==='home')nextFinance={...nextFinance,homeId:id,ownedHomes:Array.from(new Set([...(nextFinance.ownedHomes||[]),id]))};
+  if(type==='service')nextFinance={...nextFinance,serviceIds:Array.from(new Set([...(nextFinance.serviceIds||[]),id])).slice(0,5)};
+  if(type==='asset')nextFinance={...nextFinance,ownedAssets:Array.from(new Set([...(nextFinance.ownedAssets||[]),id])).slice(0,10)};
   let next={...career,finance:nextFinance};
   if(type==='home'&&id!=='family')next=enqueuePlayerMoment({...next,player:{...next.player,morale:clamp(0,100,finite(next.player?.morale,75)+item.morale)}},{id:'home-'+id,type:'home',title:'Novo patrimônio',subtitle:item.name,text:'A carreira fora de campo também começou a crescer.',season:career.season,day:career.dayOfSeason||0});
-  if(type==='agent'&&id==='elite')next=enqueuePlayerMoment(next,{id:'elite-agent',type:'agent',title:'Outro nível de representação',subtitle:item.name,text:'A nova equipe passa a negociar contratos, marcas e oportunidades com alcance maior.',season:career.season,day:career.dayOfSeason||0});
+  if(type==='agent'&&id==='elite')next=enqueuePlayerMoment(next,{id:'elite-agent',type:'agent',title:'Representação internacional',subtitle:item.name,text:'Sua equipe agora alcança os quatro mercados da Carreira Jogador.',season:career.season,day:career.dayOfSeason||0});
+  if(type==='asset'&&id==='institute')next=enqueuePlayerMoment(next,{id:'social-institute',type:'finance',title:'Instituto social criado',subtitle:item.name,text:'Parte da sua carreira passa a gerar impacto e reputação fora de campo.',season:career.season,day:career.dayOfSeason||0});
   return{career:next,item};
 }
 export function refreshPlayerSponsorOffers(career){
   const finance=sanitizePlayerFinance(career?.finance);
   if(finance.sponsorship?.monthsRemaining>0)return{...career,finance:{...finance,sponsorOffers:[]}};
-  const stats=career?.seasonStats||{},avg=finite(stats.matches)>0?finite(stats.totalRating)/Math.max(1,finite(stats.matches)):6.3,goals=finite(stats.goals),life=playerLifeBonuses({...career,finance}),rep=finite(career?.player?.reputation,5)+life.reputationLifestyle,seed=hashSeed(career?.seed,career?.season,career?.dayOfSeason,'sponsors'),rng=mulberry32(seed);
+  const stats=career?.seasonStats||{},avg=finite(stats.matches)>0?finite(stats.totalRating)/Math.max(1,finite(stats.matches)):6.3,goals=finite(stats.goals),life=playerLifeBonuses({...career,finance}),personality=personalityDef(career?.player?.personalityId),rep=(finite(career?.player?.reputation,5)+life.reputationLifestyle)*finite(personality.media,1),seed=hashSeed(career?.seed,career?.season,career?.dayOfSeason,'sponsors'),rng=mulberry32(seed);
   const offers=PLAYER_SPONSOR_BRANDS.filter(brand=>rep>=brand.reputationMin-8&&rng()<clamp(.08,.92,.28+(rep-brand.reputationMin)*.012+(avg-6.4)*.16+life.agent.sponsorBoost*.08)).map(brand=>{
     const performance=clamp(.78,1.7,1+(avg-6.5)*.18+Math.min(10,goals)*.018),monthly=money(brand.baseMonthly*(.72+rep/120)*performance*life.agent.sponsorBoost),signing=money(brand.signing*(.8+rep/160)*life.agent.sponsorBoost),months=4+Math.floor(rng()*5);
     const targetAverage=Number(clamp(6.5,7.6,6.58+brand.performanceWeight*.18+rep/550).toFixed(2)),performanceBonus=money(monthly*(.12+brand.performanceWeight*.08));
@@ -145,9 +178,10 @@ export function settlePlayerMonth(career){
     if(avg>=finite(finance.sponsorship.targetAverage,6.8)&&finite(finance.sponsorship.performanceBonus)>0){const bonus=finite(finance.sponsorship.performanceBonus);gross+=bonus;finance=transaction(finance,{amount:bonus,label:'Bônus de performance · '+finance.sponsorship.name,type:'sponsor-bonus',season:career.season,day:career.dayOfSeason||0});}
     finance={...finance,sponsorship:{...finance.sponsorship,monthsRemaining:finance.sponsorship.monthsRemaining-1}};if(finance.sponsorship.monthsRemaining<=0)finance={...finance,sponsorship:null};
   }
-  const commission=money(gross*life.agent.commission),services=money(life.physio.monthly+life.home.monthly);
+  const commission=money(gross*life.agent.commission),serviceCosts=life.services.reduce((sum,item)=>sum+finite(item.monthly),0),assetCosts=life.assets.reduce((sum,item)=>sum+finite(item.monthly),0),services=money(life.physio.monthly+life.home.monthly+serviceCosts+assetCosts),assetIncome=money(life.assets.reduce((sum,item)=>sum+finite(item.cost)*finite(item.yield),0));
   if(commission>0)finance=transaction(finance,{amount:-commission,label:'Comissão · '+life.agent.name,type:'agent-commission',season:career.season,day:career.dayOfSeason||0});
-  if(services>0)finance=transaction(finance,{amount:-services,label:'Custos pessoais e performance',type:'life-costs',season:career.season,day:career.dayOfSeason||0});
+  if(services>0)finance=transaction(finance,{amount:-services,label:'Saúde, serviços e patrimônio',type:'life-costs',season:career.season,day:career.dayOfSeason||0});
+  if(assetIncome>0)finance=transaction(finance,{amount:assetIncome,label:'Rendimento de patrimônio',type:'asset-income',season:career.season,day:career.dayOfSeason||0});
   finance={...finance,lastSettlementDay:career.dayOfSeason||0};
   let next={...career,finance};
   if(finance.cash<0){

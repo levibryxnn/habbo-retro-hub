@@ -24,7 +24,7 @@ test('every enabled JSX button has an explicit action or submit behavior',functi
 });
 
 test('gameplay engines remain deterministic and contain no unsafe runtime code execution',function(){
-  const engineNames=['ldf-engine.js','career-engine.js','competition-engine.js','player-engine.js','development-engine.js','career-dynamics.js','career-life-engine.js','tactical-engine.js','transfer-engine.js','economy-engine.js','event-engine.js','scouting-engine.js','player-career-engine.js','player-career-intelligence.js','player-life-engine.js','save-format.js','manager-confidence.js'];
+  const engineNames=['ldf-engine.js','career-engine.js','competition-engine.js','player-engine.js','development-engine.js','career-dynamics.js','career-life-engine.js','tactical-engine.js','transfer-engine.js','economy-engine.js','event-engine.js','scouting-engine.js','player-career-engine.js','player-career-intelligence.js','player-world-engine.js','player-life-engine.js','save-format.js','manager-confidence.js'];
   for(const name of engineNames){
     const source=fs.readFileSync(path.join(root,name),'utf8');
     assert.equal(/Math\.random\s*\(/.test(source),false,name+' contains non-seeded Math.random');

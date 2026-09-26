@@ -16,6 +16,7 @@ const worldCrest=fs.readFileSync(new URL('../src/WorldCrest.jsx',import.meta.url
 const crest=fs.readFileSync(new URL('../src/Crest.jsx',import.meta.url),'utf8');
 const playerCareer=fs.readFileSync(new URL('../src/PlayerCareer.jsx',import.meta.url),'utf8');
 const playerLife=fs.readFileSync(new URL('../src/player-life-engine.js',import.meta.url),'utf8');
+const playerWorld=fs.readFileSync(new URL('../src/player-world-engine.js',import.meta.url),'utf8');
 
 test('every career area is present in navigation and has a renderer', function(){
   const tabs=['dashboard','central','competitions','match','roster','standings','transfers','trophies','sponsors','legacy'];
@@ -260,16 +261,19 @@ test('RC5 preserves full tactical controls scouting promises hall and cinematics
   assert.ok(main.includes('<CareerMomentModal'));
 });
 
-test('RC5 player career exposes daily weekly simulation and separate life finance areas',function(){
-  assert.ok(playerCareer.includes('Avançar 1 dia'));
-  assert.ok(playerCareer.includes('Avançar 7 dias'));
-  assert.ok(playerCareer.includes('Vida & finanças'));
-  assert.ok(playerCareer.includes('Saldo'));
+test('RC7 player career exposes calendar controls and separated football finance areas',function(){
+  assert.ok(playerCareer.includes('1 dia'));
+  assert.ok(playerCareer.includes('Até o próximo jogo'));
+  assert.ok(playerCareer.includes('7 dias'));
+  assert.ok(playerCareer.includes('Desenvolvimento'));
+  assert.ok(playerCareer.includes('Contrato & mercado'));
+  assert.ok(playerCareer.includes('Finanças'));
   assert.ok(playerCareer.includes('Empresário'));
   assert.ok(playerCareer.includes('Chuteiras'));
-  assert.ok(playerCareer.includes('Saúde & fisioterapia'));
-  assert.ok(playerCareer.includes('Casa & patrimônio'));
-  assert.ok(playerCareer.includes('Patrocínios pessoais'));
+  assert.ok(playerCareer.includes('Fisioterapia'));
+  assert.ok(playerCareer.includes('Equipe de performance'));
+  assert.ok(playerCareer.includes('Patrimônio & projetos'));
+  assert.ok(playerCareer.includes('Patrocínios'));
   assert.ok(playerCareer.includes('<PlayerMomentModal'));
   assert.ok(playerCareer.includes('<PlayerLifeVisual'));
 });
@@ -288,13 +292,14 @@ test('RC5 personal economy is connected to salary representation equipment healt
 });
 
 
-test('RC6 player HUD exposes gameplay-critical information and position feedback',function(){
-  for(const text of ['Valor de mercado','Objetivos da temporada','PRÓXIMO JOGO','RENOVAÇÃO DE CONTRATO','Campanha do clube']){
+test('RC7 player HUD exposes gameplay-critical football information at 100 percent zoom',function(){
+  for(const text of ['Condição','Moral','Confiança','Status','AGENDA','PÓS-JOGO','HIERARQUIA DO ELENCO','CONCORRÊNCIA NA POSIÇÃO','Objetivos individuais','SUA POSIÇÃO SOBRE O FUTURO']){
     assert.ok(playerCareer.includes(text),text+' is missing from player career UI');
   }
   assert.ok(playerCareer.includes('POSITION_METRIC_LABELS'));
-  assert.ok(playerCareer.includes('playerObjectiveSnapshot'));
-  assert.ok(playerCareer.includes('respondPlayerContractOffer'));
+  assert.ok(playerCareer.includes('playerSquadCompetitionSnapshot'));
+  assert.ok(playerCareer.includes('negotiatePlayerContractOffer'));
+  assert.ok(playerCareer.includes('simulatePlayerUntilNextMatch'));
 });
 
 test('RC6 uses one crest renderer for local and world clubs with professional fallback',function(){
@@ -303,4 +308,28 @@ test('RC6 uses one crest renderer for local and world clubs with professional fa
   assert.ok(crest.includes('OPTICAL_CREST_SCALE'));
   assert.ok(crest.includes('crest-fallback'));
   assert.ok(crest.includes('onError'));
+});
+
+
+test('RC7 removes facial creation while preserving a neutral player identifier',function(){
+  assert.equal(playerCareer.includes('pc-face-controls'),false);
+  assert.equal(playerCareer.includes('function Face('),false);
+  assert.ok(playerCareer.includes('PlayerMark'));
+  assert.ok(playerCareer.includes('A criação facial foi retirada desta versão'));
+});
+
+test('RC7 player mode surfaces coach rivalry personality and international market systems',function(){
+  for(const token of ['Personalidade','Sua chance de titularidade','Treinador','Mercado acessível'])assert.ok(playerCareer.includes(token),token+' missing from RC7 player UI');
+  assert.ok(playerCareer.includes('PLAYER_WORLD_MARKETS'));
+  for(const token of ['Argentina','Portugal','Espanha'])assert.ok(playerWorld.includes(token),token+' missing from RC7 world market engine');
+});
+
+
+test('RC7 player career exposes a real interactive match layer instead of post-match replay only',function(){
+  for(const text of ['NOTA AO VIVO','ENERGIA','Avançar 15 min','Simular até o fim','COMPORTAMENTO DURANTE A PARTIDA']){
+    assert.ok(playerCareer.includes(text),text+' is missing from interactive player match UI');
+  }
+  assert.ok(playerCareer.includes('advancePlayerLiveMatch'));
+  assert.ok(playerCareer.includes('setPlayerLiveApproach'));
+  assert.ok(playerCareer.includes('simulatePlayerLiveMatchToEnd'));
 });

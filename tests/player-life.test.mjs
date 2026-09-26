@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { TRIAL_DRILLS, answerTrialDrill, completeTrial, createPlayerCareer, playerCareerOverall, simulatePlayerWeek } from '../src/player-career-engine.js';
 import {
-  PLAYER_AGENTS,PLAYER_BOOTS,PLAYER_HOMES,PLAYER_PHYSIOS,
+  PLAYER_AGENTS,PLAYER_ASSETS,PLAYER_BOOTS,PLAYER_HOMES,PLAYER_PHYSIOS,PLAYER_SERVICES,
   acceptPlayerSponsor,effectivePlayerAttributes,playerFinancialSnapshot,playerLifeBonuses,
   purchasePlayerLifeItem,sanitizePlayerFinance,settlePlayerMonth
 } from '../src/player-life-engine.js';
@@ -93,4 +93,50 @@ test('overspending has a causal morale consequence',function(){
   assert.ok(next.finance.cash<0);
   assert.ok(next.player.morale<80);
   assert.ok(next.news.some(item=>item.title==='Finanças pessoais exigem atenção'));
+});
+
+
+test('RC7 elite representation unlocks international markets and stronger negotiation',function(){
+  let career=signedCareer();career={...career,finance:{...career.finance,cash:1_000_000}};
+  const result=purchasePlayerLifeItem(career,'agent','elite'),life=playerLifeBonuses(result.career);
+  assert.ok(life.accessibleMarkets.includes('BRA'));
+  assert.ok(life.accessibleMarkets.includes('ARG'));
+  assert.ok(life.accessibleMarkets.includes('POR'));
+  assert.ok(life.accessibleMarkets.includes('ESP'));
+  assert.ok(life.negotiationBonus>0);
+});
+
+test('RC7 personal performance services have explicit monthly and engine tradeoffs',function(){
+  let career=signedCareer();career={...career,finance:{...career.finance,cash:500000}};
+  const before=playerLifeBonuses(career);
+  career=purchasePlayerLifeItem(career,'service','nutrition').career;
+  career=purchasePlayerLifeItem(career,'service','personal-trainer').career;
+  const after=playerLifeBonuses(career),snapshot=playerFinancialSnapshot(career);
+  assert.ok(after.trainingMultiplier>before.trainingMultiplier);
+  assert.ok(after.dailyRecovery>before.dailyRecovery);
+  assert.ok(after.attributeBonuses.physical>0);
+  assert.ok(snapshot.serviceCost>0);
+  assert.equal(career.finance.serviceIds.length,2);
+  const toggled=purchasePlayerLifeItem(career,'service','nutrition').career;
+  assert.equal(toggled.finance.serviceIds.includes('nutrition'),false);
+});
+
+test('RC7 assets create bounded recurring income reputation or morale effects',function(){
+  let career=signedCareer();career={...career,finance:{...career.finance,cash:5_000_000}};
+  career=purchasePlayerLifeItem(career,'asset','investment').career;
+  career=purchasePlayerLifeItem(career,'asset','institute').career;
+  const snapshot=playerFinancialSnapshot(career),life=playerLifeBonuses(career);
+  assert.ok(snapshot.assetIncome>0);
+  assert.ok(life.reputationLifestyle>=5);
+  const before=career.finance.cash,settled=settlePlayerMonth({...career,contract:{...career.contract,salaryMonthly:0},dayOfSeason:28});
+  assert.ok(settled.finance.transactions.some(item=>item.type==='asset-income'));
+  assert.ok(settled.finance.cash!==before);
+});
+
+test('RC7 finance sanitizer rejects unknown services and assets',function(){
+  const clean=sanitizePlayerFinance({serviceIds:['nutrition','hack'],ownedAssets:['investment','hack'],transactions:[]});
+  assert.deepEqual(clean.serviceIds,['nutrition']);
+  assert.deepEqual(clean.ownedAssets,['investment']);
+  assert.ok(PLAYER_SERVICES.some(item=>item.id==='nutrition'));
+  assert.ok(PLAYER_ASSETS.some(item=>item.id==='investment'));
 });
