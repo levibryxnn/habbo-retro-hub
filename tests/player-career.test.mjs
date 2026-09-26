@@ -14,6 +14,7 @@ import {
   playerSquadCompetitionSnapshot,
   negotiatePlayerContractOffer,
   respondPlayerContractOffer,
+  respondPlayerOffer,
   sanitizePlayerCareer,
   serializePlayerCareer,
   setPlayerContractPreference,
@@ -278,4 +279,18 @@ test('post-match state stores briefing coach review timeline and role-specific f
   assert.ok(Array.isArray(career.lastMatch.timeline));
   assert.ok(career.lastMatch.timeline.some(item=>item.type==='fulltime'));
   if(career.lastMatch.performance)assert.ok(career.lastMatch.performance.metrics);
+});
+
+
+test('RC7 can move a player into an abstract international club and preserve it through save restore',function(){
+  let career=finishTrial(createPlayerCareer({name:'Europa RC7',position:'ATA',archetype:'finisher',personalityId:'ambitious',dreamClubId:clubs[0].id},2026));
+  career={...career,stage:'professional',finance:{...career.finance,cash:500000},pendingOffer:{id:'benfica-test',kind:'transfer',clubId:'pc-benfica',clubName:'Benfica',country:'POR',league:'Liga Portugal',interestScore:82,marketValue:18000000,role:'Disputa posição',salaryMonthly:160000,signingBonus:240000,years:4,expiresWeek:career.week+3,dreamClub:false}};
+  const moved=respondPlayerOffer(career,clubs,true);
+  assert.equal(moved.clubId,'pc-benfica');
+  assert.equal(moved.contract.clubName,'Benfica');
+  assert.equal(moved.world.leagueCountry,'POR');
+  assert.ok(moved.finance.cash>=740000);
+  const restored=parsePlayerCareer(serializePlayerCareer(moved),clubs);
+  assert.equal(restored.clubId,'pc-benfica');
+  assert.equal(restored.world.leagueName,'Liga Portugal');
 });
