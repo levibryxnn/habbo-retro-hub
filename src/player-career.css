@@ -576,3 +576,48 @@
   .pc-inline-fields small{grid-column:auto}
   .pc-hero-vitals{grid-template-columns:1fr 1fr!important}
 }
+
+
+/* RC9.1 visual review · no overlaying CTA, denser game-style option matrix */
+@media(max-width:480px){
+  .pc-choice-grid:not(.four){
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  }
+  .pc-personality-grid{
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  }
+  .pc-choice-grid:not(.four) button{
+    min-height:56px!important;
+    padding:7px!important;
+  }
+  .pc-personality-grid button{
+    min-height:56px!important;
+    padding:6px!important;
+  }
+  .pc-choice-grid:not(.four) strong{font-size:11px!important}
+  .pc-personality-grid strong{
+    font-size:10px!important;
+    line-height:1!important;
+    overflow-wrap:anywhere;
+  }
+  .pc-choice-grid:not(.four) small{
+    font-size:7px!important;
+    -webkit-line-clamp:2!important;
+  }
+  .pc-personality-grid small{
+    font-size:6.5px!important;
+    line-height:1.1!important;
+    -webkit-line-clamp:2!important;
+  }
+  .pc-form>.pc-primary{
+    position:static!important;
+    bottom:auto!important;
+    margin-top:1px!important;
+  }
+}
+@media(max-width:370px){
+  .pc-choice-grid:not(.four){grid-template-columns:repeat(3,minmax(0,1fr))!important}
+  .pc-personality-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+  .pc-personality-grid strong{font-size:9px!important}
+  .pc-personality-grid small{font-size:6px!important}
+}
