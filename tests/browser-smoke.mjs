@@ -78,8 +78,19 @@ async function playerFlow(browser){
   await page.waitForTimeout(120);
   assert.ok(await page.locator('.pc-last-day').count()>=1,'daily engine did not produce a last-day event');
   await page.getByRole('button',{name:/Até o próximo jogo/i}).click();
-  await page.waitForTimeout(120);
-  assert.ok(await page.locator('.pc-postmatch').count()>=1,'advance-until-match did not return to a match context');
+  await page.locator('.pc-live-player-match').waitFor({state:'visible',timeout:15000});
+  await waitForText(page,'NOTA AO VIVO');
+  await waitForText(page,'ENERGIA');
+  await noHorizontalOverflow(page,'interactive player match');
+  const liveBox=await page.locator('.pc-live-player-match').boundingBox();
+  assert.ok(liveBox&&liveBox.height<720,'live player match is too tall for 1366x768 at 100% zoom: '+JSON.stringify(liveBox));
+  const aggressive=page.getByRole('button',{name:/Buscar o protagonismo/i}).first();
+  if(await aggressive.isEnabled())await aggressive.click();
+  await page.getByRole('button',{name:/Avançar 15 min/i}).click();
+  await waitForText(page,"15'");
+  await page.getByRole('button',{name:/Simular até o fim/i}).click();
+  await page.locator('.pc-postmatch').waitFor({state:'visible',timeout:15000});
+  await waitForText(page,'PÓS-JOGO');
   const after=await page.getByText(/Semana \d+/).first().textContent();
   assert.ok(before!==null&&after!==null);
 
@@ -124,6 +135,12 @@ async function mobileFlow(browser){
   await page.getByRole('button',{name:/Desenvolvimento/i}).click();
   await waitForText(page,'CONCORRÊNCIA NA POSIÇÃO');
   await noHorizontalOverflow(page,'mobile development');
+  await page.getByRole('button',{name:/Hoje/i}).click();
+  await page.getByRole('button',{name:/Até o próximo jogo/i}).click();
+  await page.locator('.pc-live-player-match').waitFor({state:'visible',timeout:15000});
+  await noHorizontalOverflow(page,'mobile interactive match');
+  await page.getByRole('button',{name:/Simular até o fim/i}).click();
+  await page.locator('.pc-postmatch').waitFor({state:'visible',timeout:15000});
   await page.getByRole('button',{name:/Finanças/i}).click();
   await waitForText(page,'FINANÇAS PESSOAIS');
   await noHorizontalOverflow(page,'mobile finance');
@@ -137,5 +154,5 @@ try{
   await playerFlow(browser);
   await managerFlow(browser);
   await mobileFlow(browser);
-  console.log('Browser smoke passed: RC7 player at 100% zoom, manager regression and mobile flows.');
+  console.log('Browser smoke passed: RC7 player live match at 100% zoom, manager regression and mobile flows.');
 }finally{await browser.close();}
