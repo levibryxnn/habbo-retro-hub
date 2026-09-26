@@ -192,11 +192,12 @@ test('major trophies have dedicated lightweight 3D vector families', function(){
 });
 
 
-test('external crest loader never uses open search results or stale cache keys', function(){
-  assert.ok(worldCrest.includes("CACHE_PREFIX='ldf.worldcrest.v3.'"));
-  assert.ok(worldCrest.includes("action=query&titles="));
-  assert.ok(!worldCrest.includes("generator=search"));
-  assert.ok(worldCrest.includes("club?.country==='BRA'?'pt.wikipedia.org':'en.wikipedia.org'"));
+test('external crest loader is centralized and never uses open search results or stale cache keys', function(){
+  assert.ok(worldCrest.includes("import Crest from './Crest.jsx'"));
+  assert.ok(crest.includes("CACHE_PREFIX='ldf.crest.v4.'"));
+  assert.ok(crest.includes("action=query&titles="));
+  assert.ok(!crest.includes("generator=search"));
+  assert.ok(crest.includes("club?.country==='BRA'?'pt.wikipedia.org':'en.wikipedia.org'"));
 });
 
 test('match history merges competitions and exposes mobile-friendly filters', function(){
