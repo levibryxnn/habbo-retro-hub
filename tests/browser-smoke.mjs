@@ -85,6 +85,7 @@ async function playerFlow(browser){
   await noHorizontalOverflow(page,'interactive player match');
   const liveBox=await page.locator('.pc-live-player-match').boundingBox();
   assert.ok(liveBox&&liveBox.height<720,'live player match is too tall for 1366x768 at 100% zoom: '+JSON.stringify(liveBox));
+  await page.screenshot({path:'browser-artifacts/02b-player-live-match-1366x768.png',fullPage:true});
   const aggressive=page.getByRole('button',{name:/Buscar o protagonismo/i}).first();
   if(await aggressive.isEnabled())await aggressive.click();
   await page.getByRole('button',{name:/Avançar 15 min/i}).click();
@@ -141,6 +142,7 @@ async function mobileFlow(browser){
   await page.getByRole('button',{name:/Até o próximo jogo/i}).click();
   await page.locator('.pc-live-player-match').waitFor({state:'visible',timeout:15000});
   await noHorizontalOverflow(page,'mobile interactive match');
+  await page.screenshot({path:'browser-artifacts/05a-player-live-mobile.png',fullPage:true});
   await page.getByRole('button',{name:/Simular até o fim/i}).click();
   await page.locator('.pc-postmatch').waitFor({state:'visible',timeout:15000});
   await dismissPlayerMoment(page);
