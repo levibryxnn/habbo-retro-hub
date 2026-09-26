@@ -52,8 +52,9 @@ export const coachProfileDef=id=>COACH_PROFILES.find(item=>item.id===id)||COACH_
 export const playerMarketDef=id=>PLAYER_WORLD_MARKETS.find(item=>item.id===id)||PLAYER_WORLD_MARKETS[0];
 
 export function playerCareerClubPool(baseClubs=[]){
-  const domestic=(baseClubs||[]).map(club=>({...club,country:club.country||'BRA',league:club.league||'Brasileirão Série A',external:false}));
-  return [...domestic,...INTERNATIONAL_PLAYER_CLUBS];
+  const domestic=(baseClubs||[]).filter(Boolean).map(club=>({...club,country:club.country||'BRA',league:club.league||'Brasileirão Série A',external:Boolean(club.external)}));
+  const merged=[...domestic,...INTERNATIONAL_PLAYER_CLUBS],seen=new Set();
+  return merged.filter(club=>{const id=String(club.id);if(seen.has(id))return false;seen.add(id);return true;});
 }
 
 export function playerClubLevel(club){
@@ -89,6 +90,19 @@ export function ensurePlayerWorld(career,club){
   let rivals=Array.isArray(current.rivals)?current.rivals:[];
   if(String(current.clubId)!==String(club?.id)||!rivals.length)rivals=createPositionRivals({seed:career?.seed,club,position:career?.player?.position,season:career?.season,playerOverall:career?.player?.currentOverall});
   return{...current,clubId:String(club?.id||''),coach,rivals:rivals.slice(0,4),coachSequence:finite(current.coachSequence,coach.sequence||0),lastCoachChangeDay:finite(current.lastCoachChangeDay,-99),events:Array.isArray(current.events)?current.events.slice(0,80):[],leagueCountry:club?.country||'BRA',leagueName:club?.league||'Brasileirão Série A'};
+}
+
+export function sanitizePlayerWorld(raw,career,club){
+  const base=ensurePlayerWorld({...career,world:null},club),source=raw&&typeof raw==='object'?raw:{},rawCoach=source.coach&&typeof source.coach==='object'?source.coach:null,profile=coachProfileDef(rawCoach?.profileId);
+  const coach=rawCoach?{id:String(rawCoach.id||base.coach.id).slice(0,100),name:String(rawCoach.name||base.coach.name).slice(0,80),profileId:profile.id,profileName:profile.name,description:profile.description,appointedSeason:clamp(2026,2100,finite(rawCoach.appointedSeason,career?.season||2026)),sequence:clamp(0,100,finite(rawCoach.sequence,0)),security:clamp(0,100,finite(rawCoach.security,75))}:base.coach;
+  const rivals=Array.isArray(source.rivals)?source.rivals.slice(0,4).map((rival,index)=>({
+    id:String(rival?.id||base.rivals[index]?.id||'rival-'+index).slice(0,100),
+    name:String(rival?.name||base.rivals[index]?.name||'Concorrente').slice(0,80),
+    position:['GOL','DEF','MEI','ATA'].includes(rival?.position)?rival.position:career?.player?.position||'MEI',
+    age:clamp(16,42,finite(rival?.age,22)),overall:clamp(40,96,finite(rival?.overall,65)),form:clamp(-2,2,finite(rival?.form,0)),
+    fitness:clamp(35,100,finite(rival?.fitness,90)),starts:clamp(0,1000,finite(rival?.starts,0)),matches:clamp(0,1000,finite(rival?.matches,0)),lastRating:clamp(4,10,finite(rival?.lastRating,6.5)),
+  })):base.rivals;
+  return{clubId:String(club?.id||''),coach,rivals:rivals.length?rivals:base.rivals,coachSequence:clamp(0,100,finite(source.coachSequence,coach.sequence||0)),lastCoachChangeDay:clamp(-999,266,finite(source.lastCoachChangeDay,-99)),events:Array.isArray(source.events)?source.events.slice(0,80).filter(item=>item&&typeof item==='object').map(item=>({id:String(item.id||'world-event').slice(0,100),type:String(item.type||'event').slice(0,40),title:String(item.title||'Evento').slice(0,120),text:String(item.text||'').slice(0,500),season:clamp(2026,2100,finite(item.season,career?.season||2026)),day:clamp(0,266,finite(item.day,0))})):[],leagueCountry:club?.country||'BRA',leagueName:club?.league||'Brasileirão Série A'};
 }
 
 export function playerSelectionContext(career,club){
