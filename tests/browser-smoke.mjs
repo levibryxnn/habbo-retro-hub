@@ -22,6 +22,7 @@ async function noHorizontalOverflow(page,label){
   assert.equal(metrics.scale,1,label+' is not being validated at browser zoom 100%');
 }
 async function waitForText(page,text){await page.getByText(text,{exact:false}).first().waitFor({state:'visible',timeout:15000});}
+async function dismissPlayerMoment(page){const dialog=page.locator('.pc-moment-overlay');if(await dialog.count()){await dialog.first().waitFor({state:'visible',timeout:5000});await page.getByRole('button',{name:/Continuar a história/i}).click();}}
 async function createAndFinishPlayer(page,name='Browser QA'){
   await page.getByRole('button',{name:/MODO CARREIRA JOGADOR/i}).click();
   await waitForText(page,'Comece aos 16.');
@@ -91,6 +92,7 @@ async function playerFlow(browser){
   await page.getByRole('button',{name:/Simular até o fim/i}).click();
   await page.locator('.pc-postmatch').waitFor({state:'visible',timeout:15000});
   await waitForText(page,'PÓS-JOGO');
+  await dismissPlayerMoment(page);
   const after=await page.getByText(/Semana \d+/).first().textContent();
   assert.ok(before!==null&&after!==null);
 
@@ -141,6 +143,7 @@ async function mobileFlow(browser){
   await noHorizontalOverflow(page,'mobile interactive match');
   await page.getByRole('button',{name:/Simular até o fim/i}).click();
   await page.locator('.pc-postmatch').waitFor({state:'visible',timeout:15000});
+  await dismissPlayerMoment(page);
   await page.getByRole('button',{name:/Finanças/i}).click();
   await waitForText(page,'FINANÇAS PESSOAIS');
   await noHorizontalOverflow(page,'mobile finance');
