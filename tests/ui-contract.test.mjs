@@ -16,6 +16,7 @@ const worldCrest=fs.readFileSync(new URL('../src/WorldCrest.jsx',import.meta.url
 const crest=fs.readFileSync(new URL('../src/Crest.jsx',import.meta.url),'utf8');
 const playerCareer=fs.readFileSync(new URL('../src/PlayerCareer.jsx',import.meta.url),'utf8');
 const playerLife=fs.readFileSync(new URL('../src/player-life-engine.js',import.meta.url),'utf8');
+const playerWorld=fs.readFileSync(new URL('../src/player-world-engine.js',import.meta.url),'utf8');
 
 test('every career area is present in navigation and has a renderer', function(){
   const tabs=['dashboard','central','competitions','match','roster','standings','transfers','trophies','sponsors','legacy'];
@@ -318,7 +319,7 @@ test('RC7 removes facial creation while preserving a neutral player identifier',
 });
 
 test('RC7 player mode surfaces coach rivalry personality and international market systems',function(){
-  for(const token of ['Personalidade','Sua chance de titularidade','Treinador','Mercado acessível','Argentina','Portugal','Espanha']){
-    assert.ok(playerCareer.includes(token),token+' missing from RC7 player UI');
-  }
+  for(const token of ['Personalidade','Sua chance de titularidade','Treinador','Mercado acessível'])assert.ok(playerCareer.includes(token),token+' missing from RC7 player UI');
+  assert.ok(playerCareer.includes('PLAYER_WORLD_MARKETS'));
+  for(const token of ['Argentina','Portugal','Espanha'])assert.ok(playerWorld.includes(token),token+' missing from RC7 world market engine');
 });
