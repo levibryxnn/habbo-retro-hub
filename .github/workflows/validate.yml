@@ -12,7 +12,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -36,9 +36,28 @@ jobs:
             echo "CSS syntax warning detected; failing validation."
             exit 1
           fi
-      - name: Upload preview build
+      - name: Install Chromium smoke runner
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Run real-browser smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run preview -- --host 127.0.0.1 --port 8080 > /tmp/ldf-preview.log 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill $PREVIEW_PID 2>/dev/null || true' EXIT
+          for i in {1..40}; do
+            if curl -fsS http://127.0.0.1:8080/ >/dev/null; then break; fi
+            sleep 0.5
+          done
+          curl -fsS http://127.0.0.1:8080/ >/dev/null
+          node tests/browser-smoke.mjs
+      - name: Upload preview build and browser evidence
         uses: actions/upload-artifact@v7
         with:
           name: linha-de-frente-preview
-          path: dist
+          path: |
+            dist
+            browser-artifacts
           retention-days: 7
