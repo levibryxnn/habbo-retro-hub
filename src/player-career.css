@@ -254,3 +254,20 @@
 @media(max-width:430px){
   .pc-creator-intro{padding-left:86px!important}.pc-creator-intro:before{width:74px}.pc-creator-intro:after{left:22px;top:34px;font-size:34px}.pc-creator-intro h1{font-size:29px!important}.pc-identity-preview{grid-template-columns:64px 1fr!important;text-align:left!important;justify-items:start!important}.pc-player-mark.large{width:60px!important;height:74px!important}.pc-choice-grid,.pc-choice-grid.four{grid-template-columns:1fr 1fr!important}.pc-personality-grid{grid-template-columns:1fr!important}
 }
+
+
+/* RC9 QA · keep gameplay HUD compact at real 100% browser zoom */
+.pc-body{width:min(1180px,calc(100% - 32px))!important}
+.pc-footer{width:min(1180px,calc(100% - 32px))!important}
+.pc-status-identity .pc-player-mark{
+  width:58px!important;height:58px!important;min-width:58px!important;
+  border-radius:3px!important;clip-path:none!important;
+}
+.pc-status-identity .pc-player-mark b{font-size:22px!important}
+.pc-status-identity .pc-player-mark small{font-size:8px!important}
+.pc-status-hero{padding:10px 12px!important;gap:8px!important}
+.pc-hero-vitals span{padding:6px 8px!important}
+@media(max-width:760px){
+  .pc-body,.pc-footer{width:calc(100% - 14px)!important}
+  .pc-status-identity .pc-player-mark{width:50px!important;height:50px!important;min-width:50px!important}
+}
