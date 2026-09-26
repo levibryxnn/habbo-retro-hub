@@ -84,10 +84,10 @@ test('club-specific colors are scoped to the club hero rather than the whole int
 });
 
 
-test('V3 asks for a manager name when taking control of a club', function(){
+test('RC8 asks for a manager name when taking control of a club', function(){
   assert.ok(main.includes("Nome do técnico"));
   assert.ok(main.includes("managerName"));
-  assert.ok(main.includes("1.0 RC6"));
+  assert.ok(main.includes("1.0 RC8"));
   assert.ok(!main.includes("Protótipo de gestão"));
   assert.ok(!main.includes("ETAPA 2 ·"));
 });
@@ -311,11 +311,12 @@ test('RC6 uses one crest renderer for local and world clubs with professional fa
 });
 
 
-test('RC7 removes facial creation while preserving a neutral player identifier',function(){
+test('RC8 keeps facial creation removed while preserving a neutral player identifier',function(){
   assert.equal(playerCareer.includes('pc-face-controls'),false);
   assert.equal(playerCareer.includes('function Face('),false);
   assert.ok(playerCareer.includes('PlayerMark'));
-  assert.ok(playerCareer.includes('A criação facial foi retirada desta versão'));
+  assert.ok(playerCareer.includes('MODO CARREIRA JOGADOR · RC8'));
+  assert.ok(playerCareer.includes('Dos 16 ao topo.'));
 });
 
 test('RC7 player mode surfaces coach rivalry personality and international market systems',function(){

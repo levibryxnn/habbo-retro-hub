@@ -239,3 +239,73 @@
 .manager-challenge-picker{margin:4px 0 14px;padding-top:12px;border-top:1px solid #e7ebe3}.manager-challenge-picker>span small,.manager-challenge-picker>span strong{display:block}.manager-challenge-picker>span small{font-size:8px;letter-spacing:.7px;color:#929d8e}.manager-challenge-picker>span strong{font-size:10px;color:#425744;margin-top:2px}.manager-challenge-picker>div{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}.manager-challenge-picker button{border:1px solid #e0e6dc;border-radius:8px;background:#fafbf8;color:#586956;text-align:left;padding:8px 9px}.manager-challenge-picker button strong,.manager-challenge-picker button em{display:block}.manager-challenge-picker button strong{font-size:8px}.manager-challenge-picker button em{font-style:normal;font-size:8px;line-height:1.4;color:#8b9687;margin-top:3px}.manager-challenge-picker button.selected{border-color:#8a9f62;background:#f0f5e5;box-shadow:inset 0 0 0 1px #8a9f6226}.manager-challenge-picker button.selected strong{color:#365b3e}.manager-challenge-picker button:disabled{opacity:.68}
 @media(max-width:560px){.manager-challenge-picker>div{grid-template-columns:1fr}.manager-challenge-picker button em{font-size:8px}}
 .career-moment-overlay{position:fixed;inset:0;z-index:16000;background:#08140dcc;display:grid;place-items:center;padding:18px;backdrop-filter:blur(7px)}.career-moment-card{position:relative;width:min(540px,100%);overflow:hidden;text-align:center;background:#f8fbf5;border:1px solid #b8cb9e;border-radius:15px;padding:34px 28px 26px;box-shadow:0 25px 90px #0008;color:#314437}.career-moment-light{position:absolute;inset:-45% 0 auto;height:360px;background:radial-gradient(circle,#d7ee866b 0,transparent 65%);pointer-events:none}.career-moment-spark{position:relative;color:#7a985b;margin-bottom:10px}.career-moment-card h2{position:relative;font-family:'Barlow Condensed',sans-serif;font-size:39px;line-height:1;margin:6px 0 3px}.career-moment-card>strong{position:relative;font-size:9px;color:#74846f}.career-moment-card>p{position:relative;font-size:10px;line-height:1.65;color:#74816f;max-width:430px;margin:15px auto}.career-moment-club{position:relative;display:flex;align-items:center;justify-content:center;gap:8px;margin:15px 0 0;font-size:9px;font-weight:800}.career-moment-club .crest{width:30px;height:30px}.career-moment-meta{position:relative;display:flex;justify-content:center;gap:6px;flex-wrap:wrap}.career-moment-meta span{display:flex;align-items:center;gap:5px;background:#edf4e7;border:1px solid #dbe6d2;border-radius:999px;padding:6px 8px;font-size:8px}.career-moment-continue{position:relative;margin-top:18px;border:0;background:#315f43;color:#fff;border-radius:8px;padding:11px 14px;font-size:9px;font-weight:800}.career-moment-close{position:absolute;right:11px;top:11px;z-index:3;border:1px solid #dce5d7;background:#fff;color:#60715d;width:30px;height:30px;border-radius:50%;display:grid;place-items:center}@media(max-width:520px){.career-moment-card{padding:28px 18px 22px}.career-moment-card h2{font-size:32px}}.app-loading{min-height:100dvh;display:flex;align-items:center;justify-content:center;gap:10px;background:#10281d;color:#f1f6ee;font-family:'DM Sans Variable','DM Sans',sans-serif}.app-loading .brand-symbol{position:static}.app-loading strong{font-size:10px;letter-spacing:.8px}
+
+/* RC8 · arcade management shell */
+:root{
+  --arcade-ink:#07120d;
+  --arcade-panel:#102018;
+  --arcade-panel-2:#14281d;
+  --arcade-line:#dfff6227;
+  --arcade-lime:#dfff62;
+  --arcade-lime-soft:#a9c96f;
+  --arcade-yellow:#ffd54a;
+  --arcade-blue:#58d7ff;
+  --arcade-red:#ff786d;
+}
+body{background:#e9eee6}
+.app-shell{background:
+  radial-gradient(circle at 15% 0%,#b8d68712 0%,transparent 22%),
+  linear-gradient(180deg,#edf1e9 0%,#e7ece3 100%);
+}
+.topbar{
+  height:64px;
+  background:linear-gradient(180deg,#08150f,#0d2117);
+  border-bottom:1px solid #dfff6222;
+  box-shadow:0 8px 24px #07120d35;
+}
+.brand{gap:10px}.brand-symbol{border-color:var(--arcade-lime)!important;color:var(--arcade-lime)!important;box-shadow:0 0 0 1px #dfff6215,0 0 20px #dfff6212}.brand-small{color:#9eb59f!important;letter-spacing:1.8px!important}
+.top-context{color:#9eb19f}.version{border:1px solid #dfff6224;background:#dfff6208;color:#d7e7d1;border-radius:999px;padding:6px 9px;font-size:8px!important;font-weight:850}.version i{background:var(--arcade-lime)!important;box-shadow:0 0 9px #dfff62}
+.career-strip{
+  background:linear-gradient(90deg,#10271b 0%,#173725 58%,#10271b 100%);
+  border-bottom:1px solid #dfff6220;color:#fff;
+  box-shadow:inset 0 -1px 0 #ffffff05,0 8px 20px #0b1a1220;
+}
+.career-strip-club .crest{filter:drop-shadow(0 3px 8px #0005)}
+.career-strip-club small,.career-strip-meta small{color:#a7bba7!important}
+.career-strip-club strong,.career-strip-meta strong{color:#fff!important}
+.career-continue{background:var(--arcade-lime)!important;color:#132017!important;border-color:var(--arcade-lime)!important;box-shadow:0 5px 18px #dfff621c}
+.career-explore{border-color:#ffffff24!important;color:#e9f2e6!important;background:#ffffff08!important}
+.intro{background:linear-gradient(135deg,#0d2318,#173827);color:#fff;border-color:#173827;box-shadow:0 12px 30px #0b1e1425}.intro h1{color:#fff!important}.intro p{color:#b7c8b7!important}.intro .eyebrow{color:#b9ceaf!important}.competition{border-color:#ffffff18!important;background:#ffffff08!important;color:#fff!important}
+.club-hero{
+  position:relative;overflow:hidden;
+  background:
+    radial-gradient(circle at 83% 20%,color-mix(in srgb,var(--club-primary,#315f43) 38%,transparent),transparent 38%),
+    linear-gradient(145deg,#0f2018 0%,#173326 58%,#0d1d15 100%)!important;
+  color:#fff!important;border-color:#ffffff10!important;box-shadow:0 18px 44px #14251a22!important;
+}
+.club-hero:before{content:'';position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(135deg,#fff0 0,#fff0 14px,#ffffff04 15px,#ffffff04 16px)}
+.club-hero .hero-title h2{color:#fff!important;text-shadow:0 4px 15px #0007}.club-hero .hero-title .eyebrow,.club-hero .division{color:#a9bdab!important}.club-project-chips span,.manager-chip{border-color:#dfff6225!important;background:#dfff620b!important;color:#dcebd7!important}
+.hero-action>span{color:#b7c7b8!important}.hero-action .primary{background:var(--arcade-lime)!important;color:#102016!important;border-color:var(--arcade-lime)!important;font-weight:900;box-shadow:0 8px 24px #dfff6216}
+.club-navigation{
+  position:sticky;top:64px;z-index:40;
+  background:#0d1d15!important;border:1px solid #13271c!important;border-radius:11px!important;padding:5px!important;box-shadow:0 9px 24px #07120d22!important;
+}
+.club-navigation button{color:#9fb0a0!important;border-radius:8px!important;min-height:42px!important;transition:background .16s ease,color .16s ease,transform .16s ease!important}
+.club-navigation button:hover{background:#ffffff08!important;color:#fff!important;transform:translateY(-1px)}
+.club-navigation button.selected{background:linear-gradient(180deg,#dfff62,#cce75b)!important;color:#102016!important;box-shadow:0 6px 16px #dfff621b!important}
+.stats>div{background:linear-gradient(180deg,#fff,#f7f9f5)!important;border-color:#dce5d7!important;border-radius:10px!important;box-shadow:0 8px 18px #2033220b!important}
+.stats>div>svg,.stat-glyph{color:#486b4b!important}.stats strong{color:#284431!important}
+.roster-toolbar,.roster-table,.table-scroll{border-color:#dbe4d7!important}.roster-table,.table-scroll{box-shadow:0 10px 26px #2137240b}.table-scroll thead th{background:#102319!important;color:#c9d7c8!important;border-color:#1c3828!important}.table-scroll tbody tr:hover{background:#f0f5ec!important}.roster-overall{display:inline-grid;place-items:center;min-width:34px;height:29px;border-radius:7px;background:#173b2d;color:#dfff62!important;font-family:'Barlow Condensed',sans-serif;font-size:16px!important;box-shadow:inset 0 0 0 1px #dfff6220}
+.position{font-weight:900!important;letter-spacing:.35px}
+dialog{border:1px solid #cfdacb!important;border-radius:16px!important;box-shadow:0 28px 80px #07120d55!important}
+dialog:before{content:'';position:absolute;left:0;right:0;top:0;height:5px;background:linear-gradient(90deg,var(--arcade-lime),var(--arcade-yellow),var(--arcade-blue))}
+dialog .primary{background:#173b2d!important;border-color:#173b2d!important;box-shadow:0 7px 18px #173b2d1f!important}
+.club-selector-shell{background:linear-gradient(180deg,#eaf0e6,#e4ebe0)!important}
+.club-selector-header{background:#0d2017!important;color:#fff!important;border-bottom-color:#dfff621d!important}
+.club-selector-grid{gap:9px!important}.club-selector-card{position:relative;overflow:hidden;border-radius:12px!important;background:linear-gradient(180deg,#fff,#f7f9f5)!important;box-shadow:0 7px 18px #1a2d1e0b!important}.club-selector-card:hover{transform:translateY(-2px);box-shadow:0 13px 28px #17291d16!important}.club-selector-card.selected{border-color:#76945e!important;box-shadow:0 0 0 2px #76945e1e,0 13px 28px #17291d16!important}.club-selector-card.career:after{content:'SAVE';position:absolute;right:-20px;bottom:8px;transform:rotate(-38deg);font:900 28px 'Barlow Condensed',sans-serif;color:#315f4309;letter-spacing:2px}
+.page-footer{border-top:1px solid #d7dfd2!important;color:#70806f!important}
+.app-loading{background:#0b1b13!important;color:#fff!important}.app-loading .brand-symbol{border-color:var(--arcade-lime)!important;color:var(--arcade-lime)!important}
+@media(max-width:760px){
+  .topbar{height:58px}.club-navigation{top:58px;border-radius:0!important;margin-left:-12px!important;margin-right:-12px!important;padding-left:10px!important;padding-right:10px!important}
+  .club-navigation button{min-height:40px!important}.club-hero{border-radius:12px!important}.stats>div{min-height:66px}
+}

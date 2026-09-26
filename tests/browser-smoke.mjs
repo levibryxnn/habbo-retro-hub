@@ -25,8 +25,8 @@ async function waitForText(page,text){await page.getByText(text,{exact:false}).f
 async function dismissPlayerMoment(page){const dialog=page.locator('.pc-moment-overlay');if(await dialog.count()){await dialog.first().waitFor({state:'visible',timeout:5000});await page.getByRole('button',{name:/Continuar a história/i}).click();}}
 async function createAndFinishPlayer(page,name='Browser QA'){
   await page.getByRole('button',{name:/MODO CARREIRA JOGADOR/i}).click();
-  await waitForText(page,'Comece aos 16.');
-  assert.equal(await page.locator('.pc-face-controls,.pc-face').count(),0,'facial creator returned to RC7');
+  await waitForText(page,'Dos 16 ao topo.');
+  assert.equal(await page.locator('.pc-face-controls,.pc-face').count(),0,'facial creator returned to RC8');
   await page.locator('input[placeholder="Digite o nome"]').fill(name);
   await page.getByRole('button',{name:/Ir para a peneira/i}).click();
   for(let index=0;index<5;index++){
@@ -42,18 +42,19 @@ async function playerFlow(browser){
   const context=await browser.newContext({viewport:{width:1366,height:768}});
   const page=await context.newPage(),errors=collectRuntimeErrors(page,'player-desktop');
   await page.goto(baseURL,{waitUntil:'networkidle'});
-  await waitForText(page,'Escolha o modo de carreira.');
+  await waitForText(page,'Escolha onde sua carreira começa.');
   await noHorizontalOverflow(page,'desktop landing');
   await page.screenshot({path:'browser-artifacts/01-landing-desktop.png',fullPage:true});
 
   await createAndFinishPlayer(page);
+  await page.screenshot({path:'browser-artifacts/03-player-dashboard.png',fullPage:true});
   for(const text of ['Condição','Moral','Confiança','AGENDA','Até o próximo jogo'])await waitForText(page,text);
   await noHorizontalOverflow(page,'player today at 1366x768');
   const hero=await page.locator('.pc-status-hero').boundingBox();
   assert.ok(hero&&hero.width<=1180&&hero.height<220,'player essential HUD is too large at 100% zoom: '+JSON.stringify(hero));
   const mark=await page.locator('.pc-status-identity .pc-player-mark').boundingBox();
   assert.ok(mark&&mark.width<=70&&mark.height<=70,'neutral player identifier is oversized: '+JSON.stringify(mark));
-  await page.screenshot({path:'browser-artifacts/02-player-today-1366x768.png',fullPage:true});
+  await page.locator('.pc-today-grid').screenshot({path:'browser-artifacts/04-player-today.png'});
 
   await page.getByRole('button',{name:/Desenvolvimento/i}).click();
   await waitForText(page,'HIERARQUIA DO ELENCO');
@@ -66,14 +67,18 @@ async function playerFlow(browser){
   await waitForText(page,'Alcance do empresário');
   await waitForText(page,'Espanha');
   await noHorizontalOverflow(page,'player contract');
+  await page.screenshot({path:'browser-artifacts/09-player-contracts.png',fullPage:true});
 
   await page.getByRole('button',{name:/Finanças/i}).click();
   await waitForText(page,'FINANÇAS PESSOAIS');
   await waitForText(page,'Equipe de performance');
   await waitForText(page,'Patrimônio & projetos');
   await noHorizontalOverflow(page,'player finance');
+  await page.screenshot({path:'browser-artifacts/08-player-life-finances.png',fullPage:true});
 
   await page.getByRole('button',{name:/Hoje/i}).click();
+  await page.locator('.pc-prematch').waitFor({state:'visible',timeout:15000});
+  await page.locator('.pc-prematch').screenshot({path:'browser-artifacts/05-player-pregame.png'});
   const before=await page.getByText(/Semana \d+/).first().textContent();
   await page.getByRole('button',{name:/1 dia/i}).click();
   await page.waitForTimeout(120);
@@ -85,7 +90,7 @@ async function playerFlow(browser){
   await noHorizontalOverflow(page,'interactive player match');
   const liveBox=await page.locator('.pc-live-player-match').boundingBox();
   assert.ok(liveBox&&liveBox.height<720,'live player match is too tall for 1366x768 at 100% zoom: '+JSON.stringify(liveBox));
-  await page.screenshot({path:'browser-artifacts/02b-player-live-match-1366x768.png',fullPage:true});
+  await page.screenshot({path:'browser-artifacts/06-player-live-match.png',fullPage:true});
   const aggressive=page.getByRole('button',{name:/Buscar o protagonismo/i}).first();
   if(await aggressive.isEnabled())await aggressive.click();
   await page.getByRole('button',{name:/Avançar 15 min/i}).click();
@@ -94,12 +99,13 @@ async function playerFlow(browser){
   await page.locator('.pc-postmatch').waitFor({state:'visible',timeout:15000});
   await waitForText(page,'PÓS-JOGO');
   await dismissPlayerMoment(page);
+  await page.locator('.pc-postmatch').screenshot({path:'browser-artifacts/07-player-postmatch.png'});
   const after=await page.getByText(/Semana \d+/).first().textContent();
   assert.ok(before!==null&&after!==null);
 
   await page.getByRole('button',{name:'História',exact:true}).first().click();
   await waitForText(page,'Linha do tempo');
-  await page.screenshot({path:'browser-artifacts/03-player-history.png',fullPage:true});
+  await page.screenshot({path:'browser-artifacts/player-history.png',fullPage:true});
   assert.deepEqual(errors,[],errors.join('\n'));
   await context.close();
 }
@@ -117,10 +123,34 @@ async function managerFlow(browser){
   await page.getByRole('button',{name:/Assumir o clube/i}).click();
   await page.getByRole('button',{name:/Ir para a temporada/i}).click();
   await waitForText(page,'CENTRO DE COMANDO');
-  const tabs=['Bastidores','Competições','Partida','Elenco','Classificação','Transferências','Troféus','Patrocínios','História','Painel'];
-  for(const tab of tabs){const button=page.getByRole('button',{name:new RegExp('^'+tab+'$','i')}).first();await button.waitFor({state:'visible',timeout:15000});await button.click();await page.waitForTimeout(120);}
   await noHorizontalOverflow(page,'manager dashboard');
-  await page.screenshot({path:'browser-artifacts/04-manager-dashboard.png',fullPage:true});
+  await page.screenshot({path:'browser-artifacts/10-manager-dashboard.png',fullPage:true});
+
+  await page.getByRole('button',{name:/^Partida$/i}).first().click();
+  await waitForText(page,'PLANO DE JOGO');
+  await page.getByRole('button',{name:/Ajustes finos/i}).first().click();
+  await waitForText(page,'Ataque');
+  await noHorizontalOverflow(page,'manager tactics');
+  await page.locator('.match-tactic-strip').first().screenshot({path:'browser-artifacts/11-manager-tactics.png'});
+
+  await page.getByRole('button',{name:/^Transferências$/i}).first().click();
+  await waitForText(page,'Buscar jogador');
+  await noHorizontalOverflow(page,'manager transfer market');
+  await page.screenshot({path:'browser-artifacts/12-manager-market.png',fullPage:true});
+
+  await page.getByRole('button',{name:/^Classificação$/i}).first().click();
+  await waitForText(page,'Classificação do Brasileirão');
+  await noHorizontalOverflow(page,'manager standings');
+  await page.screenshot({path:'browser-artifacts/13-manager-standings.png',fullPage:true});
+
+  const tabs=['Bastidores','Competições','Elenco','Troféus','Patrocínios','História','Painel'];
+  for(const tab of tabs){
+    const button=page.getByRole('button',{name:new RegExp('^'+tab+'$','i')}).first();
+    await button.waitFor({state:'visible',timeout:15000});
+    await button.click();
+    await page.waitForTimeout(120);
+    await noHorizontalOverflow(page,'manager '+tab.toLowerCase());
+  }
   assert.deepEqual(errors,[],errors.join('\n'));
   await context.close();
 }
@@ -129,8 +159,9 @@ async function mobileFlow(browser){
   const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
   const page=await context.newPage(),errors=collectRuntimeErrors(page,'mobile');
   await page.goto(baseURL,{waitUntil:'networkidle'});
-  await waitForText(page,'Escolha o modo de carreira.');
+  await waitForText(page,'Escolha onde sua carreira começa.');
   await noHorizontalOverflow(page,'mobile landing');
+  await page.screenshot({path:'browser-artifacts/02-landing-mobile.png',fullPage:true});
   await createAndFinishPlayer(page,'Mobile QA');
   await noHorizontalOverflow(page,'mobile player today');
   const tabs=page.locator('.pc-mode-tabs');
@@ -142,14 +173,14 @@ async function mobileFlow(browser){
   await page.getByRole('button',{name:/Até o próximo jogo/i}).click();
   await page.locator('.pc-live-player-match').waitFor({state:'visible',timeout:15000});
   await noHorizontalOverflow(page,'mobile interactive match');
-  await page.screenshot({path:'browser-artifacts/05a-player-live-mobile.png',fullPage:true});
+  await page.screenshot({path:'browser-artifacts/mobile-player-live.png',fullPage:true});
   await page.getByRole('button',{name:/Simular até o fim/i}).click();
   await page.locator('.pc-postmatch').waitFor({state:'visible',timeout:15000});
   await dismissPlayerMoment(page);
   await page.getByRole('button',{name:/Finanças/i}).click();
   await waitForText(page,'FINANÇAS PESSOAIS');
   await noHorizontalOverflow(page,'mobile finance');
-  await page.screenshot({path:'browser-artifacts/05-player-mobile.png',fullPage:true});
+  await page.screenshot({path:'browser-artifacts/mobile-player-finance.png',fullPage:true});
   assert.deepEqual(errors,[],errors.join('\n'));
   await context.close();
 }
@@ -159,5 +190,5 @@ try{
   await playerFlow(browser);
   await managerFlow(browser);
   await mobileFlow(browser);
-  console.log('Browser smoke passed: RC7 player live match at 100% zoom, manager regression and mobile flows.');
+  console.log('Browser smoke passed: RC8 mandatory visual evidence, 100% zoom overflow checks, manager regression and mobile flows.');
 }finally{await browser.close();}

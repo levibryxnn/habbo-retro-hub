@@ -16,3 +16,11 @@
 .world-crest.fallback{position:relative;border-radius:7px 7px 11px 11px;clip-path:polygon(12% 0,88% 0,100% 24%,90% 74%,50% 100%,10% 74%,0 24%);background:linear-gradient(160deg,#f4f7f1,#cbd7c8);border:0;box-shadow:inset 0 0 0 1px #b9c7b6,0 2px 8px #263c2d18}
 .world-crest.fallback>span{display:grid;place-items:center;width:100%;height:100%;font-family:'Barlow Condensed',sans-serif;font-weight:850;font-size:11px;letter-spacing:.4px;color:#3f5d45;text-shadow:0 1px #fff}
 .world-crest.mini.fallback>span{font-size:8px}.world-crest.large.fallback>span{font-size:22px}
+
+
+/* RC8 · competition broadcast treatment */
+.competition-content,.league-content{background:transparent}
+.competition-heading,.league-heading{padding:14px 16px;border-radius:13px;background:linear-gradient(125deg,#10251a,#183a2a);color:#fff;box-shadow:0 12px 28px #173b2d1b}.competition-heading .eyebrow,.league-heading .eyebrow{color:#dfff62!important}.competition-heading h2,.league-heading h2{color:#fff!important}.competition-heading p,.league-heading p{color:#b8c9b9!important}
+.competition-tabs,.league-tabs{background:#102219!important;border-radius:10px!important;padding:4px!important;border:0!important}.competition-tabs button,.league-tabs button{border-radius:7px!important;border:0!important;color:#9faf9f!important}.competition-tabs button.active,.league-tabs button.active{background:#dfff62!important;color:#112016!important;font-weight:900!important}
+.competition-card,.competition-stage-card,.world-engine-card,.standings-card,.competition-table-wrap{border-radius:11px!important;box-shadow:0 8px 20px #1a30200a!important}
+.history-filters{background:#f4f7f1!important;border-radius:9px!important;border:0!important}.history-filters button.active{background:#173b2d!important;border-color:#173b2d!important}
