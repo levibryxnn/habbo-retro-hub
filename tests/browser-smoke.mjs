@@ -94,7 +94,7 @@ async function playerFlow(browser){
   const after=await page.getByText(/Semana \d+/).first().textContent();
   assert.ok(before!==null&&after!==null);
 
-  await page.getByRole('button',{name:/História/i}).click();
+  await page.getByRole('button',{name:'História',exact:true}).first().click();
   await waitForText(page,'Linha do tempo');
   await page.screenshot({path:'browser-artifacts/03-player-history.png',fullPage:true});
   assert.deepEqual(errors,[],errors.join('\n'));
