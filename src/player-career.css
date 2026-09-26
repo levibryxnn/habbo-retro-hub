@@ -172,3 +172,102 @@
 @media(max-width:420px){
   .pc-status-hero{padding:10px}.pc-hero-vitals{grid-template-columns:1fr 1fr}.pc-live-vitals b{font-size:20px}.pc-live-scoreboard{padding:10px}.pc-live-scoreboard strong{font-size:19px}
 }
+
+
+/* RC9 · GAME-FIRST PLAYER CAREER
+   HUD de videogame esportivo: azul noturno, neon, recortes e textura. */
+.player-career-shell{
+  --pc-lime:#dfff2f;--pc-blue:#29aaff;--pc-cyan:#67d8ff;--pc-bg:#031426;--pc-panel:#061d31;--pc-panel2:#082943;--pc-line:#1f5e88;--pc-text:#f4f9ff;--pc-muted:#8eaec3;
+  background:
+    linear-gradient(180deg,#031426dc,#041b30ed),
+    url('/stadium-sideline-desktop.webp') center top/cover fixed no-repeat!important;
+  color:var(--pc-text)!important;
+}
+.player-career-shell:before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background:
+  radial-gradient(circle,#2baaff22 1px,transparent 1.2px) 0 0/9px 9px,
+  linear-gradient(120deg,transparent 0 68%,#2baaff0b 68% 72%,transparent 72%);
+  mask-image:linear-gradient(90deg,#000 0 12%,transparent 35% 70%,#000 100%);opacity:.28}
+.player-career-shell>*{position:relative;z-index:1}
+.pc-topbar{height:68px!important;background:#03182cf3!important;border-bottom:1px solid #1f6c9e!important;box-shadow:0 8px 28px #0007!important}
+.pc-topbar:after{content:'';position:absolute;left:0;right:0;bottom:-3px;height:2px;background:linear-gradient(90deg,transparent,#2aaaff,#dfff2f,#2aaaff,transparent);opacity:.45}
+.pc-topbar>button,.pc-save-actions button{border:1px solid #2c6388!important;background:#061d31!important;color:#f5f9ff!important;border-radius:4px!important;min-height:42px!important;padding:8px 15px!important;font-family:'Barlow Condensed',sans-serif!important;font-size:14px!important;font-weight:900!important;letter-spacing:.4px!important}
+.pc-topbar>button:hover,.pc-save-actions button:hover{border-color:#48b8ff!important;background:#082943!important;transform:none!important}
+.pc-topbar>div:nth-child(2){font-family:'Barlow Condensed',sans-serif!important;font-size:22px!important;font-weight:900!important;letter-spacing:1px!important}
+.pc-brand{width:44px!important;height:46px!important;border:2px solid #2c6388!important;border-radius:4px!important;background:#071d30!important;color:#fff!important;font:900 24px 'Barlow Condensed',sans-serif!important}.pc-brand span{color:var(--pc-lime)!important}
+.pc-body{width:min(1320px,calc(100% - 48px))!important;padding:18px 0 30px!important}
+.pc-footer{width:min(1320px,calc(100% - 48px))!important;border-top:1px solid #174967!important;padding-top:14px!important;color:#7496aa!important}
+.pc-eyebrow,.pc-field-label,.pc-subheading{color:#a8c4d6!important;font-family:'Barlow Condensed',sans-serif!important;font-size:12px!important;font-weight:900!important;letter-spacing:1.1px!important}
+
+.pc-creator{gap:12px!important}
+.pc-creator-intro{position:relative;max-width:none!important;min-height:128px;padding:24px 30px 20px 240px!important;border:2px solid #215f86!important;border-radius:4px!important;background:
+  linear-gradient(90deg,#061a2bf2 0%,#07233ae8 62%,#0a2d48bf 100%),
+  url('/stadium-sideline-desktop.webp') center 45%/cover no-repeat!important;
+  color:#fff!important;box-shadow:0 12px 28px #0006!important;overflow:hidden!important}
+.pc-creator-intro:before{content:'';position:absolute;left:0;top:0;bottom:0;width:210px;background:
+  linear-gradient(135deg,#16b8e25c,#0c6fa45c),
+  repeating-linear-gradient(45deg,#ffffff10 0 8px,transparent 8px 16px);
+  clip-path:polygon(0 0,100% 0,76% 100%,0 100%);border-right:2px solid #2fb7e5}
+.pc-creator-intro:after{content:'16';position:absolute;left:80px;top:28px;font:900 italic 74px/.8 'Barlow Condensed',sans-serif;color:#dfff2f;text-shadow:0 4px 0 #071423,0 0 24px #dfff2f2a}
+.pc-creator-intro .pc-eyebrow{color:var(--pc-lime)!important}.pc-creator-intro h1{margin:4px 0 3px!important;color:var(--pc-lime)!important;font:900 italic 54px/.92 'Barlow Condensed',sans-serif!important;letter-spacing:1.4px!important;text-transform:uppercase!important;text-shadow:0 4px 0 #06111d,0 7px 20px #0009!important}.pc-creator-intro p{color:#d5e5ef!important;font-size:12px!important;font-weight:650!important;letter-spacing:.25px!important}
+
+.pc-creator-layout{grid-template-columns:250px minmax(0,1fr)!important;gap:10px!important}
+.pc-identity-preview{top:82px!important;min-height:492px!important;padding:24px 16px!important;border:2px solid #1d5b85!important;border-radius:4px!important;background:
+  radial-gradient(circle at 50% 18%,#dfff2f18,transparent 34%),
+  linear-gradient(180deg,#061c30f5,#04182af5)!important;box-shadow:0 14px 28px #0005!important}
+.pc-identity-preview:after{content:'';position:absolute;inset:auto 0 0;height:42%;background:
+  linear-gradient(180deg,transparent,#04243b99),
+  repeating-linear-gradient(90deg,#ffffff06 0 1px,transparent 1px 30px);pointer-events:none}
+.pc-identity-preview>div{position:relative;z-index:2}.pc-identity-preview strong{font:900 30px 'Barlow Condensed',sans-serif!important;color:#fff!important}.pc-identity-preview span{color:#d2e2ec!important}.pc-identity-preview small{color:#94b3c6!important}
+.pc-player-mark{position:relative;z-index:2;width:120px!important;height:150px!important;border:2px solid #6f9d32!important;border-radius:4px!important;background:
+  linear-gradient(145deg,#123f27,#09283a 62%)!important;box-shadow:inset 0 0 0 1px #dfff2f30,0 12px 28px #0005!important;clip-path:polygon(0 0,100% 0,100% 92%,86% 100%,0 100%)}.pc-player-mark.large{width:150px!important;height:200px!important;border-radius:4px!important}.pc-player-mark b{font:900 italic 42px 'Barlow Condensed',sans-serif!important;color:var(--pc-lime)!important;text-shadow:0 2px 0 #06121d}.pc-player-mark.large b{font-size:55px!important}.pc-player-mark small{font:900 12px 'Barlow Condensed',sans-serif!important;color:#d9e7f0!important}
+
+.pc-form{padding:15px 18px 16px!important;gap:13px!important;border:2px solid #1d5b85!important;border-radius:4px!important;background:#051b2ff2!important;box-shadow:0 14px 30px #0005!important}
+.pc-form>div{padding-top:10px;border-top:1px solid #123d5c}.pc-form>div:first-of-type{border-top:0}
+.pc-name-field>span,.pc-inline-fields label>span{color:#f0f7fc!important;font-family:'Barlow Condensed',sans-serif!important;font-size:14px!important;font-weight:900!important;letter-spacing:.55px!important;text-transform:uppercase}
+.pc-name-field>span:before,.pc-field-label:before{content:'';display:inline-block;width:8px;height:18px;margin-right:10px;vertical-align:-4px;background:var(--pc-lime);box-shadow:0 0 10px #dfff2f22}
+.pc-name-field input,.pc-inline-fields select{height:48px!important;border:1px solid #246b99!important;border-radius:3px!important;background:#08253ded!important;color:#f3f8fc!important;box-shadow:inset 0 0 0 1px #031222!important;font-size:14px!important}.pc-name-field input::placeholder{color:#7193a9!important}.pc-name-field input:focus,.pc-inline-fields select:focus{border-color:#37b4ff!important;box-shadow:0 0 0 2px #29aaff22,inset 0 0 0 1px #031222!important}
+.pc-choice-grid,.pc-personality-grid{gap:8px!important}.pc-choice-grid button,.pc-personality-grid button{position:relative;min-height:72px!important;padding:12px 15px!important;border:1px solid #245d82!important;border-radius:3px!important;background:linear-gradient(180deg,#09253cf2,#071d31f2)!important;color:#eaf4fa!important;box-shadow:inset 0 1px 0 #ffffff05!important}.pc-choice-grid button:hover,.pc-personality-grid button:hover{transform:none!important;border-color:#3ba8e5!important;background:#0a2a45!important}.pc-choice-grid button.selected,.pc-personality-grid button.selected{border-color:var(--pc-lime)!important;background:linear-gradient(135deg,#173b26,#0b2a2d)!important;box-shadow:inset 0 0 0 1px #dfff2f33,0 0 16px #dfff2f13!important}.pc-choice-grid button.selected:after,.pc-personality-grid button.selected:after{content:'●';position:absolute;right:11px;top:9px;color:var(--pc-lime);font-size:15px;text-shadow:0 0 10px #dfff2f}.pc-choice-grid strong,.pc-personality-grid strong{font-family:'Barlow Condensed',sans-serif!important;font-size:16px!important;font-weight:900!important;color:#f3f8fc!important}.pc-choice-grid small,.pc-personality-grid small{font-size:10px!important;color:#9db7c8!important}
+.pc-inline-fields{border-top:1px solid #123d5c!important;padding-top:12px!important}.pc-inline-fields small{color:#86a7ba!important}
+.pc-rule-note{border:1px solid #22597d!important;border-radius:3px!important;background:#071f34!important;color:#d7e6ef!important}.pc-rule-note svg{color:var(--pc-lime)!important}.pc-rule-note strong{color:#fff!important}.pc-rule-note small{color:#8daec2!important}
+.pc-form>.pc-primary{justify-self:end;min-width:210px;min-height:48px;border:1px solid #dfff2f!important;border-radius:3px!important;background:linear-gradient(180deg,#e8ff45,#ccec20)!important;color:#07131e!important;font:900 17px 'Barlow Condensed',sans-serif!important;letter-spacing:.5px!important;text-transform:uppercase!important;box-shadow:0 8px 20px #0005,0 0 18px #dfff2f18!important}.pc-form>.pc-primary:hover{background:#f0ff73!important}
+
+.pc-panel,.pc-status-hero,.pc-trial,.pc-life-category,.pc-timeline{border-radius:4px!important;border-color:#1d567b!important;background:linear-gradient(180deg,#071f34f2,#05192bf4)!important;color:#edf6fb!important;box-shadow:0 10px 24px #0004!important}
+.pc-panel h3,.pc-trial h2,.pc-timeline strong{color:#f4f9fc!important}.pc-panel p,.pc-trial p,.pc-empty{color:#90adbf!important}
+.pc-status-hero{background:linear-gradient(120deg,#061a2c,#082943 66%,#061b30)!important;border:2px solid #23658e!important}.pc-status-hero:after{color:#29aaff0b!important;font-size:78px!important}.pc-status-identity h2{font-size:30px!important}.pc-status-identity small{color:var(--pc-lime)!important}.pc-status-identity span{color:#9bb7c8!important}.pc-ovr{color:var(--pc-lime)!important}.pc-hero-vitals span{background:#0b2942!important;border-color:#1d5274!important;border-radius:3px!important}.pc-hero-vitals small{color:#7fa0b5!important}.pc-hero-vitals b{color:#fff!important}
+.pc-mode-tabs{top:68px!important;padding:7px!important;background:#03182cf2!important;border:1px solid #194e70!important;box-shadow:0 7px 20px #0005!important}.pc-mode-tabs button{border-radius:3px!important;border-color:transparent!important;background:transparent!important;color:#94b0c1!important;box-shadow:none!important}.pc-mode-tabs button:hover{background:#082943!important;color:#fff!important}.pc-mode-tabs button.active{background:var(--pc-lime)!important;border-color:var(--pc-lime)!important;color:#07131f!important}.pc-mode-tabs button.active svg{color:#07131f!important}
+.pc-agenda-day,.pc-prematch-grid span,.pc-contract-facts span,.pc-market-access span,.pc-stat-grid span,.pc-team-record span,.pc-life-option,.pc-rivals article,.pc-training-list button,.pc-awards-grid article{border:1px solid #1b4e70!important;border-radius:3px!important;background:#08243a!important;color:#edf5fa!important}.pc-agenda-day.today,.pc-approach-compact button.active,.pc-training-list button.active,.pc-life-option.active{border-color:var(--pc-lime)!important;background:#112f2c!important}.pc-agenda-day.match{border-color:#2a8fca!important;background:#082e4c!important}.pc-agenda-day small,.pc-agenda-day span,.pc-contract-facts small,.pc-market-access small,.pc-stat-grid small,.pc-team-record small,.pc-rivals small,.pc-training-list small,.pc-life-option p{color:#8eacbf!important}
+.pc-last-day,.pc-personality-summary,.pc-match-result{border-radius:3px!important;background:#08243a!important;color:#eef6fb!important}.pc-last-day small,.pc-personality-summary small,.pc-match-result span{color:#8eacbf!important}
+.pc-primary{border-radius:3px!important;background:var(--pc-lime)!important;border-color:var(--pc-lime)!important;color:#07131f!important;box-shadow:none!important}.pc-secondary{border-radius:3px!important;border-color:#28658c!important;background:#08243a!important;color:#eaf4fa!important}
+.pc-live-player-match{border-radius:4px!important;background:linear-gradient(180deg,#061a2c,#082943)!important;border:2px solid #286990!important}.pc-live-scoreboard{border-radius:3px!important;background:#03182c!important;border:1px solid #2672a1!important}.pc-live-vitals span,.pc-live-bench,.pc-approach-compact.live button,.pc-live-timeline>div{border-radius:3px!important;background:#08253d!important;border-color:#1f5475!important}.pc-live-vitals b,.pc-live-timeline span{color:#f3f8fc!important}.pc-live-timeline b{color:var(--pc-lime)!important}
+.pc-finance-hero{border-radius:4px!important;background:linear-gradient(135deg,#061a2c,#082943)!important;border:2px solid #286990!important}.pc-finance-metrics span{border-radius:3px!important;background:#0a2942!important;border-color:#1f5475!important}
+.pc-moment-card{border-radius:4px!important;background:#061a2c!important;border:2px solid #286990!important}.pc-moment-close{border-radius:3px!important;background:#08253d!important;color:#fff!important;border-color:#2b668c!important}
+.pc-trial{border-width:2px!important}.pc-trial-progress i{border-radius:0!important;background:#10344f!important}.pc-trial-progress i.done{background:#2baaff!important}.pc-trial-progress i.current{background:var(--pc-lime)!important}.pc-trial-choices button{border-radius:3px!important;border-color:#205b80!important;background:#08243a!important;color:#eef6fb!important}.pc-trial-choices button:hover{background:#0a2e4a!important;border-color:#35aef1!important}.pc-trial-meter{border-radius:2px!important;background:#10334c!important}.pc-trial-meter i{background:linear-gradient(90deg,#2aaaff,var(--pc-lime))!important}
+
+@media(max-width:980px){
+  .pc-body{width:min(calc(100% - 22px),940px)!important}.pc-creator-layout{grid-template-columns:1fr!important}.pc-identity-preview{position:static!important;min-height:0!important;grid-template-columns:auto 1fr!important;text-align:left!important;justify-items:start!important}.pc-player-mark.large{width:92px!important;height:110px!important}.pc-creator-intro{padding-left:170px!important}.pc-creator-intro:before{width:145px}.pc-creator-intro:after{left:48px;font-size:58px}
+}
+@media(max-width:760px){
+  .player-career-shell{background-image:linear-gradient(180deg,#031426ea,#041629f5),url('/stadium-sideline-mobile.webp')!important}.pc-topbar{height:58px!important;padding:0 9px!important}.pc-topbar>button,.pc-save-actions button{min-height:38px!important;padding:6px 9px!important}.pc-topbar>div:nth-child(2){font-size:17px!important}.pc-brand{width:34px!important;height:36px!important;font-size:18px!important}
+  .pc-body{width:calc(100% - 14px)!important}.pc-creator-intro{min-height:112px!important;padding:17px 15px 15px 110px!important}.pc-creator-intro:before{width:94px}.pc-creator-intro:after{left:30px;top:29px;font-size:42px}.pc-creator-intro h1{font-size:34px!important}.pc-creator-intro p{font-size:10px!important}.pc-identity-preview{grid-template-columns:72px 1fr!important;padding:12px!important}.pc-player-mark.large{width:70px!important;height:84px!important}.pc-player-mark.large b{font-size:32px!important}.pc-form{padding:12px!important}.pc-form>.pc-primary{width:100%;justify-self:stretch}
+  .pc-mode-tabs{top:58px!important;overflow-x:auto!important}.pc-mode-tabs button{flex:0 0 auto!important}.pc-status-hero:after{font-size:45px!important}
+}
+@media(max-width:430px){
+  .pc-creator-intro{padding-left:86px!important}.pc-creator-intro:before{width:74px}.pc-creator-intro:after{left:22px;top:34px;font-size:34px}.pc-creator-intro h1{font-size:29px!important}.pc-identity-preview{grid-template-columns:64px 1fr!important;text-align:left!important;justify-items:start!important}.pc-player-mark.large{width:60px!important;height:74px!important}.pc-choice-grid,.pc-choice-grid.four{grid-template-columns:1fr 1fr!important}.pc-personality-grid{grid-template-columns:1fr!important}
+}
+
+
+/* RC9 QA · keep gameplay HUD compact at real 100% browser zoom */
+.pc-body{width:min(1180px,calc(100% - 32px))!important}
+.pc-footer{width:min(1180px,calc(100% - 32px))!important}
+.pc-status-identity .pc-player-mark{
+  width:58px!important;height:58px!important;min-width:58px!important;
+  border-radius:3px!important;clip-path:none!important;
+}
+.pc-status-identity .pc-player-mark b{font-size:22px!important}
+.pc-status-identity .pc-player-mark small{font-size:8px!important}
+.pc-status-hero{padding:10px 12px!important;gap:8px!important}
+.pc-hero-vitals span{padding:6px 8px!important}
+@media(max-width:760px){
+  .pc-body,.pc-footer{width:calc(100% - 14px)!important}
+  .pc-status-identity .pc-player-mark{width:50px!important;height:50px!important;min-width:50px!important}
+}

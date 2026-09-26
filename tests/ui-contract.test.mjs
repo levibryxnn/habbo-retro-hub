@@ -84,10 +84,10 @@ test('club-specific colors are scoped to the club hero rather than the whole int
 });
 
 
-test('RC8 asks for a manager name when taking control of a club', function(){
+test('RC9 asks for a manager name when taking control of a club', function(){
   assert.ok(main.includes("Nome do técnico"));
   assert.ok(main.includes("managerName"));
-  assert.ok(main.includes("1.0 RC8"));
+  assert.ok(main.includes("1.0 RC9"));
   assert.ok(!main.includes("Protótipo de gestão"));
   assert.ok(!main.includes("ETAPA 2 ·"));
 });
@@ -238,11 +238,13 @@ test('transfer UI separates market budget wage room and operating cash', functio
 });
 
 
-test('RC5 landing exposes separate manager and player careers without mixing saves', function(){
+test('RC9 landing exposes separate manager and player careers without mixing saves', function(){
   const landing=fs.readFileSync(new URL('../src/LandingScreen.jsx',import.meta.url),'utf8');
   const playerCareer=fs.readFileSync(new URL('../src/PlayerCareer.jsx',import.meta.url),'utf8');
-  assert.ok(landing.includes('MODO CARREIRA TREINADOR'));
-  assert.ok(landing.includes('MODO CARREIRA JOGADOR'));
+  assert.ok(landing.includes('landing-mode-card manager'));
+  assert.ok(landing.includes('landing-mode-card player'));
+  assert.ok(landing.includes('<strong>TREINADOR</strong>'));
+  assert.ok(landing.includes('<strong>JOGADOR</strong>'));
   assert.ok(playerCareer.includes('PLAYER_CAREER_KEY'));
   assert.ok(main.includes("gameMode==='player'"));
   assert.ok(main.includes("gameMode('manager')")||main.includes("setGameMode('manager')"));
@@ -311,12 +313,12 @@ test('RC6 uses one crest renderer for local and world clubs with professional fa
 });
 
 
-test('RC8 keeps facial creation removed while preserving a neutral player identifier',function(){
+test('RC9 keeps facial creation removed while preserving a neutral player identifier',function(){
   assert.equal(playerCareer.includes('pc-face-controls'),false);
   assert.equal(playerCareer.includes('function Face('),false);
   assert.ok(playerCareer.includes('PlayerMark'));
-  assert.ok(playerCareer.includes('MODO CARREIRA JOGADOR · RC8'));
-  assert.ok(playerCareer.includes('Dos 16 ao topo.'));
+  assert.ok(playerCareer.includes('MODO CARREIRA JOGADOR · RC9'));
+  assert.ok(playerCareer.includes('Crie seu craque.'));
 });
 
 test('RC7 player mode surfaces coach rivalry personality and international market systems',function(){

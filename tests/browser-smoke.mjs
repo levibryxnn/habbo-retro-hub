@@ -25,8 +25,9 @@ async function waitForText(page,text){await page.getByText(text,{exact:false}).f
 async function dismissPlayerMoment(page){const dialog=page.locator('.pc-moment-overlay');if(await dialog.count()){await dialog.first().waitFor({state:'visible',timeout:5000});await page.getByRole('button',{name:/Continuar a história/i}).click();}}
 async function createAndFinishPlayer(page,name='Browser QA'){
   await page.getByRole('button',{name:/MODO CARREIRA JOGADOR/i}).click();
-  await waitForText(page,'Dos 16 ao topo.');
-  assert.equal(await page.locator('.pc-face-controls,.pc-face').count(),0,'facial creator returned to RC8');
+  await waitForText(page,'Crie seu craque.');
+  if(name==='Browser QA')await page.screenshot({path:'browser-artifacts/02-player-creator.png',fullPage:true});
+  assert.equal(await page.locator('.pc-face-controls,.pc-face').count(),0,'facial creator returned to RC9');
   await page.locator('input[placeholder="Digite o nome"]').fill(name);
   await page.getByRole('button',{name:/Ir para a peneira/i}).click();
   for(let index=0;index<5;index++){
@@ -190,5 +191,5 @@ try{
   await playerFlow(browser);
   await managerFlow(browser);
   await mobileFlow(browser);
-  console.log('Browser smoke passed: RC8 mandatory visual evidence, 100% zoom overflow checks, manager regression and mobile flows.');
+  console.log('Browser smoke passed: RC9 mandatory visual evidence, 100% zoom overflow checks, manager regression and mobile flows.');
 }finally{await browser.close();}
