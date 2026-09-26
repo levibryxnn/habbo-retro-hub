@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import {
   TRIAL_DRILLS,
   acknowledgePlayerMoment,
+  advancePlayerLiveMatch,
   answerTrialDrill,
   completeTrial,
   createPlayerCareer,
@@ -18,8 +19,10 @@ import {
   sanitizePlayerCareer,
   serializePlayerCareer,
   setPlayerContractPreference,
+  setPlayerLiveApproach,
   setPlayerMatchApproach,
   simulatePlayerDay,
+  simulatePlayerLiveMatchToEnd,
   simulatePlayerUntilNextMatch,
   simulatePlayerWeek,
   trialScore,
@@ -76,7 +79,7 @@ test('portable player save round-trips without touching manager save format',fun
   assert.equal(restored.mode,'player');
   assert.equal(restored.player.name,'Portátil');
   assert.equal(restored.clubId,original.clubId);
-  assert.equal(restored.version,4);
+  assert.equal(restored.version,5);
   assert.ok(sanitizePlayerCareer(restored,clubs));
 });
 
@@ -208,7 +211,7 @@ test('legacy v2 portable player saves migrate to RC7 without corrupting identity
   const legacy={...original,version:2};delete legacy.teamSeason;delete legacy.objectives;delete legacy.careerEvents;delete legacy.pendingContractOffer;delete legacy.performanceHistory;delete legacy.player.marketValue;
   const raw=JSON.stringify({signature:'linha-de-frente-player-save',fileVersion:2,exportedAt:new Date(0).toISOString(),career:legacy});
   const migrated=parsePlayerCareer(raw,clubs);
-  assert.equal(migrated.version,4);
+  assert.equal(migrated.version,5);
   assert.equal(migrated.player.name,'Migração V2');
   assert.ok(Array.isArray(migrated.objectives));
   assert.ok(migrated.teamSeason);
@@ -220,7 +223,7 @@ test('RC7 new careers remove facial creation and store a real personality modifi
   const career=createPlayerCareer({name:'Sem Rosto',position:'MEI',archetype:'technical',personalityId:'competitive',dreamClubId:clubs[0].id},2026);
   assert.equal(career.player.face,undefined);
   assert.equal(career.player.personalityId,'competitive');
-  assert.equal(career.version,4);
+  assert.equal(career.version,5);
 });
 
 test('RC7 migrates legacy face data without using it as an active creator field',function(){
@@ -228,7 +231,7 @@ test('RC7 migrates legacy face data without using it as an active creator field'
   const legacy={...original,version:3,player:{...original.player,face:{skin:2,hair:4,hairColor:1,eyes:3,shape:2}}};
   const raw=JSON.stringify({signature:'linha-de-frente-player-save',fileVersion:3,exportedAt:new Date(0).toISOString(),career:legacy});
   const migrated=parsePlayerCareer(raw,clubs);
-  assert.equal(migrated.version,4);
+  assert.equal(migrated.version,5);
   assert.equal(migrated.player.face,undefined);
   assert.deepEqual(migrated.player.legacyFace,{skin:2,hair:4,hairColor:1,eyes:3,shape:2});
 });
@@ -245,7 +248,7 @@ test('advance until next match uses the same daily simulation path',function(){
   const career=finishTrial(createPlayerCareer({name:'Até Jogo',position:'MEI',archetype:'creator',dreamClubId:clubs[3].id},2026));
   const advanced=simulatePlayerUntilNextMatch(career,clubs);
   assert.ok(advanced.dayOfSeason>=1&&advanced.dayOfSeason<=7);
-  assert.ok(advanced.lastMatch||advanced.dayOfWeek===5);
+  assert.ok(advanced.liveMatch||advanced.lastMatch||advanced.dayOfWeek===5);
 });
 
 test('RC7 squad hierarchy exposes coach rivalry and deterministic starter probability',function(){
@@ -293,4 +296,35 @@ test('RC7 can move a player into an abstract international club and preserve it 
   const restored=parsePlayerCareer(serializePlayerCareer(moved),clubs);
   assert.equal(restored.clubId,'pc-benfica');
   assert.equal(restored.world.leagueName,'Liga Portugal');
+});
+
+
+test('RC7 interactive match pauses the calendar and applies live behavior changes to the remaining phases',function(){
+  let career=finishTrial(createPlayerCareer({name:'Ao Vivo RC7',position:'ATA',archetype:'finisher',personalityId:'competitive',dreamClubId:clubs[8].id},2026));
+  career=simulatePlayerUntilNextMatch(career,clubs);
+  assert.ok(career.liveMatch,'next-match advance should open the live player match');
+  assert.equal(career.liveMatch.minute,0);
+  const initialEnergy=career.liveMatch.energy;
+  career=setPlayerLiveApproach(career,'aggressive');
+  assert.equal(career.liveMatch.currentApproach,'aggressive');
+  career=advancePlayerLiveMatch(career,clubs);
+  assert.equal(career.liveMatch?.minute,15);
+  if(career.liveMatch?.active)assert.ok(career.liveMatch.energy<=initialEnergy);
+  const saved=parsePlayerCareer(serializePlayerCareer(career),clubs);
+  assert.equal(saved.liveMatch?.minute,15);
+  assert.equal(saved.liveMatch?.currentApproach,'aggressive');
+  career=simulatePlayerLiveMatchToEnd(saved,clubs);
+  assert.equal(career.liveMatch,null);
+  assert.ok(career.lastMatch);
+  assert.equal(career.lastMatch.interactive,true);
+  assert.ok(career.lastMatch.timeline.some(item=>item.type==='fulltime'));
+  assert.ok(career.lastMatch.individualObjective);
+});
+
+test('weekly simulation remains available as an automatic alternative to the interactive match',function(){
+  const base=finishTrial(createPlayerCareer({name:'Semana Automática',position:'DEF',archetype:'strong',personalityId:'professional',dreamClubId:clubs[9].id},2026));
+  const advanced=simulatePlayerWeek(base,clubs);
+  assert.equal(advanced.liveMatch,null);
+  assert.ok(advanced.dayOfSeason>=7||advanced.season>base.season);
+  assert.ok(advanced.lastMatch);
 });
