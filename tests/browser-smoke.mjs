@@ -211,8 +211,8 @@ async function mobileCreatorLayout(browser,width,height,label){
   const cta=page.getByRole('button',{name:/Ir para a peneira/i});
   await cta.scrollIntoViewIfNeeded();
   const ctaBox=await cta.boundingBox();
-  assert.ok(ctaBox&&ctaBox.left>=0&&ctaBox.right<=width+1,'creator CTA is horizontally clipped at '+label+': '+JSON.stringify(ctaBox));
-  assert.ok(ctaBox&&ctaBox.bottom<=height-45,'creator CTA is hidden behind mobile chrome/safe area at '+label+': '+JSON.stringify(ctaBox));
+  assert.ok(ctaBox&&ctaBox.x>=0&&ctaBox.x+ctaBox.width<=width+1,'creator CTA is horizontally clipped at '+label+': '+JSON.stringify(ctaBox));
+  assert.ok(ctaBox&&ctaBox.y+ctaBox.height<=height-45,'creator CTA is hidden behind mobile chrome/safe area at '+label+': '+JSON.stringify(ctaBox));
   await page.screenshot({path:'browser-artifacts/player-creator-'+label+'.png',fullPage:true});
   assert.deepEqual(errors,[],errors.join('\n'));
   await context.close();
