@@ -39,7 +39,7 @@ function Creator({clubs,onCreate}){
   const [form,setForm]=useState({name:'',position:'MEI',foot:'right',archetype:'technical',personalityId:'professional',dreamClubId:clubs[0]?.id||''});
   const update=(key,value)=>setForm(current=>({...current,[key]:value}));
   return <section className="pc-creator">
-    <div className="pc-creator-intro"><span className="pc-eyebrow">MODO CARREIRA JOGADOR · RC8</span><h1>Dos 16 ao topo.</h1><p>Monte seu perfil, encare a peneira e faça cada decisão pesar na sua trajetória.</p></div>
+    <div className="pc-creator-intro"><span className="pc-eyebrow">MODO CARREIRA JOGADOR · RC9</span><h1>Crie seu craque.</h1><p>Monte seu perfil, encare a peneira e faça cada decisão pesar na sua trajetória.</p></div>
     <div className="pc-creator-layout">
       <aside className="pc-identity-preview"><PlayerMark name={form.name||'Seu jogador'} position={form.position} large/><div><strong>{form.name||'Seu jogador'}</strong><span>16 anos · {positionLabel(form.position)}</span><small>{personalityDef(form.personalityId).name} · {PLAYER_ARCHETYPES.find(item=>item.id===form.archetype)?.label}</small></div></aside>
       <div className="pc-form">
