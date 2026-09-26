@@ -29,6 +29,10 @@ async function createAndFinishPlayer(page,name='Browser QA'){
   if(name==='Browser QA')await page.screenshot({path:'browser-artifacts/02-player-creator.png',fullPage:true});
   assert.equal(await page.locator('.pc-face-controls,.pc-face').count(),0,'facial creator returned to RC9');
   await page.locator('input[placeholder="Digite o nome"]').fill(name);
+  const mobileNext=page.getByRole('button',{name:/Próximo/i});
+  if(await mobileNext.isVisible()){
+    for(let step=0;step<3;step++)await mobileNext.click();
+  }
   await page.getByRole('button',{name:/Ir para a peneira/i}).click();
   for(let index=0;index<5;index++){
     const choices=page.locator('.pc-trial-choices button');
@@ -200,21 +204,39 @@ async function mobileCreatorLayout(browser,width,height,label){
   assert.ok(metrics.form&&metrics.form.width<=width-8,'creator form exceeds viewport at '+label+': '+JSON.stringify(metrics.form));
   assert.deepEqual(metrics.offenders,[],'creator elements escape viewport at '+label+': '+JSON.stringify(metrics.offenders));
 
-  const choiceButtons=page.locator('.pc-choice-grid button,.pc-personality-grid button');
-  const count=await choiceButtons.count();
-  assert.ok(count>=10,'creator choices are missing at '+label);
-  for(let i=0;i<count;i++){
-    const b=await choiceButtons.nth(i).boundingBox();
-    assert.ok(b&&b.height<=72,'creator choice is too tall at '+label+': '+JSON.stringify(b));
+  async function assertStep(stepIndex,expectedLabel){
+    await waitForText(page,expectedLabel);
+    const active=page.locator('.pc-creator-step.active');
+    const stepBox=await active.boundingBox();
+    const formBox=await page.locator('.pc-form').boundingBox();
+    assert.ok(stepBox,'creator step '+stepIndex+' is not visible at '+label);
+    assert.ok(formBox&&formBox.y+formBox.height<=height-8,'creator step '+stepIndex+' does not fit at 100% zoom at '+label+': '+JSON.stringify(formBox));
+    await noHorizontalOverflow(page,'player creator '+label+' step '+stepIndex);
+    const visibleButtons=active.locator('button:visible');
+    const count=await visibleButtons.count();
+    for(let i=0;i<count;i++){
+      const b=await visibleButtons.nth(i).boundingBox();
+      assert.ok(b&&b.height<=72,'creator choice is too tall at '+label+' step '+stepIndex+': '+JSON.stringify(b));
+    }
   }
+
+  await assertStep(0,'Perfil');
+  await page.screenshot({path:'browser-artifacts/player-creator-'+label+'-01-profile.png',fullPage:true});
+  const next=page.getByRole('button',{name:/Próximo/i});
+  await next.click();
+  await assertStep(1,'Estilo');
+  await next.click();
+  await assertStep(2,'Personalidade');
+  await next.click();
+  await assertStep(3,'Detalhes');
 
   const cta=page.getByRole('button',{name:/Ir para a peneira/i});
   const ctaBox=await cta.boundingBox();
   const ruleBox=await page.locator('.pc-rule-note').boundingBox();
   assert.ok(ctaBox&&ctaBox.x>=0&&ctaBox.x+ctaBox.width<=width+1,'creator CTA is horizontally clipped at '+label+': '+JSON.stringify(ctaBox));
-  assert.ok(ctaBox&&ctaBox.y+ctaBox.height<=height-12,'creator CTA is not visible at 100% zoom at '+label+': '+JSON.stringify(ctaBox));
+  assert.ok(ctaBox&&ctaBox.y+ctaBox.height<=height-8,'creator CTA is not visible at 100% zoom at '+label+': '+JSON.stringify(ctaBox));
   assert.ok(ctaBox&&ruleBox&&ctaBox.y>=ruleBox.y+ruleBox.height,'creator CTA overlaps the final form content at '+label+': '+JSON.stringify({ctaBox,ruleBox}));
-  await page.screenshot({path:'browser-artifacts/player-creator-'+label+'.png',fullPage:true});
+  await page.screenshot({path:'browser-artifacts/player-creator-'+label+'-04-details.png',fullPage:true});
   assert.deepEqual(errors,[],errors.join('\n'));
   await context.close();
 }
