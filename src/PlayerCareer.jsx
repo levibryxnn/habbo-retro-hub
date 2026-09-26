@@ -1,19 +1,21 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {
   Activity,ArrowLeft,ArrowRight,BadgeDollarSign,Briefcase,CalendarDays,ChevronRight,
-  Download,Dumbbell,FileUp,Footprints,HeartPulse,History,Home,Play,RotateCcw,
-  Shield,ShoppingBag,Sparkles,Star,Target,Trophy,UserRound,Users,WalletCards
+  Download,Dumbbell,FileUp,Footprints,HeartPulse,History,Play,RotateCcw,
+  Shield,Sparkles,Star,Target,Trophy,UserRound,WalletCards
 } from 'lucide-react';
 import {
   PLAYER_ARCHETYPES,PLAYER_CAREER_KEY,PLAYER_MATCH_APPROACHES,PLAYER_POSITIONS,PLAYER_TRAINING,
   TRIAL_DRILLS,acknowledgePlayerMoment,answerTrialDrill,completeTrial,createPlayerCareer,
-  parsePlayerCareer,playerCalendarLabel,playerCareerOverall,respondPlayerOffer,sanitizePlayerCareer,
-  serializePlayerCareer,setPlayerMatchApproach,setPlayerTraining,simulatePlayerDay,simulatePlayerWeek,trialScore
+  nextPlayerMatchPreview,parsePlayerCareer,playerCalendarLabel,playerCareerOverall,playerObjectiveSnapshot,
+  respondPlayerContractOffer,respondPlayerOffer,sanitizePlayerCareer,serializePlayerCareer,setPlayerMatchApproach,
+  setPlayerTraining,simulatePlayerDay,simulatePlayerWeek,trialScore
 } from './player-career-engine.js';
 import {
   PLAYER_AGENTS,PLAYER_BOOTS,PLAYER_HOMES,PLAYER_PHYSIOS,acceptPlayerSponsor,declinePlayerSponsor,
   playerFinancialSnapshot,purchasePlayerLifeItem,refreshPlayerSponsorOffers
 } from './player-life-engine.js';
+import { POSITION_METRIC_LABELS } from './player-career-intelligence.js';
 import PlayerLifeVisual from './PlayerLifeVisual.jsx';
 import PlayerMomentModal from './PlayerMomentModal.jsx';
 import './player-career.css';
@@ -35,7 +37,7 @@ function dayKind(index,injured=false){
 }
 
 function Face({face={},name='',large=false}){
-  return <div className={'pc-face '+(large?'large ':'')+'skin-'+(face.skin??0)+' hair-'+(face.hair??0)+' haircolor-'+(face.hairColor??0)+' shape-'+(face.shape??0)} aria-label={'Retrato criado de '+name}>
+  return <div className={'pc-face '+(large?'large ':'')+'skin-'+(face.skin??0)+' hair-'+(face.hair??0)+' haircolor-'+(face.hairColor??0)+' shape-'+(face.shape??0)+' eyes-'+(face.eyes??0)} aria-label={'Retrato criado de '+name}>
     <i className="pc-hair"/><span className="pc-ear left"/><span className="pc-ear right"/><span className="pc-eye left"/><span className="pc-eye right"/>
     <span className="pc-brow left"/><span className="pc-brow right"/><span className="pc-nose"/><span className="pc-mouth"/><b>{initials(name)}</b>
   </div>;
@@ -56,6 +58,7 @@ function Creator({clubs,onCreate}){
           <label>Cabelo<select value={form.face.hair} onChange={event=>updateFace('hair',event.target.value)}>{[0,1,2,3,4,5].map(value=><option value={value} key={value}>Estilo {value+1}</option>)}</select></label>
           <label>Cor<select value={form.face.hairColor} onChange={event=>updateFace('hairColor',event.target.value)}>{[0,1,2,3,4].map(value=><option value={value} key={value}>Cor {value+1}</option>)}</select></label>
           <label>Rosto<select value={form.face.shape} onChange={event=>updateFace('shape',event.target.value)}>{[0,1,2,3].map(value=><option value={value} key={value}>Formato {value+1}</option>)}</select></label>
+          <label>Olhos<select value={form.face.eyes} onChange={event=>updateFace('eyes',event.target.value)}>{[0,1,2,3].map(value=><option value={value} key={value}>Olhos {value+1}</option>)}</select></label>
         </div>
       </aside>
       <div className="pc-form">
@@ -83,11 +86,11 @@ function Trial({career,clubs,onChange}){
 }
 
 function StatusCard({career,club}){
-  const player=career.player,average=career.seasonStats.matches?career.seasonStats.totalRating/career.seasonStats.matches:0,finance=playerFinancialSnapshot(career);
+  const player=career.player,finance=playerFinancialSnapshot(career),contract=career.contract,status=career.stage==='free-agent'?'Sem clube':career.lastMatch?.status||contract?.role||'Em avaliação';
   return <section className="pc-status-card">
-    <div className="pc-player-head"><Face face={player.face} name={player.name}/><div><small>{career.stage==='academy'?'CATEGORIAS DE BASE':career.stage==='retired'?'CARREIRA ENCERRADA':'ELENCO PROFISSIONAL'}</small><h2>{player.name}</h2><span>{career.age} anos · {positionLabel(player.position)} · {club?.name||'Sem clube'}</span></div><strong className="pc-ovr">{playerCareerOverall(career)}<small>OVR</small></strong></div>
-    <div className="pc-status-metrics"><span><small>Condição</small><b>{Math.round(player.condition)}%</b></span><span><small>Moral</small><b>{Math.round(player.morale)}%</b></span><span><small>Confiança técnico</small><b>{Math.round(player.coachTrust)}%</b></span><span><small>Forma</small><b>{player.form>=0?'+':''}{Number(player.form).toFixed(1)}</b></span><span><small>Saldo pessoal</small><b>{money.format(finance.cash)}</b></span></div>
-    {player.injury&&<div className="pc-injury"><HeartPulse size={16}/><span><strong>{player.injury.label}</strong><small>{player.injury.daysRemaining} dia(s) estimados para retorno</small></span></div>}
+    <div className="pc-player-head"><Face face={player.face} name={player.name}/><div><small>{career.stage==='academy'?'CATEGORIAS DE BASE':career.stage==='retired'?'CARREIRA ENCERRADA':career.stage==='free-agent'?'MERCADO DE JOGADORES':'ELENCO PROFISSIONAL'}</small><h2>{player.name}</h2><span>{career.age} anos · {positionLabel(player.position)} · {club?.name||'Sem clube'}</span></div><strong className="pc-ovr">{playerCareerOverall(career)}<small>OVR</small></strong></div>
+    <div className="pc-status-metrics expanded"><span><small>Energia</small><b>{Math.round(player.condition)}%</b></span><span><small>Moral</small><b>{Math.round(player.morale)}%</b></span><span><small>Confiança técnico</small><b>{Math.round(player.coachTrust)}%</b></span><span><small>Forma</small><b>{player.form>=0?'+':''}{Number(player.form).toFixed(1)}</b></span><span><small>Status</small><b>{status}</b></span><span><small>Salário</small><b>{contract?money.format(contract.salaryMonthly):'—'}</b></span><span><small>Saldo</small><b>{money.format(finance.cash)}</b></span><span><small>Valor de mercado</small><b>{money.format(player.marketValue||0)}</b></span></div>
+    {player.injury&&<div className="pc-injury"><HeartPulse size={16}/><span><strong>{player.injury.label}</strong><small>{player.injury.daysRemaining} dia(s) estimados para retorno · risco de sequela {Math.round(Number(player.injury.permanentLossRisk||0)*100)}%</small></span></div>}
   </section>;
 }
 
@@ -101,12 +104,19 @@ function CareerOffer({career,clubs,onChange}){
   return <section className={'pc-offer '+(offer.dreamClub?'dream-offer':'')}><Briefcase size={21}/><div><small>{offer.dreamClub?'CLUBE DOS SONHOS · PROPOSTA':'PROPOSTA DE CARREIRA'}</small><strong>{offer.clubName}</strong><p>{offer.role} · {offer.years} anos · {money.format(offer.salaryMonthly||0)}/mês. A oferta vence na semana {offer.expiresWeek}.</p></div><div><button onClick={()=>onChange(respondPlayerOffer(career,clubs,false))}>Ficar</button><button className="accept" onClick={()=>onChange(respondPlayerOffer(career,clubs,true))}>Aceitar</button></div></section>;
 }
 
+function ContractOffer({career,onChange}){
+  const offer=career.pendingContractOffer;if(!offer)return null;
+  return <section className="pc-offer pc-contract-offer"><Briefcase size={21}/><div><small>RENOVAÇÃO DE CONTRATO</small><strong>{offer.clubName}</strong><p>{offer.role} · {offer.years} anos · {money.format(offer.salaryMonthly||0)}/mês · resposta até o dia {Number(offer.expiresDay||0)+1}.</p></div><div><button onClick={()=>onChange(respondPlayerContractOffer(career,false))}>Recusar</button><button className="accept" onClick={()=>onChange(respondPlayerContractOffer(career,true))}>Renovar</button></div></section>;
+}
+
 function CalendarPanel({career,clubs,onChange}){
-  const injured=Boolean(career.player.injury),today=Number(career.dayOfWeek||0),last=career.lastDay;
-  const days=Array.from({length:7},(_,offset)=>{const index=(today+offset)%7,kind=dayKind(index,injured);return{offset,index,...kind};});
+  const injured=Boolean(career.player.injury),today=Number(career.dayOfWeek||0),last=career.lastDay,nextMatch=nextPlayerMatchPreview(career,clubs);
+  const days=Array.from({length:7},(_,offset)=>{const index=(today+offset)%7,kind=dayKind(index,injured||career.stage==='free-agent');return{offset,index,...kind};});
   return <section className="pc-panel pc-calendar-panel">
     <div className="pc-panel-head"><div><small className="pc-eyebrow">CALENDÁRIO</small><h3>{playerCalendarLabel(career)} · Semana {career.week+1}</h3></div><CalendarDays size={18}/></div>
-    <div className="pc-calendar-strip">{days.map(item=><span key={item.offset} className={(item.offset===0?'today ':'')+item.kind}><small>{WEEK_DAYS[item.index]}</small><b>{item.offset===0?'Hoje':item.label}</b><i/></span>)}</div>
+    {nextMatch&&<div className="pc-next-match"><Target size={16}/><span><small>PRÓXIMO JOGO · {nextMatch.competition}</small><strong>{nextMatch.opponentName}</strong><em>em {nextMatch.daysUntil} dia(s)</em></span></div>}
+    {career.stage==='free-agent'&&<div className="pc-next-match free-agent"><Briefcase size={16}/><span><small>SEM CLUBE</small><strong>Mercado aberto</strong><em>Avance o calendário para receber propostas compatíveis com seu nível.</em></span></div>}
+    <div className="pc-calendar-strip">{days.map(item=><span key={item.offset} className={(item.offset===0?'today ':'')+item.kind}><small>{WEEK_DAYS[item.index]}</small><b>{item.offset===0?'Hoje':career.stage==='free-agent'?'Treino individual':item.label}</b><i/></span>)}</div>
     {last&&<div className="pc-last-day"><Activity size={15}/><span><strong>{last.title}</strong><small>{last.text}</small></span></div>}
     <div className="pc-advance-actions"><button className="pc-secondary" onClick={()=>onChange(simulatePlayerDay(career,clubs))}><Play size={15}/> Avançar 1 dia</button><button className="pc-primary" onClick={()=>onChange(simulatePlayerWeek(career,clubs))}><Play size={15}/> Avançar 7 dias</button></div>
     <small className="pc-engine-note">A engine só calcula quando o calendário avança: treino, recuperação, partida, salário, patrocínio, lesão, mercado e evolução são consequências do estado atual.</small>
@@ -118,8 +128,8 @@ function LastMatch({career}){
   const score=<b>{last.goalsFor} × {last.goalsAgainst}</b>;
   if(last.injured)return <section className="pc-panel"><div className="pc-panel-head"><h3>Última partida</h3>{score}</div><div className="pc-match-result muted"><strong>Em recuperação</strong><span>Você não esteve disponível contra {last.opponentName}.</span></div></section>;
   if(!last.selected)return <section className="pc-panel"><div className="pc-panel-head"><h3>Última partida</h3>{score}</div><div className="pc-match-result muted"><strong>Fora da relação</strong><span>{last.resultLabel} contra {last.opponentName}. Chance calculada de ser relacionado: {Math.round((last.selectionChance||0)*100)}%.</span></div><small>xG {last.xg?.[0]?.toFixed?.(2)??'—'} × {last.xg?.[1]?.toFixed?.(2)??'—'}</small></section>;
-  const performance=last.performance;
-  return <section className="pc-panel"><div className="pc-panel-head"><div><h3>{last.resultLabel} · {last.opponentName}</h3><span>{last.isHome?'Casa':'Fora'}</span></div>{score}</div><div className="pc-match-rating"><strong>{performance.rating.toFixed(1)}</strong><span>{last.started?'Titular':'Banco'}</span><span>{performance.minutes}'</span><span>{performance.goals} gol(s)</span><span>{performance.assists} assistência(s)</span>{performance.cleanSheet&&<span>sem sofrer gol</span>}</div><small>xG da equipe: {last.xg?.[0]?.toFixed?.(2)??'—'} · xG adversário: {last.xg?.[1]?.toFixed?.(2)??'—'}. Seu impacto altera a força coletiva antes da geração de gols.</small></section>;
+  const performance=last.performance,labels=POSITION_METRIC_LABELS[career.player.position]||{};
+  return <section className="pc-panel"><div className="pc-panel-head"><div><h3>{last.resultLabel} · {last.opponentName}</h3><span>{last.isHome?'Casa':'Fora'} · {last.status||'Em avaliação'}</span></div>{score}</div><div className="pc-match-rating"><strong>{performance.rating.toFixed(1)}</strong><span>{last.started?'Titular':'Banco'}</span><span>{performance.minutes}'</span><span>{performance.goals} gol(s)</span><span>{performance.assists} assistência(s)</span>{performance.cleanSheet&&<span>sem sofrer gol</span>}</div>{performance.metrics&&<div className="pc-role-metrics">{Object.entries(performance.metrics).map(([key,value])=><span key={key}><small>{labels[key]||key}</small><b>{typeof value==='number'&&!Number.isInteger(value)?value.toFixed(2):value}</b></span>)}</div>}<small>xG da equipe: {last.xg?.[0]?.toFixed?.(2)??'—'} · xG adversário: {last.xg?.[1]?.toFixed?.(2)??'—'}. A avaliação usa métricas específicas da sua posição.</small></section>;
 }
 
 function PlanPanel({career,onChange,retired}){
@@ -128,8 +138,13 @@ function PlanPanel({career,onChange,retired}){
 }
 
 function StatsPanel({career}){
-  const average=career.careerStats.matches?career.careerStats.totalRating/career.careerStats.matches:0;
-  return <section className="pc-panel"><div className="pc-panel-head"><h3>Temporada {career.season}</h3><Trophy size={17}/></div><div className="pc-stat-grid"><span><b>{career.seasonStats.matches}</b><small>Jogos</small></span><span><b>{career.seasonStats.starts}</b><small>Titular</small></span><span><b>{career.seasonStats.goals}</b><small>Gols</small></span><span><b>{career.seasonStats.assists}</b><small>Assist.</small></span><span><b>{career.seasonStats.minutes}</b><small>Minutos</small></span><span><b>{average?average.toFixed(1):'—'}</b><small>Média carreira</small></span></div></section>;
+  const seasonAverage=career.seasonStats.matches?career.seasonStats.totalRating/career.seasonStats.matches:0,team=career.teamSeason||{};
+  return <section className="pc-panel"><div className="pc-panel-head"><h3>Temporada {career.season}</h3><Trophy size={17}/></div><div className="pc-stat-grid"><span><b>{career.seasonStats.matches}</b><small>Jogos</small></span><span><b>{career.seasonStats.starts}</b><small>Titular</small></span><span><b>{career.seasonStats.goals}</b><small>Gols</small></span><span><b>{career.seasonStats.assists}</b><small>Assist.</small></span><span><b>{career.seasonStats.minutes}</b><small>Minutos</small></span><span><b>{seasonAverage?seasonAverage.toFixed(1):'—'}</b><small>Média</small></span></div><div className="pc-team-record"><span><small>Campanha do clube</small><b>{team.wins||0}V · {team.draws||0}E · {team.losses||0}D</b></span><span><small>Pontos</small><b>{team.points||0}</b></span><span><small>Saldo de gols</small><b>{Number(team.goalsFor||0)-Number(team.goalsAgainst||0)}</b></span></div></section>;
+}
+
+function ObjectivesPanel({career}){
+  const objectives=playerObjectiveSnapshot(career);
+  return <section className="pc-panel pc-objectives"><div className="pc-panel-head"><h3>Objetivos da temporada</h3><Target size={17}/></div><div>{objectives.map(item=><article key={item.id} className={item.completed?'done':''}><span><strong>{item.label}</strong><small>{Number(item.value).toFixed(item.metric==='averageRating'?1:0)} / {item.target}</small></span><i><b style={{width:Math.round(item.progress*100)+'%'}}/></i></article>)}</div></section>;
 }
 
 function AttributesPanel({career}){
@@ -139,12 +154,12 @@ function AttributesPanel({career}){
 
 function ContractPanel({career}){
   const player=career.player,contract=career.contract;
-  return <section className="pc-panel pc-contract-panel"><div className="pc-panel-head"><h3>Contrato & carreira</h3><Briefcase size={17}/></div>{contract?<dl><div><dt>Clube</dt><dd>{contract.clubName}</dd></div><div><dt>Salário</dt><dd>{money.format(contract.salaryMonthly)}/mês</dd></div><div><dt>Vínculo</dt><dd>até {contract.expirySeason}</dd></div><div><dt>Papel</dt><dd>{contract.role}</dd></div></dl>:<p className="pc-empty">O primeiro vínculo aparece depois da aprovação na peneira.</p>}<div className="pc-career-flags"><span><small>Reputação</small><b>{Math.round(player.reputation||0)}/100</b></span><span><small>Seleção</small><b>{career.nationalTeamStatus==='called-up'?'Convocado':'Ainda não'}</b></span><span><small>Prêmios</small><b>{career.awards?.length||0}</b></span></div></section>;
+  return <section className="pc-panel pc-contract-panel"><div className="pc-panel-head"><h3>Contrato & carreira</h3><Briefcase size={17}/></div>{contract?<dl><div><dt>Clube</dt><dd>{contract.clubName}</dd></div><div><dt>Salário</dt><dd>{money.format(contract.salaryMonthly)}/mês</dd></div><div><dt>Vínculo</dt><dd>até {contract.expirySeason}</dd></div><div><dt>Papel</dt><dd>{contract.role}</dd></div><div><dt>Satisfação</dt><dd>{Math.round(player.contractSatisfaction||0)}%</dd></div><div><dt>Decisão</dt><dd>{career.contractIntent==='leave'?'Não renovar':career.contractIntent==='renewed'?'Renovado':'Em aberto'}</dd></div></dl>:<p className="pc-empty">{career.stage==='free-agent'?'Você está sem contrato. O empresário procura propostas.':'O primeiro vínculo aparece depois da aprovação na peneira.'}</p>}<div className="pc-career-flags"><span><small>Reputação</small><b>{Math.round(player.reputation||0)}/100</b></span><span><small>Seleção</small><b>{career.nationalTeamStatus==='called-up'?'Convocado':'Ainda não'}</b></span><span><small>Prêmios</small><b>{career.awards?.length||0}</b></span></div></section>;
 }
 
 function CareerOverview({career,clubs,onChange}){
   const retired=career.stage==='retired';
-  return <><div className="pc-dashboard-grid">{!retired&&<CalendarPanel career={career} clubs={clubs} onChange={onChange}/>}<LastMatch career={career}/><PlanPanel career={career} onChange={onChange} retired={retired}/><StatsPanel career={career}/><AttributesPanel career={career}/><ContractPanel career={career}/></div></>;
+  return <><div className="pc-dashboard-grid">{!retired&&<CalendarPanel career={career} clubs={clubs} onChange={onChange}/>}<LastMatch career={career}/><PlanPanel career={career} onChange={onChange} retired={retired}/><StatsPanel career={career}/><ObjectivesPanel career={career}/><AttributesPanel career={career}/><ContractPanel career={career}/></div></>;
 }
 
 function LifeOption({type,item,current,owned,onChoose}){
@@ -211,7 +226,7 @@ function HistoryHub({career}){
 function Dashboard({career,clubs,onChange,onReset,onNotice}){
   const [view,setView]=useState('career'),club=clubById(clubs,career.clubId);
   return <div className="pc-dashboard">
-    <StatusCard career={career} club={club}/><TrialResult career={career} club={club}/><CareerOffer career={career} clubs={clubs} onChange={onChange}/>
+    <StatusCard career={career} club={club}/><TrialResult career={career} club={club}/><CareerOffer career={career} clubs={clubs} onChange={onChange}/><ContractOffer career={career} onChange={onChange}/>
     <nav className="pc-mode-tabs" aria-label="Áreas da carreira do jogador">
       <button className={view==='career'?'active':''} onClick={()=>setView('career')}><Activity size={15}/> Carreira</button>
       <button className={view==='life'?'active':''} onClick={()=>setView('life')}><WalletCards size={15}/> Vida & finanças</button>
@@ -249,6 +264,6 @@ export default function PlayerCareer({clubs,onExit}){
     {notice&&<div className="pc-notice">{notice}<button onClick={()=>setNotice('')}>×</button></div>}
     <div className="pc-body">{!career?<Creator clubs={clubs} onCreate={setCareer}/>:career.stage==='trial'?<Trial career={career} clubs={clubs} onChange={setCareer}/>:<Dashboard career={career} clubs={clubs} onChange={setCareer} onReset={reset} onNotice={setNotice}/>}</div>
     {career?.pendingMoment&&<PlayerMomentModal moment={career.pendingMoment} onClose={closeMoment}/>}
-    <footer className="pc-footer"><span>LINHA DE FRENTE · RC5</span><span>{club?club.name:'A jornada começa na peneira'}</span></footer>
+    <footer className="pc-footer"><span>LINHA DE FRENTE · RC6</span><span>{club?club.name:career?.stage==='free-agent'?'Sem clube':'Peneira ainda não concluída'}</span></footer>
   </main>;
 }

@@ -24,11 +24,21 @@ test('every enabled JSX button has an explicit action or submit behavior',functi
 });
 
 test('gameplay engines remain deterministic and contain no unsafe runtime code execution',function(){
-  const engineNames=['ldf-engine.js','career-engine.js','competition-engine.js','player-engine.js','development-engine.js','career-dynamics.js','career-life-engine.js','tactical-engine.js','transfer-engine.js','economy-engine.js','event-engine.js','scouting-engine.js','player-career-engine.js','player-life-engine.js','save-format.js','manager-confidence.js'];
+  const engineNames=['ldf-engine.js','career-engine.js','competition-engine.js','player-engine.js','development-engine.js','career-dynamics.js','career-life-engine.js','tactical-engine.js','transfer-engine.js','economy-engine.js','event-engine.js','scouting-engine.js','player-career-engine.js','player-career-intelligence.js','player-life-engine.js','save-format.js','manager-confidence.js'];
   for(const name of engineNames){
     const source=fs.readFileSync(path.join(root,name),'utf8');
     assert.equal(/Math\.random\s*\(/.test(source),false,name+' contains non-seeded Math.random');
     assert.equal(/dangerouslySetInnerHTML|\.innerHTML\s*=|\beval\s*\(|new Function\s*\(/.test(source),false,name+' contains unsafe runtime execution');
     assert.equal(/\bTODO\b|\bFIXME\b|em construção|será conectado|serão ativados|estrutura inicial/i.test(source),false,name+' contains unfinished placeholder text');
+  }
+});
+
+
+test('visible source copy avoids generic motivational filler in career surfaces',function(){
+  const names=['PlayerCareer.jsx','ClubDashboard.jsx','CareerCenter.jsx','main.jsx'];
+  const banned=[/jornada lendária/i,/destino está em suas mãos/i,/conquiste seus sonhos/i,/incrível jornada/i,/história você quer conhecer/i];
+  for(const name of names){
+    const source=fs.readFileSync(path.join(root,name),'utf8');
+    for(const pattern of banned)assert.equal(pattern.test(source),false,name+' contains generic filler: '+pattern);
   }
 });
