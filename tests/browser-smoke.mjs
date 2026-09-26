@@ -26,7 +26,8 @@ async function dismissPlayerMoment(page){const dialog=page.locator('.pc-moment-o
 async function createAndFinishPlayer(page,name='Browser QA'){
   await page.getByRole('button',{name:/MODO CARREIRA JOGADOR/i}).click();
   await waitForText(page,'Crie seu craque.');
-  assert.equal(await page.locator('.pc-face-controls,.pc-face').count(),0,'facial creator returned to RC8');
+  if(name==='Browser QA')await page.screenshot({path:'browser-artifacts/02-player-creator.png',fullPage:true});
+  assert.equal(await page.locator('.pc-face-controls,.pc-face').count(),0,'facial creator returned to RC9');
   await page.locator('input[placeholder="Digite o nome"]').fill(name);
   await page.getByRole('button',{name:/Ir para a peneira/i}).click();
   for(let index=0;index<5;index++){
