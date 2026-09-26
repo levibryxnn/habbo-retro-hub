@@ -37,19 +37,27 @@ function PlayerMark({name,position,large=false}){return <span className={'pc-pla
 
 function Creator({clubs,onCreate}){
   const [form,setForm]=useState({name:'',position:'MEI',foot:'right',archetype:'technical',personalityId:'professional',dreamClubId:clubs[0]?.id||''});
+  const [step,setStep]=useState(0),steps=['Perfil','Estilo','Personalidade','Detalhes'];
   const update=(key,value)=>setForm(current=>({...current,[key]:value}));
+  const next=()=>setStep(current=>Math.min(steps.length-1,current+1)),back=()=>setStep(current=>Math.max(0,current-1));
   return <section className="pc-creator">
     <div className="pc-creator-intro"><span className="pc-eyebrow">MODO CARREIRA JOGADOR · RC9</span><h1>Crie seu craque.</h1><p>Monte seu perfil, encare a peneira e faça cada decisão pesar na sua trajetória.</p></div>
     <div className="pc-creator-layout">
       <aside className="pc-identity-preview"><PlayerMark name={form.name||'Seu jogador'} position={form.position} large/><div><strong>{form.name||'Seu jogador'}</strong><span>16 anos · {positionLabel(form.position)}</span><small>{personalityDef(form.personalityId).name} · {PLAYER_ARCHETYPES.find(item=>item.id===form.archetype)?.label}</small></div></aside>
       <div className="pc-form">
-        <label className="pc-name-field"><span>Nome do jogador</span><input autoFocus maxLength="40" value={form.name} onChange={event=>update('name',event.target.value)} placeholder="Digite o nome"/></label>
-        <div><span className="pc-field-label">Posição</span><div className="pc-choice-grid four">{PLAYER_POSITIONS.map(item=><button type="button" key={item.id} className={form.position===item.id?'selected':''} onClick={()=>update('position',item.id)}><strong>{item.label}</strong><small>{item.id}</small></button>)}</div></div>
-        <div><span className="pc-field-label">Estilo em campo</span><div className="pc-choice-grid">{PLAYER_ARCHETYPES.map(item=><button type="button" key={item.id} className={form.archetype===item.id?'selected':''} onClick={()=>update('archetype',item.id)}><strong>{item.label}</strong><small>{item.description}</small></button>)}</div></div>
-        <div><span className="pc-field-label">Personalidade</span><div className="pc-personality-grid">{PLAYER_PERSONALITIES.map(item=><button type="button" key={item.id} className={form.personalityId===item.id?'selected':''} onClick={()=>update('personalityId',item.id)}><strong>{item.name}</strong><small>{item.description}</small></button>)}</div></div>
-        <div className="pc-inline-fields"><label><span>Pé dominante</span><select value={form.foot} onChange={event=>update('foot',event.target.value)}><option value="right">Direito</option><option value="left">Esquerdo</option></select></label><label><span>Clube dos sonhos</span><select value={form.dreamClubId} onChange={event=>update('dreamClubId',event.target.value)}>{clubs.slice().sort((a,b)=>a.name.localeCompare(b.name,'pt-BR')).map(club=><option key={club.id} value={club.id}>{club.name}</option>)}</select><small>É uma meta. A peneira define onde você começa.</small></label></div>
-        <div className="pc-rule-note"><Shield size={18}/><span><strong>Sem escolha direta do primeiro clube.</strong><small>Seu desempenho na peneira define a base compatível. Empresário, reputação e desempenho abrem outros mercados depois.</small></span></div>
-        <button className="pc-primary" disabled={!form.name.trim()} onClick={()=>onCreate(createPlayerCareer(form))}>Ir para a peneira <ArrowRight size={17}/></button>
+        <div className="pc-mobile-stepbar" aria-label="Etapas da criação"><span><b>{step+1}</b>/4</span><strong>{steps[step]}</strong><div>{steps.map((_,index)=><i key={index} className={index<=step?'done':''}/>)}</div></div>
+        <div className={'pc-creator-step '+(step===0?'active':'')} data-step="0">
+          <label className="pc-name-field"><span>Nome do jogador</span><input autoFocus maxLength="40" value={form.name} onChange={event=>update('name',event.target.value)} placeholder="Digite o nome"/></label>
+          <div><span className="pc-field-label">Posição</span><div className="pc-choice-grid four">{PLAYER_POSITIONS.map(item=><button type="button" key={item.id} className={form.position===item.id?'selected':''} onClick={()=>update('position',item.id)}><strong>{item.label}</strong><small>{item.id}</small></button>)}</div></div>
+        </div>
+        <div className={'pc-creator-step '+(step===1?'active':'')} data-step="1"><span className="pc-field-label">Estilo em campo</span><div className="pc-choice-grid">{PLAYER_ARCHETYPES.map(item=><button type="button" key={item.id} className={form.archetype===item.id?'selected':''} onClick={()=>update('archetype',item.id)}><strong>{item.label}</strong><small>{item.description}</small></button>)}</div></div>
+        <div className={'pc-creator-step '+(step===2?'active':'')} data-step="2"><span className="pc-field-label">Personalidade</span><div className="pc-personality-grid">{PLAYER_PERSONALITIES.map(item=><button type="button" key={item.id} className={form.personalityId===item.id?'selected':''} onClick={()=>update('personalityId',item.id)}><strong>{item.name}</strong><small>{item.description}</small></button>)}</div></div>
+        <div className={'pc-creator-step '+(step===3?'active':'')} data-step="3">
+          <div className="pc-inline-fields"><label><span>Pé dominante</span><select value={form.foot} onChange={event=>update('foot',event.target.value)}><option value="right">Direito</option><option value="left">Esquerdo</option></select></label><label><span>Clube dos sonhos</span><select value={form.dreamClubId} onChange={event=>update('dreamClubId',event.target.value)}>{clubs.slice().sort((a,b)=>a.name.localeCompare(b.name,'pt-BR')).map(club=><option key={club.id} value={club.id}>{club.name}</option>)}</select><small>É uma meta. A peneira define onde você começa.</small></label></div>
+          <div className="pc-rule-note"><Shield size={18}/><span><strong>Sem escolha direta do primeiro clube.</strong><small>Seu desempenho na peneira define a base compatível. Empresário, reputação e desempenho abrem outros mercados depois.</small></span></div>
+        </div>
+        <div className="pc-mobile-step-actions">{step>0&&<button type="button" className="pc-secondary" onClick={back}><ArrowLeft size={15}/> Anterior</button>}{step<steps.length-1&&<button type="button" className="pc-primary" disabled={step===0&&!form.name.trim()} onClick={next}>Próximo <ArrowRight size={15}/></button>}</div>
+        <button className={'pc-primary pc-create-submit '+(step===steps.length-1?'mobile-active':'')} disabled={!form.name.trim()} onClick={()=>onCreate(createPlayerCareer(form))}>Ir para a peneira <ArrowRight size={17}/></button>
       </div>
     </div>
   </section>;
