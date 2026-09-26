@@ -318,7 +318,7 @@ test('RC7 removes facial creation while preserving a neutral player identifier',
 });
 
 test('RC7 player mode surfaces coach rivalry personality and international market systems',function(){
-  for(const token of ['Personalidade','Chance de titularidade','Treinador','Mercado acessível','Argentina','Portugal','Espanha']){
+  for(const token of ['Personalidade','Sua chance de titularidade','Treinador','Mercado acessível','Argentina','Portugal','Espanha']){
     assert.ok(playerCareer.includes(token),token+' missing from RC7 player UI');
   }
 });
