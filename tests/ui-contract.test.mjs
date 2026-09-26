@@ -238,11 +238,13 @@ test('transfer UI separates market budget wage room and operating cash', functio
 });
 
 
-test('RC5 landing exposes separate manager and player careers without mixing saves', function(){
+test('RC9 landing exposes separate manager and player careers without mixing saves', function(){
   const landing=fs.readFileSync(new URL('../src/LandingScreen.jsx',import.meta.url),'utf8');
   const playerCareer=fs.readFileSync(new URL('../src/PlayerCareer.jsx',import.meta.url),'utf8');
-  assert.ok(landing.includes('MODO CARREIRA TREINADOR'));
-  assert.ok(landing.includes('MODO CARREIRA JOGADOR'));
+  assert.ok(landing.includes('landing-mode-card manager'));
+  assert.ok(landing.includes('landing-mode-card player'));
+  assert.ok(landing.includes('<strong>TREINADOR</strong>'));
+  assert.ok(landing.includes('<strong>JOGADOR</strong>'));
   assert.ok(playerCareer.includes('PLAYER_CAREER_KEY'));
   assert.ok(main.includes("gameMode==='player'"));
   assert.ok(main.includes("gameMode('manager')")||main.includes("setGameMode('manager')"));
