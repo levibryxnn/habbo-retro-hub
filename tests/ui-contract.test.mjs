@@ -323,3 +323,13 @@ test('RC7 player mode surfaces coach rivalry personality and international marke
   assert.ok(playerCareer.includes('PLAYER_WORLD_MARKETS'));
   for(const token of ['Argentina','Portugal','Espanha'])assert.ok(playerWorld.includes(token),token+' missing from RC7 world market engine');
 });
+
+
+test('RC7 player career exposes a real interactive match layer instead of post-match replay only',function(){
+  for(const text of ['NOTA AO VIVO','ENERGIA','Avançar 15 min','Simular até o fim','COMPORTAMENTO DURANTE A PARTIDA']){
+    assert.ok(playerCareer.includes(text),text+' is missing from interactive player match UI');
+  }
+  assert.ok(playerCareer.includes('advancePlayerLiveMatch'));
+  assert.ok(playerCareer.includes('setPlayerLiveApproach'));
+  assert.ok(playerCareer.includes('simulatePlayerLiveMatchToEnd'));
+});
