@@ -10,11 +10,16 @@ import {
   parsePlayerCareer,
   playerCareerOverall,
   playerObjectiveSnapshot,
+  playerAgendaSnapshot,
+  playerSquadCompetitionSnapshot,
+  negotiatePlayerContractOffer,
   respondPlayerContractOffer,
   sanitizePlayerCareer,
   serializePlayerCareer,
+  setPlayerContractPreference,
   setPlayerMatchApproach,
   simulatePlayerDay,
+  simulatePlayerUntilNextMatch,
   simulatePlayerWeek,
   trialScore,
 } from '../src/player-career-engine.js';
@@ -70,7 +75,7 @@ test('portable player save round-trips without touching manager save format',fun
   assert.equal(restored.mode,'player');
   assert.equal(restored.player.name,'Portátil');
   assert.equal(restored.clubId,original.clubId);
-  assert.equal(restored.version,3);
+  assert.equal(restored.version,4);
   assert.ok(sanitizePlayerCareer(restored,clubs));
 });
 
@@ -165,7 +170,7 @@ test('achievement popup queue preserves consecutive career moments',function(){
 });
 
 
-test('RC6 player career exposes market value objectives and position metrics after matches',function(){
+test('RC7 player career exposes market value objectives and position metrics after matches',function(){
   let career=finishTrial(createPlayerCareer({name:'Inteligência',position:'MEI',archetype:'creator',dreamClubId:clubs[0].id},2026));
   assert.ok(career.player.marketValue>=150000);
   assert.ok(playerObjectiveSnapshot(career).length>=2);
@@ -197,14 +202,80 @@ test('contract renewal can be accepted or refused and expiry creates a free agen
   assert.equal(leaving.clubId,null);
 });
 
-test('legacy v2 portable player saves migrate to RC6 without corrupting identity',function(){
+test('legacy v2 portable player saves migrate to RC7 without corrupting identity',function(){
   const original=finishTrial(createPlayerCareer({name:'Migração V2',position:'GOL',archetype:'technical',dreamClubId:clubs[4].id},2026));
   const legacy={...original,version:2};delete legacy.teamSeason;delete legacy.objectives;delete legacy.careerEvents;delete legacy.pendingContractOffer;delete legacy.performanceHistory;delete legacy.player.marketValue;
   const raw=JSON.stringify({signature:'linha-de-frente-player-save',fileVersion:2,exportedAt:new Date(0).toISOString(),career:legacy});
   const migrated=parsePlayerCareer(raw,clubs);
-  assert.equal(migrated.version,3);
+  assert.equal(migrated.version,4);
   assert.equal(migrated.player.name,'Migração V2');
   assert.ok(Array.isArray(migrated.objectives));
   assert.ok(migrated.teamSeason);
   assert.ok(Number.isFinite(migrated.player.marketValue));
+});
+
+
+test('RC7 new careers remove facial creation and store a real personality modifier',function(){
+  const career=createPlayerCareer({name:'Sem Rosto',position:'MEI',archetype:'technical',personalityId:'competitive',dreamClubId:clubs[0].id},2026);
+  assert.equal(career.player.face,undefined);
+  assert.equal(career.player.personalityId,'competitive');
+  assert.equal(career.version,4);
+});
+
+test('RC7 migrates legacy face data without using it as an active creator field',function(){
+  const original=finishTrial(createPlayerCareer({name:'Legado Facial',position:'ATA',archetype:'fast',dreamClubId:clubs[1].id},2026));
+  const legacy={...original,version:3,player:{...original.player,face:{skin:2,hair:4,hairColor:1,eyes:3,shape:2}}};
+  const raw=JSON.stringify({signature:'linha-de-frente-player-save',fileVersion:3,exportedAt:new Date(0).toISOString(),career:legacy});
+  const migrated=parsePlayerCareer(raw,clubs);
+  assert.equal(migrated.version,4);
+  assert.equal(migrated.player.face,undefined);
+  assert.deepEqual(migrated.player.legacyFace,{skin:2,hair:4,hairColor:1,eyes:3,shape:2});
+});
+
+test('RC7 agenda exposes recovery training tactical preparation match and rest days',function(){
+  const career=finishTrial(createPlayerCareer({name:'Agenda RC7',position:'DEF',archetype:'strong',dreamClubId:clubs[2].id},2026));
+  const agenda=playerAgendaSnapshot(career);
+  assert.equal(agenda.length,7);
+  const types=new Set(agenda.map(item=>item.type));
+  for(const type of ['recovery','training','tactical','preparation','match','rest'])assert.ok(types.has(type),type+' missing');
+});
+
+test('advance until next match uses the same daily simulation path',function(){
+  const career=finishTrial(createPlayerCareer({name:'Até Jogo',position:'MEI',archetype:'creator',dreamClubId:clubs[3].id},2026));
+  const advanced=simulatePlayerUntilNextMatch(career,clubs);
+  assert.ok(advanced.dayOfSeason>=1&&advanced.dayOfSeason<=7);
+  assert.ok(advanced.lastMatch||advanced.dayOfWeek===5);
+});
+
+test('RC7 squad hierarchy exposes coach rivalry and deterministic starter probability',function(){
+  const career=finishTrial(createPlayerCareer({name:'Concorrência',position:'ATA',archetype:'finisher',personalityId:'professional',dreamClubId:clubs[4].id},2026));
+  const first=playerSquadCompetitionSnapshot(career,clubs),second=playerSquadCompetitionSnapshot(career,clubs);
+  assert.ok(first.coach?.name);
+  assert.ok(first.coachProfile?.name);
+  assert.equal(first.rivals.length,3);
+  assert.ok(first.starterChance>=.03&&first.starterChance<=.96);
+  assert.deepEqual(first,second);
+});
+
+test('contract preference and one-round agent negotiation affect renewal state',function(){
+  let career=finishTrial(createPlayerCareer({name:'Negociador',position:'MEI',archetype:'technical',personalityId:'ambitious',dreamClubId:clubs[5].id},2026));
+  career={...career,stage:'professional',dayOfSeason:220,week:31,contract:{...career.contract,kind:'pro',expirySeason:2027,salaryMonthly:30000},pendingContractOffer:{id:'renew-rc7',clubId:career.clubId,clubName:career.contract.clubName,salaryMonthly:42000,signingBonus:60000,years:3,role:'Rotação',expiresDay:250,negotiated:false}};
+  career=setPlayerContractPreference(career,'starter');
+  assert.equal(career.contractPreference,'starter');
+  const negotiated=negotiatePlayerContractOffer(career,'role');
+  assert.equal(negotiated.pendingContractOffer.negotiated,true);
+  assert.ok(['accepted','rejected'].includes(negotiated.pendingContractOffer.negotiationResult));
+  const repeated=negotiatePlayerContractOffer(negotiated,'salary');
+  assert.deepEqual(repeated.pendingContractOffer,negotiated.pendingContractOffer);
+});
+
+test('post-match state stores briefing coach review timeline and role-specific feedback',function(){
+  let career=finishTrial(createPlayerCareer({name:'Jogo Vivo',position:'MEI',archetype:'creator',personalityId:'competitive',dreamClubId:clubs[6].id},2026));
+  for(let i=0;i<7&&!career.lastMatch;i++)career=simulatePlayerDay(career,clubs);
+  assert.ok(career.lastMatch);
+  assert.ok(career.lastMatch.briefing);
+  assert.ok(career.lastMatch.coachReview);
+  assert.ok(Array.isArray(career.lastMatch.timeline));
+  assert.ok(career.lastMatch.timeline.some(item=>item.type==='fulltime'));
+  if(career.lastMatch.performance)assert.ok(career.lastMatch.performance.metrics);
 });
