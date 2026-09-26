@@ -1,8 +1,7 @@
-import { getClubWorld } from './club-world.js';
 import { clamp, effectiveOverall, expectedGoals, formRegression, hashSeed, individualInjuryRisk, injuryRecovery, logisticDominance, mulberry32, teamStrength } from './ldf-engine.js';
 import { createPlayerFinance, effectivePlayerAttributes, enqueuePlayerMoment, playerLifeBonuses, refreshPlayerSponsorOffers, sanitizePlayerFinance, settlePlayerMonth } from './player-life-engine.js';
 import { moraleAfterEvent, objectiveProgress, playerDevelopmentScore, playerMarketValue, playerSeasonObjectives, playerTransferInterest, positionPerformanceMetrics, squadStatus, starterProbability } from './player-career-intelligence.js';
-import { buildPlayerMatchTimeline, coachPostMatchReview, ensurePlayerWorld, evolvePositionRivals, maybeChangePlayerCoach, personalityDef, playerAgendaForDay, playerCareerClubPool, playerClubBudgetM, playerClubLevel, playerClubMarket, playerPreMatchBriefing, playerSelectionContext, processPlayerWorldEvent } from './player-world-engine.js';
+import { buildPlayerMatchTimeline, coachPostMatchReview, ensurePlayerWorld, evolvePositionRivals, maybeChangePlayerCoach, personalityDef, playerAgendaForDay, playerCareerClubPool, playerClubBudgetM, playerClubLevel, playerClubMarket, playerPreMatchBriefing, playerSelectionContext, processPlayerWorldEvent, sanitizePlayerWorld } from './player-world-engine.js';
 import { parseSafeJson } from './save-format.js';
 
 export const PLAYER_CAREER_KEY='ldf.playerCareer.v1';
@@ -350,7 +349,7 @@ export function simulatePlayerDay(career,clubs=[]){
   }else{
     const agendaFactor=agenda.type==='preparation'?.55:agenda.type==='tactical'?.82:1,trainingDelta=trainingDay?(focus.condition/7-(focus.id==='physical'?1.1:.35))*agendaFactor:(1.05+life.dailyRecovery);p.condition=clamp(35,100,p.condition+trainingDelta);if(trainingDay)next.lastDay={day:next.dayOfSeason,type:agenda.type,title:agenda.label+' · '+focus.label,text:agenda.detail+' A sessão influencia condição, encaixe e risco.'};else next.lastDay={day:next.dayOfSeason,type:agenda.type,title:agenda.label,text:agenda.detail};
   }
-  p.morale=moraleAfterEvent(p.morale,Math.max(52,68+life.moraleBaseline*.45+(p.coachTrust-50)*.08+(p.contractSatisfaction-60)*.05),.10);next={...next,player:p};
+  const personality=personalityDef(p.personalityId),moraleWeight=clamp(.05,.16,.10/Math.max(.75,personality.moraleStability));p.morale=moraleAfterEvent(p.morale,Math.max(52,68+life.moraleBaseline*.45+(p.coachTrust-50)*.08+(p.contractSatisfaction-60)*.05),moraleWeight);next={...next,player:p};
   if(matchDay)next=simulatePlayerMatchDay(next,clubs);
   next=maybeContractRenewalOffer(next,club);next=maybeContextualCareerEvent(next,club);
   if(next.dayOfSeason>0&&next.dayOfSeason%28===0){next=settlePlayerMonth(next);next=refreshPlayerSponsorOffers(next);}
@@ -406,7 +405,7 @@ export function sanitizePlayerCareer(raw,clubs=[]){
     momentQueue:Array.isArray(raw.momentQueue)?raw.momentQueue.slice(0,20).filter(item=>item&&typeof item==='object').map(item=>({id:String(item.id||'moment').slice(0,100),type:String(item.type||'milestone').slice(0,40),title:String(item.title||'Momento da carreira').slice(0,120),subtitle:String(item.subtitle||'').slice(0,120),text:String(item.text||'').slice(0,500),season:clamp(2026,2100,finite(item.season,raw.season||2026)),day:clamp(0,266,finite(item.day,0))})):[],
     lastDay:raw.lastDay&&typeof raw.lastDay==='object'&&!Array.isArray(raw.lastDay)?{day:clamp(0,266,finite(raw.lastDay.day,0)),type:String(raw.lastDay.type||'day').slice(0,40),title:String(raw.lastDay.title||'Dia concluído').slice(0,120),text:String(raw.lastDay.text||'').slice(0,500)}:null,
   };
-  if(clubId){const currentClub=pool.find(item=>String(item.id)===clubId);merged.world=ensurePlayerWorld({...merged,world:raw.world},currentClub);}
+  if(clubId){const currentClub=pool.find(item=>String(item.id)===clubId);merged.world=sanitizePlayerWorld(raw.world,merged,currentClub);}
   return merged;
 }
 export function serializePlayerCareer(career){return JSON.stringify({signature:'linha-de-frente-player-save',fileVersion:4,exportedAt:new Date().toISOString(),career});}
