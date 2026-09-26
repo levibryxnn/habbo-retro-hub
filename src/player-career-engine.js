@@ -331,12 +331,12 @@ export function simulatePlayerDay(career,clubs=[]){
   if(career.stage==='free-agent'){
     let next={...career,dayOfSeason:finite(career.dayOfSeason,career.week*7)+1},p={...career.player};next.week=Math.floor(next.dayOfSeason/7);next.dayOfWeek=next.dayOfSeason%7;p.condition=clamp(35,100,p.condition+1.1);p.morale=moraleAfterEvent(p.morale,60,.08);next={...next,player:p,lastDay:{day:next.dayOfSeason,type:'market',title:'Treino individual',text:'Sem clube, você mantém a condição enquanto o empresário procura um novo contrato.'}};if(next.week%1===0)next=maybeTransferOffer(next,clubs,mulberry32(hashSeed(next.seed,next.season,next.dayOfSeason,'free-agent')),{freeAgent:true});return advancePlayerSeason(next);
   }
-  const club=clubs.find(c=>String(c.id)===String(career.clubId));if(!club)return career;
-  let next={...career,dayOfSeason:finite(career.dayOfSeason,career.week*7)+1},p={...career.player},life=playerLifeBonuses(career),focus=trainingDef(career.trainingFocus);
+  const club=playerCareerClubPool(clubs).find(c=>String(c.id)===String(career.clubId));if(!club)return career;
+  let next={...career,world:ensurePlayerWorld(career,club),dayOfSeason:finite(career.dayOfSeason,career.week*7)+1},p={...career.player},life=playerLifeBonuses(career),focus=trainingDef(career.trainingFocus);
   next.week=Math.floor(next.dayOfSeason/7);next.dayOfWeek=next.dayOfSeason%7;
   if(next.pendingOffer&&next.week>finite(next.pendingOffer.expiresWeek,next.week)){next={...next,pendingOffer:null,news:[{id:'offer-expired-'+next.season+'-'+next.dayOfSeason,title:'Proposta expirada',text:'A janela de decisão terminou e o clube retirou a proposta.',season:next.season,week:next.week,day:next.dayOfSeason},...(next.news||[])].slice(0,80)};}
   if(next.pendingContractOffer&&next.dayOfSeason>finite(next.pendingContractOffer.expiresDay,258)){const expired=next.pendingContractOffer;next={...next,pendingContractOffer:null,contractIntent:'leave',player:{...p,contractSatisfaction:moraleAfterEvent(p.contractSatisfaction,38,.30)},news:[{id:'contract-expired-'+next.season+'-'+next.dayOfSeason,title:'Renovação saiu da mesa',text:'O '+expired.clubName+' retirou a proposta de renovação após o prazo de resposta.',season:next.season,week:next.week,day:next.dayOfSeason},...(next.news||[])].slice(0,80)};p={...next.player};}
-  const trainingDay=[1,2,3,4].includes(next.dayOfWeek),matchDay=next.dayOfWeek===5;
+  const agenda=playerAgendaForDay(next,0),trainingDay=['training','tactical','preparation'].includes(agenda.type),matchDay=agenda.type==='match';
   if(p.injury){
     const previous={...p.injury},remaining=Math.max(0,finite(previous.daysRemaining,previous.matchesRemaining*7)-1);let injury=remaining>0?{...previous,daysRemaining:remaining,matchesRemaining:Math.max(1,Math.ceil(remaining/7))}:null,permanentText='';
     if(!injury&&!previous.permanentResolved&&finite(previous.permanentLossRisk,0)>0){
@@ -348,7 +348,7 @@ export function simulatePlayerDay(career,clubs=[]){
     }
     p.injury=injury;p.condition=clamp(35,100,p.condition+1.6+life.dailyRecovery);next.lastDay={day:next.dayOfSeason,type:injury?'recovery':'medical-clearance',title:injury?'Recuperação':'Liberado pelo departamento médico',text:injury?'O tratamento reduziu o tempo restante para '+remaining+' dia(s).':'Você está novamente disponível.'+permanentText};
   }else{
-    const trainingDelta=trainingDay?(focus.condition/7-(focus.id==='physical'?1.1:.35)):(1.05+life.dailyRecovery);p.condition=clamp(35,100,p.condition+trainingDelta);if(trainingDay)next.lastDay={day:next.dayOfSeason,type:'training',title:'Treino · '+focus.label,text:'A sessão alterou carga, preparação e risco para o próximo jogo.'};else next.lastDay={day:next.dayOfSeason,type:'recovery',title:'Rotina de recuperação',text:'Descanso, alimentação e estrutura pessoal influenciaram a condição.'};
+    const agendaFactor=agenda.type==='preparation'?.55:agenda.type==='tactical'?.82:1,trainingDelta=trainingDay?(focus.condition/7-(focus.id==='physical'?1.1:.35))*agendaFactor:(1.05+life.dailyRecovery);p.condition=clamp(35,100,p.condition+trainingDelta);if(trainingDay)next.lastDay={day:next.dayOfSeason,type:agenda.type,title:agenda.label+' · '+focus.label,text:agenda.detail+' A sessão influencia condição, encaixe e risco.'};else next.lastDay={day:next.dayOfSeason,type:agenda.type,title:agenda.label,text:agenda.detail};
   }
   p.morale=moraleAfterEvent(p.morale,Math.max(52,68+life.moraleBaseline*.45+(p.coachTrust-50)*.08+(p.contractSatisfaction-60)*.05),.10);next={...next,player:p};
   if(matchDay)next=simulatePlayerMatchDay(next,clubs);
@@ -360,6 +360,10 @@ export function simulatePlayerDays(career,clubs=[],days=1){
   let next=career;for(let i=0;i<Math.max(1,Math.min(31,Math.round(days)));i++){if(next.stage==='retired')break;next=simulatePlayerDay(next,clubs);}return next;
 }
 export function simulatePlayerWeek(career,clubs=[]){return simulatePlayerDays(career,clubs,7);}
+export function simulatePlayerUntilNextMatch(career,clubs=[]){
+  const preview=nextPlayerMatchPreview(career,clubs);if(!preview)return simulatePlayerWeek(career,clubs);
+  return simulatePlayerDays(career,clubs,Math.max(1,Math.min(7,preview.daysUntil)));
+}
 export function acknowledgePlayerMoment(career){
   const queue=Array.isArray(career?.momentQueue)?career.momentQueue:[];
   return{...career,pendingMoment:queue[0]||null,momentQueue:queue.slice(1)};
@@ -369,17 +373,17 @@ export function playerCalendarLabel(career){
 }
 export function sanitizePlayerCareer(raw,clubs=[]){
   if(!raw||raw.mode!=='player'||!raw.player||Number(raw.version||0)>PLAYER_CAREER_VERSION)return null;
-  const base=createPlayerCareer({name:raw.player.name,position:raw.player.position,archetype:raw.player.archetype,foot:raw.player.foot,dreamClubId:raw.dreamClubId,face:raw.player.face},finite(raw.season,2026));
+  const base=createPlayerCareer({name:raw.player.name,position:raw.player.position,archetype:raw.player.archetype,personalityId:raw.player.personalityId,foot:raw.player.foot,dreamClubId:raw.dreamClubId},finite(raw.season,2026)),pool=playerCareerClubPool(clubs);
   const stage=['trial','academy','professional','free-agent','retired'].includes(raw.stage)?raw.stage:'trial';
   const dayOfSeason=clamp(0,266,finite(raw.dayOfSeason,finite(raw.week,0)*7)),dayOfWeek=dayOfSeason%7;
-  const clubId=raw.clubId&&clubs.some(c=>String(c.id)===String(raw.clubId))?String(raw.clubId):null;
+  const clubId=raw.clubId&&pool.some(c=>String(c.id)===String(raw.clubId))?String(raw.clubId):null;
   const matchApproach=PLAYER_MATCH_APPROACHES.some(item=>item.id===raw.matchApproach)?raw.matchApproach:'balanced';
   const trainingFocus=PLAYER_TRAINING.some(item=>item.id===raw.trainingFocus)?raw.trainingFocus:'balanced';
   const nationalTeamStatus=['none','called-up'].includes(raw.nationalTeamStatus)?raw.nationalTeamStatus:'none';
   const rawContract=raw.contract&&typeof raw.contract==='object'&&!Array.isArray(raw.contract)?raw.contract:null;
   const contract=rawContract&&clubId?{
     clubId,
-    clubName:String(rawContract.clubName||clubs.find(c=>String(c.id)===clubId)?.name||'Clube').slice(0,100),
+    clubName:String(rawContract.clubName||pool.find(c=>String(c.id)===clubId)?.name||'Clube').slice(0,100),
     startSeason:clamp(2026,2100,finite(rawContract.startSeason,raw.season||2026)),
     expirySeason:clamp(2026,2110,finite(rawContract.expirySeason,(raw.season||2026)+3)),
     salaryMonthly:clamp(0,100_000_000,finite(rawContract.salaryMonthly,0)),
@@ -391,9 +395,9 @@ export function sanitizePlayerCareer(raw,clubs=[]){
     goals:clamp(0,10000,finite(value?.goals,0)),assists:clamp(0,10000,finite(value?.assists,0)),totalRating:clamp(0,100000,finite(value?.totalRating,0)),titles:clamp(0,500,finite(value?.titles,0)),
   });
   const merged={
-    ...base,...raw,version:PLAYER_CAREER_VERSION,mode:'player',stage,clubId,matchApproach,trainingFocus,nationalTeamStatus,contract,finance:sanitizePlayerFinance(raw.finance||base.finance),dayOfSeason,dayOfWeek,contractIntent:['open','leave','renewed'].includes(raw.contractIntent)?raw.contractIntent:'open',
+    ...base,...raw,version:PLAYER_CAREER_VERSION,mode:'player',stage,clubId,matchApproach,trainingFocus,nationalTeamStatus,contract,finance:sanitizePlayerFinance(raw.finance||base.finance),dayOfSeason,dayOfWeek,contractIntent:['open','leave','renewed'].includes(raw.contractIntent)?raw.contractIntent:'open',contractPreference:['renew','open','leave','starter'].includes(raw.contractPreference)?raw.contractPreference:'open',objectiveRewards:Array.isArray(raw.objectiveRewards)?raw.objectiveRewards.slice(0,80).map(String):[],worldEventLedger:Array.isArray(raw.worldEventLedger)?raw.worldEventLedger.slice(0,160):[],
     age:clamp(16,50,finite(raw.age,16)),week:clamp(0,38,Math.floor(dayOfSeason/7)),season:clamp(2026,2100,finite(raw.season,2026)),
-    player:{...base.player,...raw.player,name:safeName(raw.player.name),marketValue:clamp(0,250_000_000,finite(raw.player.marketValue,0)),attributes:{...base.player.attributes,...Object.fromEntries(Object.entries(raw.player.attributes||{}).map(([key,value])=>[key,clamp(1,99,finite(value,base.player.attributes[key]||50))]))},condition:clamp(35,100,finite(raw.player.condition,100)),morale:clamp(0,100,finite(raw.player.morale,78)),coachTrust:clamp(0,100,finite(raw.player.coachTrust,42)),reputation:clamp(1,100,finite(raw.player.reputation,5)),contractSatisfaction:clamp(0,100,finite(raw.player.contractSatisfaction,70)),potential:clamp(45,99,finite(raw.player.potential,base.player.potential)),injuryHistory:clamp(0,100,finite(raw.player.injuryHistory,0)),injury:raw.player.injury?{...raw.player.injury,daysRemaining:clamp(0,365,finite(raw.player.injury.daysRemaining,finite(raw.player.injury.matchesRemaining,0)*7)),matchesRemaining:clamp(0,52,finite(raw.player.injury.matchesRemaining,Math.ceil(finite(raw.player.injury.daysRemaining,0)/7))),permanentLossRisk:clamp(0,.18,finite(raw.player.injury.permanentLossRisk,0)),permanentResolved:Boolean(raw.player.injury.permanentResolved)}:null,face:{...base.player.face,...raw.player.face}},
+    player:{...base.player,...raw.player,name:safeName(raw.player.name),marketValue:clamp(0,250_000_000,finite(raw.player.marketValue,0)),attributes:{...base.player.attributes,...Object.fromEntries(Object.entries(raw.player.attributes||{}).map(([key,value])=>[key,clamp(1,99,finite(value,base.player.attributes[key]||50))]))},condition:clamp(35,100,finite(raw.player.condition,100)),morale:clamp(0,100,finite(raw.player.morale,78)),coachTrust:clamp(0,100,finite(raw.player.coachTrust,42)),reputation:clamp(1,100,finite(raw.player.reputation,5)),contractSatisfaction:clamp(0,100,finite(raw.player.contractSatisfaction,70)),potential:clamp(45,99,finite(raw.player.potential,base.player.potential)),injuryHistory:clamp(0,100,finite(raw.player.injuryHistory,0)),personalityId:personalityDef(raw.player.personalityId).id,injury:raw.player.injury?{...raw.player.injury,daysRemaining:clamp(0,365,finite(raw.player.injury.daysRemaining,finite(raw.player.injury.matchesRemaining,0)*7)),matchesRemaining:clamp(0,52,finite(raw.player.injury.matchesRemaining,Math.ceil(finite(raw.player.injury.daysRemaining,0)/7))),permanentLossRisk:clamp(0,.18,finite(raw.player.injury.permanentLossRisk,0)),permanentResolved:Boolean(raw.player.injury.permanentResolved)}:null,legacyFace:raw.player.face&&typeof raw.player.face==='object'?{...raw.player.face}:raw.player.legacyFace||null},
     careerStats:sanitizeStats(raw.careerStats),seasonStats:sanitizeStats(raw.seasonStats),
     timeline:Array.isArray(raw.timeline)?raw.timeline.slice(0,120):base.timeline,news:Array.isArray(raw.news)?raw.news.slice(0,80):[],achievements:Array.isArray(raw.achievements)?raw.achievements.slice(0,80):[],awards:Array.isArray(raw.awards)?raw.awards.slice(0,60):[],
     objectives:Array.isArray(raw.objectives)?raw.objectives.slice(0,8):playerSeasonObjectives({...base,...raw,stage,clubId}),teamSeason:raw.teamSeason&&typeof raw.teamSeason==='object'?{matches:clamp(0,100,finite(raw.teamSeason.matches,0)),wins:clamp(0,100,finite(raw.teamSeason.wins,0)),draws:clamp(0,100,finite(raw.teamSeason.draws,0)),losses:clamp(0,100,finite(raw.teamSeason.losses,0)),goalsFor:clamp(0,500,finite(raw.teamSeason.goalsFor,0)),goalsAgainst:clamp(0,500,finite(raw.teamSeason.goalsAgainst,0)),points:clamp(0,300,finite(raw.teamSeason.points,0))}:base.teamSeason,performanceHistory:Array.isArray(raw.performanceHistory)?raw.performanceHistory.slice(0,12):[],careerEvents:Array.isArray(raw.careerEvents)?raw.careerEvents.slice(0,60):[],pendingContractOffer:raw.pendingContractOffer&&typeof raw.pendingContractOffer==='object'&&!Array.isArray(raw.pendingContractOffer)?{...raw.pendingContractOffer,clubId:String(raw.pendingContractOffer.clubId||'').slice(0,80),clubName:String(raw.pendingContractOffer.clubName||'').slice(0,100),salaryMonthly:clamp(0,100_000_000,finite(raw.pendingContractOffer.salaryMonthly,0)),years:clamp(1,5,finite(raw.pendingContractOffer.years,3)),expiresDay:clamp(0,266,finite(raw.pendingContractOffer.expiresDay,250))}:null,
@@ -402,11 +406,12 @@ export function sanitizePlayerCareer(raw,clubs=[]){
     momentQueue:Array.isArray(raw.momentQueue)?raw.momentQueue.slice(0,20).filter(item=>item&&typeof item==='object').map(item=>({id:String(item.id||'moment').slice(0,100),type:String(item.type||'milestone').slice(0,40),title:String(item.title||'Momento da carreira').slice(0,120),subtitle:String(item.subtitle||'').slice(0,120),text:String(item.text||'').slice(0,500),season:clamp(2026,2100,finite(item.season,raw.season||2026)),day:clamp(0,266,finite(item.day,0))})):[],
     lastDay:raw.lastDay&&typeof raw.lastDay==='object'&&!Array.isArray(raw.lastDay)?{day:clamp(0,266,finite(raw.lastDay.day,0)),type:String(raw.lastDay.type||'day').slice(0,40),title:String(raw.lastDay.title||'Dia concluído').slice(0,120),text:String(raw.lastDay.text||'').slice(0,500)}:null,
   };
+  if(clubId){const currentClub=pool.find(item=>String(item.id)===clubId);merged.world=ensurePlayerWorld({...merged,world:raw.world},currentClub);}
   return merged;
 }
-export function serializePlayerCareer(career){return JSON.stringify({signature:'linha-de-frente-player-save',fileVersion:3,exportedAt:new Date().toISOString(),career});}
+export function serializePlayerCareer(career){return JSON.stringify({signature:'linha-de-frente-player-save',fileVersion:4,exportedAt:new Date().toISOString(),career});}
 export function parsePlayerCareer(text,clubs=[]){
   const payload=parseSafeJson(text);
-  if(!payload||payload.signature!=='linha-de-frente-player-save'||payload.fileVersion>3)throw new Error('Este arquivo não é uma carreira de jogador válida.');
+  if(!payload||payload.signature!=='linha-de-frente-player-save'||payload.fileVersion>4)throw new Error('Este arquivo não é uma carreira de jogador válida.');
   const career=sanitizePlayerCareer(payload.career,clubs);if(!career)throw new Error('Estado da carreira de jogador inválido.');return career;
 }
