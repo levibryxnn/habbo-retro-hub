@@ -29,6 +29,10 @@ async function createAndFinishPlayer(page,name='Browser QA'){
   if(name==='Browser QA')await page.screenshot({path:'browser-artifacts/02-player-creator.png',fullPage:true});
   assert.equal(await page.locator('.pc-face-controls,.pc-face').count(),0,'facial creator returned to RC9');
   await page.locator('input[placeholder="Digite o nome"]').fill(name);
+  const mobileNext=page.getByRole('button',{name:/Próximo/i});
+  if(await mobileNext.isVisible()){
+    for(let step=0;step<3;step++)await mobileNext.click();
+  }
   await page.getByRole('button',{name:/Ir para a peneira/i}).click();
   for(let index=0;index<5;index++){
     const choices=page.locator('.pc-trial-choices button');
@@ -156,8 +160,89 @@ async function managerFlow(browser){
   await context.close();
 }
 
+
+async function mobileCreatorLayout(browser,width,height,label){
+  const context=await browser.newContext({viewport:{width,height},isMobile:true,hasTouch:true});
+  const page=await context.newPage(),errors=collectRuntimeErrors(page,'creator-'+label);
+  await page.goto(baseURL,{waitUntil:'networkidle'});
+  await waitForText(page,'Escolha onde sua carreira começa.');
+  await page.getByRole('button',{name:/MODO CARREIRA JOGADOR/i}).click();
+  await waitForText(page,'Crie seu craque.');
+  await page.locator('input[placeholder="Digite o nome"]').fill('Levi QA');
+  await noHorizontalOverflow(page,'player creator '+label);
+
+  const metrics=await page.evaluate(()=>{
+    const box=selector=>{
+      const el=document.querySelector(selector);
+      if(!el)return null;
+      const r=el.getBoundingClientRect();
+      return {x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom};
+    };
+    const visible=el=>{
+      const s=getComputedStyle(el),r=el.getBoundingClientRect();
+      return s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0;
+    };
+    const offenders=[...document.querySelectorAll('.pc-creator *')]
+      .filter(visible)
+      .map(el=>({tag:el.tagName,cls:el.className||'',text:(el.textContent||'').trim().slice(0,50),rect:el.getBoundingClientRect()}))
+      .filter(item=>item.rect.left<-2||item.rect.right>window.innerWidth+2)
+      .map(item=>({tag:item.tag,cls:String(item.cls),text:item.text,left:item.rect.left,right:item.rect.right}));
+    return {
+      viewport:{width:window.innerWidth,height:window.innerHeight,scale:window.visualViewport?.scale||1},
+      topbar:box('.pc-topbar'),
+      intro:box('.pc-creator-intro'),
+      identity:box('.pc-identity-preview'),
+      form:box('.pc-form'),
+      offenders
+    };
+  });
+
+  assert.equal(metrics.viewport.scale,1,'player creator '+label+' is not at 100% browser zoom');
+  assert.ok(metrics.topbar&&metrics.topbar.height<=56,'mobile topbar is too tall at '+label+': '+JSON.stringify(metrics.topbar));
+  assert.ok(metrics.intro&&metrics.intro.height<=100,'creator intro is too tall at '+label+': '+JSON.stringify(metrics.intro));
+  assert.ok(metrics.identity&&metrics.identity.height<=90,'identity preview is too tall at '+label+': '+JSON.stringify(metrics.identity));
+  assert.ok(metrics.form&&metrics.form.width<=width-8,'creator form exceeds viewport at '+label+': '+JSON.stringify(metrics.form));
+  assert.deepEqual(metrics.offenders,[],'creator elements escape viewport at '+label+': '+JSON.stringify(metrics.offenders));
+
+  async function assertStep(stepIndex,expectedLabel){
+    await waitForText(page,expectedLabel);
+    const active=page.locator('.pc-creator-step.active');
+    const stepBox=await active.boundingBox();
+    const formBox=await page.locator('.pc-form').boundingBox();
+    assert.ok(stepBox,'creator step '+stepIndex+' is not visible at '+label);
+    assert.ok(formBox&&formBox.y+formBox.height<=height-8,'creator step '+stepIndex+' does not fit at 100% zoom at '+label+': '+JSON.stringify(formBox));
+    await noHorizontalOverflow(page,'player creator '+label+' step '+stepIndex);
+    const visibleButtons=active.locator('button:visible');
+    const count=await visibleButtons.count();
+    for(let i=0;i<count;i++){
+      const b=await visibleButtons.nth(i).boundingBox();
+      assert.ok(b&&b.height<=72,'creator choice is too tall at '+label+' step '+stepIndex+': '+JSON.stringify(b));
+    }
+  }
+
+  await assertStep(0,'Perfil');
+  await page.screenshot({path:'browser-artifacts/player-creator-'+label+'-01-profile.png',fullPage:true});
+  const next=page.getByRole('button',{name:/Próximo/i});
+  await next.click();
+  await assertStep(1,'Estilo');
+  await next.click();
+  await assertStep(2,'Personalidade');
+  await next.click();
+  await assertStep(3,'Detalhes');
+
+  const cta=page.getByRole('button',{name:/Ir para a peneira/i});
+  const ctaBox=await cta.boundingBox();
+  const ruleBox=await page.locator('.pc-rule-note').boundingBox();
+  assert.ok(ctaBox&&ctaBox.x>=0&&ctaBox.x+ctaBox.width<=width+1,'creator CTA is horizontally clipped at '+label+': '+JSON.stringify(ctaBox));
+  assert.ok(ctaBox&&ctaBox.y+ctaBox.height<=height-8,'creator CTA is not visible at 100% zoom at '+label+': '+JSON.stringify(ctaBox));
+  assert.ok(ctaBox&&ruleBox&&ctaBox.y>=ruleBox.y+ruleBox.height,'creator CTA overlaps the final form content at '+label+': '+JSON.stringify({ctaBox,ruleBox}));
+  await page.screenshot({path:'browser-artifacts/player-creator-'+label+'-04-details.png',fullPage:true});
+  assert.deepEqual(errors,[],errors.join('\n'));
+  await context.close();
+}
+
 async function mobileFlow(browser){
-  const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+  const context=await browser.newContext({viewport:{width:393,height:851},isMobile:true,hasTouch:true});
   const page=await context.newPage(),errors=collectRuntimeErrors(page,'mobile');
   await page.goto(baseURL,{waitUntil:'networkidle'});
   await waitForText(page,'Escolha onde sua carreira começa.');
@@ -188,8 +273,11 @@ async function mobileFlow(browser){
 
 const browser=await chromium.launch({headless:true});
 try{
+  await mobileCreatorLayout(browser,360,800,'360x800');
+  await mobileCreatorLayout(browser,393,851,'393x851');
+  await mobileCreatorLayout(browser,412,915,'412x915');
   await playerFlow(browser);
   await managerFlow(browser);
   await mobileFlow(browser);
-  console.log('Browser smoke passed: RC9 mandatory visual evidence, 100% zoom overflow checks, manager regression and mobile flows.');
+  console.log('Browser smoke passed: RC9 mobile creator at 360x800, 393x851 and 412x915; 100% zoom overflow checks, manager regression and mobile flows.');
 }finally{await browser.close();}
