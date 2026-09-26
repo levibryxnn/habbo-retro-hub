@@ -45,6 +45,8 @@ async function playerFlow(browser){
   await page.locator('.pc-dashboard').waitFor({state:'visible',timeout:15000});
   await waitForText(page,'Valor de mercado');
   await waitForText(page,'Objetivos da temporada');
+  const faceBox=await page.locator('.pc-player-head .pc-face').boundingBox();
+  assert.ok(faceBox&&faceBox.width<=100&&faceBox.height<=110&&faceBox.width/faceBox.height<1.15,'player status avatar is stretched: '+JSON.stringify(faceBox));
   await page.screenshot({path:'browser-artifacts/02-player-dashboard.png',fullPage:true});
   await noHorizontalOverflow(page,'player dashboard');
 
