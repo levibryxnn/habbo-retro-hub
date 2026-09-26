@@ -1,7 +1,7 @@
 import React from 'react';
-import { BadgeDollarSign, BriefcaseBusiness, Footprints, HeartPulse, House, Sparkles } from 'lucide-react';
+import { BadgeDollarSign, BriefcaseBusiness, Dumbbell, Footprints, HeartPulse, House, Landmark, Sparkles } from 'lucide-react';
 
-const ICONS={agent:BriefcaseBusiness,boots:Footprints,physio:HeartPulse,home:House,sponsor:BadgeDollarSign};
+const ICONS={agent:BriefcaseBusiness,boots:Footprints,physio:HeartPulse,service:Dumbbell,home:House,asset:Landmark,sponsor:BadgeDollarSign};
 
 export default function PlayerLifeVisual({type='agent',title='',subtitle=''}) {
   const Icon=ICONS[type]||Sparkles;
