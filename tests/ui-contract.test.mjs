@@ -84,10 +84,10 @@ test('club-specific colors are scoped to the club hero rather than the whole int
 });
 
 
-test('V3 asks for a manager name when taking control of a club', function(){
+test('RC8 asks for a manager name when taking control of a club', function(){
   assert.ok(main.includes("Nome do técnico"));
   assert.ok(main.includes("managerName"));
-  assert.ok(main.includes("1.0 RC6"));
+  assert.ok(main.includes("1.0 RC8"));
   assert.ok(!main.includes("Protótipo de gestão"));
   assert.ok(!main.includes("ETAPA 2 ·"));
 });
