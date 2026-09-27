@@ -317,7 +317,7 @@ test('RC9 keeps facial creation removed while preserving a neutral player identi
   assert.equal(playerCareer.includes('pc-face-controls'),false);
   assert.equal(playerCareer.includes('function Face('),false);
   assert.ok(playerCareer.includes('PlayerMark'));
-  assert.ok(playerCareer.includes('MODO CARREIRA JOGADOR · RC9'));
+  assert.ok(playerCareer.includes('MODO CARREIRA JOGADOR · RC9.2'));
   assert.ok(playerCareer.includes('Crie seu craque.'));
 });
 
