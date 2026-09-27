@@ -83,6 +83,34 @@ jobs:
           echo "=== HTTPS JS ignoring certificate ==="
           curl -ksS -D - -o /dev/null "https://trackson.com.br/${JS#./}" || true
 
+      - name: Public browser render check
+        shell: bash
+        run: |
+          set -e
+          npm init -y >/dev/null 2>&1
+          npm install --no-save playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+          cat > /tmp/public-check.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          const browser=await chromium.launch({headless:true});
+          const context=await browser.newContext({viewport:{width:390,height:640},isMobile:true,hasTouch:true});
+          const page=await context.newPage();
+          const errors=[];
+          page.on('console',m=>{ if(m.type()==='error') errors.push('console: '+m.text()); });
+          page.on('pageerror',e=>errors.push('pageerror: '+e.message));
+          const response=await page.goto('http://trackson.com.br/',{waitUntil:'networkidle',timeout:30000});
+          console.log('status',response?.status());
+          console.log('url',page.url());
+          console.log('title',await page.title());
+          const body=(await page.locator('body').innerText()).slice(0,1000);
+          console.log('body',body);
+          console.log('errors',JSON.stringify(errors));
+          if(!body.includes('Escolha onde sua carreira começa.')) throw new Error('Landing did not render');
+          if(errors.length) throw new Error(errors.join('\n'));
+          await browser.close();
+          EOF
+          node /tmp/public-check.mjs
+
       - name: WHOIS
         shell: bash
         run: |
