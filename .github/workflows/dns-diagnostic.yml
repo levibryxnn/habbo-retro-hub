@@ -1,0 +1,67 @@
+name: DNS Diagnostic
+
+on:
+  push:
+    branches: [dns-diagnostic]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Install DNS tools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq dnsutils whois
+
+      - name: DNS root checks
+        shell: bash
+        run: |
+          set +e
+          echo "=== system resolver ==="
+          getent ahostsv4 trackson.com.br
+          echo
+          echo "=== Google 8.8.8.8 A ==="
+          dig @8.8.8.8 trackson.com.br A +noall +answer +comments
+          echo
+          echo "=== Cloudflare 1.1.1.1 A ==="
+          dig @1.1.1.1 trackson.com.br A +noall +answer +comments
+          echo
+          echo "=== Google NS ==="
+          dig @8.8.8.8 trackson.com.br NS +noall +answer +authority +comments
+          echo
+          echo "=== .br delegation ==="
+          dig @a.dns.br trackson.com.br NS +noall +answer +authority +comments
+          echo
+          echo "=== TRACE ==="
+          dig +trace trackson.com.br A
+
+      - name: WWW checks
+        shell: bash
+        run: |
+          set +e
+          echo "=== www CNAME Google ==="
+          dig @8.8.8.8 www.trackson.com.br CNAME +noall +answer +comments
+          echo
+          echo "=== www A Google ==="
+          dig @8.8.8.8 www.trackson.com.br A +noall +answer +comments
+
+      - name: WHOIS
+        shell: bash
+        run: |
+          set +e
+          whois trackson.com.br || true
+
+      - name: HTTP checks
+        shell: bash
+        run: |
+          set +e
+          echo "=== HTTP apex ==="
+          curl -vI --max-time 15 http://trackson.com.br 2>&1 || true
+          echo
+          echo "=== HTTPS apex ==="
+          curl -vkI --max-time 15 https://trackson.com.br 2>&1 || true
+          echo
+          echo "=== GitHub project URL ==="
+          curl -vkI --max-time 15 https://levibryxnn.github.io/habbo-retro-hub/ 2>&1 || true
