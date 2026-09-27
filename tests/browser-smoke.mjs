@@ -188,7 +188,7 @@ async function mobileCreatorLayout(browser,width,height,label){
       .filter(item=>item.rect.left<-2||item.rect.right>window.innerWidth+2)
       .map(item=>({tag:item.tag,cls:String(item.cls),text:item.text,left:item.rect.left,right:item.rect.right}));
     return {
-      viewport:{width:window.innerWidth,height:window.innerHeight,scale:window.visualViewport?.scale||1},
+      viewport:{width:window.innerWidth,height:window.innerHeight,scale:window.visualViewport?.scale||1,textAdjust:getComputedStyle(document.documentElement).webkitTextSizeAdjust||getComputedStyle(document.documentElement).textSizeAdjust},
       topbar:box('.pc-topbar'),
       intro:box('.pc-creator-intro'),
       identity:box('.pc-identity-preview'),
@@ -198,6 +198,7 @@ async function mobileCreatorLayout(browser,width,height,label){
   });
 
   assert.equal(metrics.viewport.scale,1,'player creator '+label+' is not at 100% browser zoom');
+  assert.ok(String(metrics.viewport.textAdjust).includes('100'),'mobile browser text autosizing is not normalized at '+label+': '+JSON.stringify(metrics.viewport));
   assert.ok(metrics.topbar&&metrics.topbar.height<=56,'mobile topbar is too tall at '+label+': '+JSON.stringify(metrics.topbar));
   assert.ok(metrics.intro&&metrics.intro.height<=100,'creator intro is too tall at '+label+': '+JSON.stringify(metrics.intro));
   assert.ok(metrics.identity&&metrics.identity.height<=90,'identity preview is too tall at '+label+': '+JSON.stringify(metrics.identity));
@@ -242,7 +243,7 @@ async function mobileCreatorLayout(browser,width,height,label){
 }
 
 async function mobileFlow(browser){
-  const context=await browser.newContext({viewport:{width:393,height:851},isMobile:true,hasTouch:true});
+  const context=await browser.newContext({viewport:{width:393,height:700},isMobile:true,hasTouch:true});
   const page=await context.newPage(),errors=collectRuntimeErrors(page,'mobile');
   await page.goto(baseURL,{waitUntil:'networkidle'});
   await waitForText(page,'Escolha onde sua carreira começa.');
@@ -273,11 +274,11 @@ async function mobileFlow(browser){
 
 const browser=await chromium.launch({headless:true});
 try{
-  await mobileCreatorLayout(browser,360,800,'360x800');
-  await mobileCreatorLayout(browser,393,851,'393x851');
-  await mobileCreatorLayout(browser,412,915,'412x915');
+  await mobileCreatorLayout(browser,360,640,'360x640');
+  await mobileCreatorLayout(browser,393,700,'393x700');
+  await mobileCreatorLayout(browser,412,740,'412x740');
   await playerFlow(browser);
   await managerFlow(browser);
   await mobileFlow(browser);
-  console.log('Browser smoke passed: RC9 mobile creator at 360x800, 393x851 and 412x915; 100% zoom overflow checks, manager regression and mobile flows.');
+  console.log('Browser smoke passed: RC9.2 real mobile viewport audit at 360x640, 393x700 and 412x740; 100% zoom, text autosizing, overflow, manager regression and mobile flows.');
 }finally{await browser.close();}
