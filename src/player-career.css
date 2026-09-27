@@ -708,3 +708,11 @@
   .pc-personality-grid strong{font-size:10px!important}
   .pc-personality-grid small{font-size:7px!important}
 }
+
+/* RC9.2 · real Android browser guard */
+.player-career-shell{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!important;width:100%!important;max-width:100%!important;overflow-x:hidden!important}
+@media(max-width:480px){
+  .pc-topbar,.pc-body,.pc-footer,.pc-creator,.pc-creator-layout,.pc-form,.pc-dashboard{max-width:100%!important;min-width:0!important}
+  .pc-body{padding-top:6px!important;padding-bottom:18px!important}
+  .pc-footer{margin-top:8px!important;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))!important}
+}
