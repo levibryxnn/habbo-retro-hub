@@ -64,6 +64,25 @@ jobs:
           echo "=== authoritative www directly ==="
           dig @d.sec.dns.br www.trackson.com.br CNAME +noall +answer +authority +comments
 
+      - name: Asset and TLS checks
+        shell: bash
+        run: |
+          set +e
+          echo "=== HTTP index ==="
+          curl -sS -D - -o /tmp/index.html http://trackson.com.br/
+          grep -Eo 'src="[^"]+|href="[^"]+' /tmp/index.html || true
+          JS=$(grep -Eo 'src="[^"]+\.js' /tmp/index.html | head -1 | cut -d'"' -f2)
+          CSS=$(grep -Eo 'href="[^"]+\.css' /tmp/index.html | head -1 | cut -d'"' -f2)
+          echo "JS=$JS CSS=$CSS"
+          echo "=== HTTP JS ==="
+          curl -sS -D - -o /dev/null "http://trackson.com.br/${JS#./}"
+          echo "=== HTTPS certificate validation ==="
+          curl -sS -I --max-time 15 https://trackson.com.br/ || true
+          echo "=== HTTPS JS certificate validation ==="
+          curl -sS -I --max-time 15 "https://trackson.com.br/${JS#./}" || true
+          echo "=== HTTPS JS ignoring certificate ==="
+          curl -ksS -D - -o /dev/null "https://trackson.com.br/${JS#./}" || true
+
       - name: WHOIS
         shell: bash
         run: |
