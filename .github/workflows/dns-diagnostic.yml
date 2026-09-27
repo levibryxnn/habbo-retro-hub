@@ -82,3 +82,5 @@ jobs:
           echo
           echo "=== GitHub project URL ==="
           curl -vkI --max-time 15 https://levibryxnn.github.io/habbo-retro-hub/ 2>&1 || true
+
+# rerun after Registro.br zone save
