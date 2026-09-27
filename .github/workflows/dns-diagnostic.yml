@@ -47,6 +47,23 @@ jobs:
           echo "=== www A Google ==="
           dig @8.8.8.8 www.trackson.com.br A +noall +answer +comments
 
+      - name: Check for duplicated Registro.br hostnames
+        shell: bash
+        run: |
+          set +e
+          echo "=== possible duplicated apex ==="
+          dig @d.sec.dns.br trackson.com.br.trackson.com.br A +noall +answer +comments
+          echo
+          echo "=== possible duplicated www ==="
+          dig @d.sec.dns.br www.trackson.com.br.trackson.com.br CNAME +noall +answer +comments
+          dig @d.sec.dns.br www.trackson.com.br.trackson.com.br A +noall +answer +comments
+          echo
+          echo "=== authoritative apex A directly ==="
+          dig @d.sec.dns.br trackson.com.br A +noall +answer +authority +comments
+          echo
+          echo "=== authoritative www directly ==="
+          dig @d.sec.dns.br www.trackson.com.br CNAME +noall +answer +authority +comments
+
       - name: WHOIS
         shell: bash
         run: |
