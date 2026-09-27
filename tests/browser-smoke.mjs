@@ -243,7 +243,7 @@ async function mobileCreatorLayout(browser,width,height,label){
 }
 
 async function mobileFlow(browser){
-  const context=await browser.newContext({viewport:{width:393,height:700},isMobile:true,hasTouch:true});
+  const context=await browser.newContext({viewport:{width:393,height:660},isMobile:true,hasTouch:true});
   const page=await context.newPage(),errors=collectRuntimeErrors(page,'mobile');
   await page.goto(baseURL,{waitUntil:'networkidle'});
   await waitForText(page,'Escolha onde sua carreira começa.');
@@ -274,11 +274,11 @@ async function mobileFlow(browser){
 
 const browser=await chromium.launch({headless:true});
 try{
-  await mobileCreatorLayout(browser,360,640,'360x640');
-  await mobileCreatorLayout(browser,393,700,'393x700');
-  await mobileCreatorLayout(browser,412,740,'412x740');
+  await mobileCreatorLayout(browser,360,600,'360x600');
+  await mobileCreatorLayout(browser,393,660,'393x660');
+  await mobileCreatorLayout(browser,412,700,'412x700');
   await playerFlow(browser);
   await managerFlow(browser);
   await mobileFlow(browser);
-  console.log('Browser smoke passed: RC9.2 real mobile viewport audit at 360x640, 393x700 and 412x740; 100% zoom, text autosizing, overflow, manager regression and mobile flows.');
+  console.log('Browser smoke passed: RC9.2 real mobile viewport audit at 360x600, 393x660 and 412x700; 100% zoom, text autosizing, overflow, manager regression and mobile flows.');
 }finally{await browser.close();}
