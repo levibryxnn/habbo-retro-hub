@@ -206,7 +206,9 @@ async function mobileCreatorLayout(browser,width,height,label){
   assert.deepEqual(metrics.offenders,[],'creator elements escape viewport at '+label+': '+JSON.stringify(metrics.offenders));
 
   async function assertStep(stepIndex,expectedLabel){
-    await waitForText(page,expectedLabel);
+    const label=page.locator('.pc-mobile-stepbar>strong');
+    await label.waitFor({state:'visible',timeout:5000});
+    assert.equal((await label.textContent())?.trim(),expectedLabel,'wrong creator step label at '+label);
     const active=page.locator('.pc-creator-step.active');
     const stepBox=await active.boundingBox();
     const formBox=await page.locator('.pc-form').boundingBox();
